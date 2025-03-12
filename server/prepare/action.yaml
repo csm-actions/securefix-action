@@ -1,0 +1,212 @@
+name: Prepare for fixing code
+description: Prepare for fixing code
+inputs:
+  app_id:
+    description: |
+      GitHub App ID
+    required: true
+  app_private_key:
+    description: |
+      GitHub App Private Key
+    required: true
+  workflow_name:
+    description: |
+      Client Workflow name. If this is empty, the action does not check the workflow name.
+    required: true
+    default: securefix
+  pull_request_comment:
+    description: |
+      Pull Request comment
+    required: true
+    default: |
+      :x: Securefix failed.
+outputs:
+  pr:
+    description: |
+      Pull Request
+    value: ${{ steps.pr.outputs.value }}
+  workflow_run:
+    description: |
+      Workflow Run
+    value: ${{ steps.workflow_run.outputs.value }}
+  repository_full_name:
+    description: |
+      Repository Full Name
+    value: ${{ steps.info.outputs.repo_full_name }}
+  repository_name:
+    description: |
+      Repository Name
+    value: ${{ steps.info.outputs.repo }}
+  workflow_run_id:
+    description: |
+      Workflow Run ID
+    value: ${{ steps.info.outputs.run_id }}
+  metadata:
+    description: |
+      Metadata
+    value: ${{ steps.metadata.outputs.value }}
+  fixed_files:
+    description: |
+      Fixed file paths
+    value: ${{ steps.files.outputs.value }}
+  pull_request_comment:
+    description: |
+      Pull Request comment
+    value: ${{ inputs.pull_request_comment }}
+runs:
+  using: composite
+  steps:
+    - id: info
+      shell: bash
+      env:
+        LABEL_NAME: ${{ github.event.label.name }}
+        # $GITHUB_REPOSITORY/${GITHUB_RUN_ID}
+        LABEL_DESCRIPTION: ${{ github.event.label.description }}
+      run: |
+        repo_full_name=${LABEL_DESCRIPTION%/*}
+        {
+          echo "repo_full_name=${repo_full_name}"
+          echo "repo=${repo_full_name#*/}"
+          echo "run_id=${LABEL_DESCRIPTION##*/}"
+        } >> "$GITHUB_OUTPUT"
+
+    # Create a GitHub App token to download a GitHub Actions artifact
+    - uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
+      id: token
+      with:
+        app_id: ${{inputs.app_id}}
+        private_key: ${{inputs.app_private_key}}
+        repositories: >-
+          ["${{ steps.info.outputs.repo }}"]
+        permissions: >-
+          {
+            "actions": "read",
+            "contents": "read",
+            "pull_requests": "write"
+          }
+
+    # Download a GitHub Actions Artifact
+    - uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+      with:
+        github-token: ${{ steps.token.outputs.token }}
+        name: ${{ github.event.label.name }}
+        repository: ${{ steps.info.outputs.repo_full_name }}
+        run-id: ${{ steps.info.outputs.run_id }}
+
+    # Read a metadata file
+    - id: metadata
+      shell: bash
+      env:
+        METADATA_FILE: ${{ github.event.label.name}}.json
+      run: |
+        {
+          echo 'value<<EOF'
+          cat "$METADATA_FILE"
+          echo EOF
+        } >> "$GITHUB_OUTPUT"
+        rm "$METADATA_FILE"
+
+    # Get a pull request
+    - if: fromJson(steps.metadata.outputs.value).context.payload.pull_request
+      id: pr
+      shell: bash
+      env:
+        NUMBER: ${{ fromJson(steps.metadata.outputs.value).context.payload.pull_request.number }}
+        GH_TOKEN: ${{ steps.token.outputs.token }}
+        REPO: ${{ steps.info.outputs.repo_full_name }}
+      run: |
+        data=$(gh api \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "/repos/$REPO/pulls/$NUMBER")
+        {
+          echo 'value<<EOF'
+          echo "$data"
+          echo EOF
+        } >> "$GITHUB_OUTPUT"
+
+    # Get GitHub Actions Workflow Run
+    - id: workflow_run
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.token.outputs.token }}
+        REPO: ${{ steps.info.outputs.repo_full_name }}
+        RUN_ID: ${{ steps.info.outputs.run_id }}
+        WORKFLOW: ${{ inputs.workflow_name }}
+      run: |
+        data=$(gh api \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "/repos/$REPO/actions/runs/$RUN_ID")
+        {
+          echo 'value<<EOF'
+          echo "$data"
+          echo EOF
+        } >> "$GITHUB_OUTPUT"
+
+    # Validate workflow name
+    - if: inputs.workflow_name != '' && fromJson(steps.workflow_run.outputs.value).name != inputs.workflow_name
+      shell: bash
+      env:
+        WORKFLOW: ${{ inputs.workflow_name }}
+      run: |
+        echo "::error:: The client workflow name must be $WORKFLOW"
+        exit 1
+
+    # Get a branch
+    - if: |
+        !fromJson(steps.metadata.outputs.value).context.payload.pull_request
+      id: branch
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.token.outputs.token }}
+        REPO: ${{ steps.info.outputs.repo_full_name }}
+        BRANCH: ${{ fromJson(steps.workflow_run.outputs.value).head_branch }}
+      run: |
+        data=$(gh api \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "/repos/$REPO/branches/$BRANCH")
+        {
+          echo 'value<<EOF'
+          echo "$data"
+          echo EOF
+        } >> "$GITHUB_OUTPUT"
+
+    # Validate if the workflow commit sha is latest
+    - shell: bash
+      if: fromJson(steps.workflow_run.outputs.value).head_sha != (fromJson(steps.metadata.outputs.value).context.payload.pull_request && fromJson(steps.pr.outputs.value).head.sha || fromJson(steps.branch.outputs.value).commit.sha)
+      env:
+        EXPECTED: ${{ fromJson(steps.workflow_run.outputs.value).head_sha }}
+        ACTUAL: ${{ fromJson(steps.metadata.outputs.value).context.payload.pull_request && fromJson(steps.pr.outputs.value).head.sha || fromJson(steps.branch.outputs.value).commit.sha }}
+      run: |
+        echo "::error:: The workflow commit sha ($ACTUAL) is not the latest ($EXPECTED)"
+        exit 1
+
+    # Read changed file paths
+    - id: files
+      shell: bash
+      env:
+        FILES: ${{ github.event.label.name}}_files.txt
+      run: |
+        {
+          echo 'value<<EOF'
+          cat "$FILES"
+          echo EOF
+        } >> "$GITHUB_OUTPUT"
+        rm "$FILES"
+
+    # Create a pull request comment to report an error
+    - if: failure() && fromJson(steps.metadata.outputs.value).context.payload.pull_request
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.token.outputs.token }}
+        REPO: ${{ steps.info.outputs.repo_full_name }}
+        PR_NUMBER: ${{ fromJson(steps.metadata.outputs.value).context.payload.pull_request && fromJson(steps.metadata.outputs.value).context.payload.pull_request.number || '' }}
+        COMMENT: ${{ inputs.pull_request_comment }}
+      run: |
+        gh pr comment \
+          -R "$REPO" \
+          -b "${COMMENT}" \
+          [Workflow]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)" \
+          "$PR_NUMBER"

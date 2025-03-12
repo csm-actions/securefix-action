@@ -1,0 +1,144 @@
+name: Fix Code securely
+description: Fix Code securely
+author: Shunsuke Suzuki
+branding:
+  icon: git-commit
+  color: green
+inputs:
+  app_id:
+    description: |
+      GitHub App ID
+    required: true
+  app_private_key:
+    description: |
+      GitHub App Private Key
+    required: true
+  server_repository:
+    description: |
+      Server repository name
+    required: false
+    default: securefix
+  commit_message:
+    description: |
+      Commit message
+    required: false
+runs:
+  using: composite
+  steps:
+    - id: artifact-name
+      shell: bash
+      run: |
+        value=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 32 || :)
+        echo "value=securefix-${value}" >> "$GITHUB_OUTPUT"
+    # List fixed file paths
+    - id: files
+      shell: bash
+      env:
+        ARTIFACT_NAME: ${{ steps.artifact-name.outputs.value }}
+      run: |
+        FILES=$(git ls-files --modified --others --exclude-standard)
+        if [ -z "$FILES" ]; then
+          echo "::notice:: No changes" >&2
+          exit 0
+        fi
+        {
+          echo 'value<<EOF'
+          echo "$FILES"
+          echo EOF
+        } >> "$GITHUB_OUTPUT"
+    # Create a GitHub App token to create and delete a label
+    - uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
+      if: steps.files.outputs.value != ''
+      id: token
+      with:
+        app_id: ${{inputs.app_id}}
+        private_key: ${{inputs.app_private_key}}
+        repositories: >-
+          ["${{inputs.server_repository}}"]
+        permissions: >-
+          {
+            "issues": "write"
+          }
+
+    # Create metadata
+    - if: steps.files.outputs.value != ''
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      id: metadata
+      env:
+        COMMIT_MESSAGE: ${{inputs.commit_message}}
+      with:
+        script: |
+          return {
+            context: context,
+            inputs: {
+              commit_message: process.env.COMMIT_MESSAGE || '',
+            },
+          };
+
+    # Create a metadata file
+    - if: steps.files.outputs.value != ''
+      shell: bash
+      run: echo "$EVENT" > "${ARTIFACT_NAME}.json"
+      env:
+        ARTIFACT_NAME: ${{ steps.artifact-name.outputs.value }}
+        EVENT: ${{steps.metadata.outputs.result}}
+
+    # Create a file where fixed file paths are listed
+    - if: steps.files.outputs.value != ''
+      shell: bash
+      run: echo "$FILES" > "${ARTIFACT_NAME}_files.txt"
+      env:
+        ARTIFACT_NAME: ${{ steps.artifact-name.outputs.value }}
+        FILES: ${{ steps.files.outputs.value }}
+    # Upload files to GitHub Actions Artifact
+    - if: steps.files.outputs.value != ''
+      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+      with:
+        name: ${{steps.artifact-name.outputs.value}}
+        path: |
+          ${{ steps.files.outputs.value }}
+          ${{steps.artifact-name.outputs.value}}.json
+          ${{steps.artifact-name.outputs.value}}_files.txt
+    # Delete metadata files
+    - if: steps.files.outputs.value != ''
+      shell: bash
+      run: rm "${ARTIFACT_NAME}.json" "${ARTIFACT_NAME}_files.txt"
+      env:
+        ARTIFACT_NAME: ${{ steps.artifact-name.outputs.value }}
+    # Create a label
+    - if: steps.files.outputs.value != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.token.outputs.token }}
+        ARTIFACT_NAME: ${{ steps.artifact-name.outputs.value }}
+        REPO: ${{inputs.server_repository}}
+      run: |
+        gh label create \
+          -R "${GITHUB_REPOSITORY_OWNER}/${REPO}" \
+          "$ARTIFACT_NAME" \
+          --description "$GITHUB_REPOSITORY/${GITHUB_RUN_ID}"
+    # Sleep for a while
+    - if: steps.files.outputs.value != ''
+      shell: bash
+      run: sleep 1
+    # Delete a label
+    - if: steps.files.outputs.value != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.token.outputs.token }}
+        ARTIFACT_NAME: ${{ steps.artifact-name.outputs.value }}
+        REPO: ${{inputs.server_repository}}
+      run: |
+        gh label delete \
+          -R "${GITHUB_REPOSITORY_OWNER}/${REPO}" \
+          --yes \
+          "$ARTIFACT_NAME"
+    # Fail if changes are detected
+    - if: steps.files.outputs.value != ''
+      shell: bash
+      env:
+        FILES: ${{ steps.files.outputs.value }}
+      run: |
+        echo "::error:: Changes detected. A commit will be pushed"
+        git ls-files --modified --others --exclude-standard
+        exit 1
