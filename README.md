@@ -117,7 +117,13 @@ Installed Repositories: Install the app into the server repository and client re
 
 ### GitHub Apps' Private Keys
 
-Coming soon.
+1. Add the Server GitHub App's private key to the server repository's Repository Secrets
+1. Add the Client GitHub App's private key to the client repository's Repository Secrets
+
+> [!WARNING]
+> In the getting started, we add private keys to Repository Secrets to make the getting started simple.
+> But when you manage them actually, you must manage the Server GitHub App's private key and the server workflow securely.
+> Only the server workflow must be able to access the private key.
 
 ### Workflows
 
@@ -152,7 +158,14 @@ You can use [`server/prepare` action's outputs](server/prepare#outputs).
     app_id: ${{ vars.DEMO_SERVER_APP_ID }}
     app_private_key: ${{ secrets.DEMO_SERVER_PRIVATE_KEY }}
 # Custom Validation
-- uses: securefix-action/action/server/commit@feat/notify
+- if: fromJson(steps.prepare.outputs.pull_request).user.login != 'suzuki-shunsuke'
+  run: |
+    exit 1
+- uses: securefix-action/action/server/commit@main
+  with:
+    outputs: ${{ toJson(steps.prepare.outputs) }}
+- uses: securefix-action/action/server/notify@main
+  failure()
   with:
     outputs: ${{ toJson(steps.prepare.outputs) }}
 ```
