@@ -132,8 +132,40 @@ Coming soon.
 
 ## Security
 
+> - You don't need to pass a GitHub App private key having strong permissions to GitHub Actions workflows on the client side
+> - You don't need to allow external services to access your code
+> - You can define custom validation before creating a commit
+> - Commits are verified (signed)
+
 Coming soon.
+
+### Custom Validation
+
+You can insert custom validation between `server/prepare` action and `server/commit` action.
+You can use [`server/prepare` action's outputs](server/prepare#outputs).
+
+```yaml
+- uses: securefix-action/action/server/prepare@main
+  id: prepare
+  with:
+    app_id: ${{ vars.DEMO_SERVER_APP_ID }}
+    app_private_key: ${{ secrets.DEMO_SERVER_PRIVATE_KEY }}
+# Custom Validation
+- uses: securefix-action/action/server/commit@main
+  with:
+    app_id: ${{ vars.DEMO_SERVER_APP_ID }}
+    app_private_key: ${{ secrets.DEMO_SERVER_PRIVATE_KEY }}
+    outputs: ${{ toJson(steps.prepare.outputs) }}
+```
 
 ## Design Details
 
 Coming soon.
+
+## Troubleshooting
+
+### GitHub API Rate Limiting
+
+Coming soon.
+
+If you use Server Action in many client repositories and face GitHub API limiting, you can create new GitHub Apps and a server repository and split repositories:
