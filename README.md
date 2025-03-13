@@ -149,7 +149,7 @@ Even if the app is abused, the risk is low.
 Server action creates a commit to the same repository and branch with the GitHub Actions Artifact.
 So it doesn't allow attackers to create a malicious commit to a different repository or a different branch.
 
-### How To Manage a Server GitHub App and a server workflow
+### How to manage a server GitHub App and a server workflow
 
 There are several ideas:
 
