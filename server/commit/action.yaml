@@ -13,10 +13,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - run: echo "$OUTPUTS"
-      shell: bash
-      env:
-        OUTPUTS: ${{ inputs.outputs }}
     # Create and push a commit
     - if: fromJson(inputs.outputs).fixed_files != ''
       uses: suzuki-shunsuke/commit-action@9faad521ea6a1e768439ffbe6b25b6cb3fc1b181 # v0.0.6

@@ -27,7 +27,7 @@ outputs:
   pull_request_number:
     description: |
       Pull Request number
-    value: ${{ fromJson(steps.metadata.outputs.value).context.payload.pull_request && fromJson(steps.metadata.outputs.value).context.payload.pull_request.number || '' }}
+    value: ${{ steps.metadata.outputs.value && (fromJson(steps.metadata.outputs.value).context.payload.pull_request && fromJson(steps.metadata.outputs.value).context.payload.pull_request.number || '') || '' }}
   workflow_run:
     description: |
       Workflow Run
