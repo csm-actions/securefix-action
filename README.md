@@ -144,7 +144,22 @@ Installed Repositories: Install the app into the server repository and client re
 > - You can define custom validation before creating a commit
 > - Commits are verified (signed)
 
-Coming soon.
+Client workflows can use a Client GitHub App, but it has only `issues:write` permission.
+Even if the app is abused, the risk is low.
+Server action creates a commit to the same repository and branch with the GitHub Actions Artifact.
+So it doesn't allow attackers to create a malicious commit to a different repository or a different branch.
+
+### How To Manage a Server GitHub App and a server workflow
+
+There are several ideas:
+
+- GitHub App Private Key:
+  - [Use GitHub Environment Secret](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-deployments/managing-environments-for-deployment#deployment-protection-rules)
+    - Restrict the branch
+  - Use a secret manager such as AWS Secrets Manager and [restrict the access by OIDC claims (repository, event, branch, workflow, etc)](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
+- Server Workflow
+  - Restrict members having the write permission of the server repository
+    - For instance, grant the write permission to only system administrators
 
 ### Custom Validation
 
