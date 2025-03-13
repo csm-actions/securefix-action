@@ -126,7 +126,7 @@ Coming soon.
 
 ## Actions
 
-- [securefix-action/action](CLIENT.md) ([action.yaml](action.yaml)): Client action
+- [securefix-action/action](docs/client.md) ([action.yaml](action.yaml)): Client action
 - [securefix-action/action/server/prepare](server/prepare) ([action.yaml](server/prepare/action.yaml)): Server action to prepare for creating commits
 - [securefix-action/action/server/commit](server/commit) ([action.yaml](server/commit/action.yaml)): Server action to create commits
 

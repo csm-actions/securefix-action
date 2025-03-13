@@ -1,6 +1,6 @@
 # Client Action
 
-[action.yaml](action.yaml)
+[action.yaml](../action.yaml)
 
 Client Action uploads fixed files and metadata to GitHub Actions Artifacts and creates and deletes a GitHub Issue label to request fixing code to a server workflow.
 
