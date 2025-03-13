@@ -1,0 +1,28 @@
+# This is a dummy workflow file to test actions using actionlint.
+# This workflow is never run.
+name: test action (actionlint)
+on: workflow_call
+jobs:
+  actionlint-action:
+    timeout-minutes: 10
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: ./
+        with:
+          app_id: "dummy"
+          app_private_key: "dummy"
+      - uses: ./server/prepare
+        id: prepare
+        with:
+          app_id: "dummy"
+          app_private_key: "dummy"
+      - uses: ./server/commit
+        with:
+          outputs: ${{ toJson(steps.prepare.outputs) }}
+      - uses: ./server/notify
+        with:
+          outputs: ${{ toJson(steps.prepare.outputs) }}
