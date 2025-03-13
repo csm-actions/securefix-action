@@ -33,10 +33,8 @@ jobs:
           app_private_key: ${{ secrets.DEMO_SERVER_PRIVATE_KEY }}
       - uses: securefix-action/action/server/commit@main
         with:
-          outputs: ${{ toJson(steps.prepare.outputs) }}
-      - uses: securefix-action/action/server/notify@main
-        if: failure()
-        with:
+          app_id: ${{ vars.DEMO_SERVER_APP_ID }}
+          app_private_key: ${{ secrets.DEMO_SERVER_PRIVATE_KEY }}
           outputs: ${{ toJson(steps.prepare.outputs) }}
 ```
 

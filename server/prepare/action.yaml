@@ -14,6 +14,11 @@ inputs:
       Client Workflow name. If this is empty, the action does not check the workflow name.
     required: false
     default: securefix
+  allow_workflow_fix:
+    description: |
+      Either true or false. If true, the action allows the workflow to fix the code.
+    required: false
+    default: "false"
   pull_request_comment:
     description: |
       Pull Request comment
@@ -25,6 +30,10 @@ outputs:
     description: |
       Pull Request
     value: ${{ steps.pr.outputs.value }}
+  pull_request_number:
+    description: |
+      Pull Request number
+    value: ${{ fromJson(steps.metadata.outputs.value).context.payload.pull_request && fromJson(steps.metadata.outputs.value).context.payload.pull_request.number || '' }}
   workflow_run:
     description: |
       Workflow Run
@@ -53,6 +62,10 @@ outputs:
     description: |
       Pull Request comment
     value: ${{ inputs.pull_request_comment }}
+  token:
+    description: |
+      GitHub App token
+    value: ${{ steps.token.outputs.token }}
 runs:
   using: composite
   steps:
@@ -70,6 +83,22 @@ runs:
           echo "run_id=${LABEL_DESCRIPTION##*/}"
         } >> "$GITHUB_OUTPUT"
 
+    - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      id: permissions
+      env:
+        ALLOW_WORKFLOW_FIX: ${{inputs.allow_workflow_fix}}
+      with:
+        script: |
+          let permissions = {
+            actions: "read",
+            contents: "write",
+            pull_requests: "write",
+          };
+          if (process.env.ALLOW_WORKFLOW_FIX === 'true') {
+            permissions.workflows = "write";
+          }
+          return permissions;
+
     # Create a GitHub App token to download a GitHub Actions artifact
     - uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
       id: token
@@ -78,12 +107,7 @@ runs:
         private_key: ${{inputs.app_private_key}}
         repositories: >-
           ["${{ steps.info.outputs.repo }}"]
-        permissions: >-
-          {
-            "actions": "read",
-            "contents": "read",
-            "pull_requests": "write"
-          }
+        permissions: ${{ steps.permissions.outputs.result }}
 
     # Download a GitHub Actions Artifact
     - uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
@@ -104,7 +128,6 @@ runs:
           cat "$METADATA_FILE"
           echo EOF
         } >> "$GITHUB_OUTPUT"
-        rm "$METADATA_FILE"
 
     # Get a pull request
     - if: fromJson(steps.metadata.outputs.value).context.payload.pull_request
@@ -195,18 +218,3 @@ runs:
           echo EOF
         } >> "$GITHUB_OUTPUT"
         rm "$FILES"
-
-    # Create a pull request comment to report an error
-    - if: failure() && fromJson(steps.metadata.outputs.value).context.payload.pull_request
-      shell: bash
-      env:
-        GH_TOKEN: ${{ steps.token.outputs.token }}
-        REPO: ${{ steps.info.outputs.repo_full_name }}
-        PR_NUMBER: ${{ fromJson(steps.metadata.outputs.value).context.payload.pull_request && fromJson(steps.metadata.outputs.value).context.payload.pull_request.number || '' }}
-        COMMENT: ${{ inputs.pull_request_comment }}
-      run: |
-        gh pr comment \
-          -R "$REPO" \
-          -b "${COMMENT}" \
-          [Workflow]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)" \
-          "$PR_NUMBER"

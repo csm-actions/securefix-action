@@ -1,0 +1,45 @@
+name: Notify failure
+description: Notify failure
+inputs:
+  github_token:
+    description: |
+      GitHub access token
+    required: true
+  repository:
+    description: |
+      Repository name
+    required: false
+  pull_request_number:
+    description: |
+      Pull Request number
+    required: false
+  pull_request_comment:
+    description: |
+      Pull Request comment
+    required: false
+    default: |
+      :x: Securefix failed.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      id: repo
+      env:
+        REPO: ${{ inputs.repository }}
+      run: |
+        echo "value=${REPO##*/}" >> "$GITHUB_OUTPUT"
+
+    # Create a pull request comment to report an error
+    - if: inputs.pull_request_number != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        REPO: ${{ inputs.repository }}
+        PR_NUMBER: ${{ inputs.pull_request_number }}
+        COMMENT: ${{ inputs.pull_request_comment }}
+      run: |
+        gh pr comment \
+          -R "$REPO" \
+          -b "${COMMENT}" \
+          [Workflow]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)" \
+          "$PR_NUMBER"
