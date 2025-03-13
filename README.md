@@ -75,6 +75,11 @@ You don't need to host a server application.
 
 ## Architecture
 
+![Image](https://github.com/user-attachments/assets/94781831-0aad-4513-ac92-fb5cfa859e19)
+
+- Server: 1 GitHub App, 1 Repository
+- Client: 1 GitHub App, N Repositories
+
 ![Image](https://github.com/user-attachments/assets/383de1da-a267-4f96-a86c-9151d66cebc5)
 
 1. The client workflow uploads fixed files and metadata to GitHub Actions Artifacts
@@ -83,11 +88,6 @@ You don't need to host a server application.
 1. The server workflow downloads fixed files and metadata from GitHub Actions Artifacts
 1. The server workflow validates the request
 1. The server workflow pushes a commit to the client repository
-
-![Image](https://github.com/user-attachments/assets/94781831-0aad-4513-ac92-fb5cfa859e19)
-
-- Server: 1 GitHub App, 1 Repository
-- Client: 1 GitHub App, N Repositories
 
 ## Getting Started
 
