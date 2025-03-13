@@ -21,10 +21,12 @@ runs:
         GH_TOKEN: ${{fromJson(inputs.outputs).github_token}}
         REPO: ${{ fromJson(inputs.outputs).repository_full_name }}
         PR_NUMBER: ${{ fromJson(inputs.outputs).pull_request_number }}
-        COMMENT: ${{ inputs.pull_request_comment }}
+        COMMENT: |
+          ${{ inputs.pull_request_comment }}
+          [Workflow](${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}})
+          The comment was created by [Securefix Action](https://github.com/securefix-action/action).
       run: |
         gh pr comment \
           -R "$REPO" \
           -b "${COMMENT}" \
-          [Workflow]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)" \
           "$PR_NUMBER"
