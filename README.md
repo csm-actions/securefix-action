@@ -1,13 +1,14 @@
 # Securefix Action
 
-[![License](http://img.shields.io/badge/license-mit-blue.svg?style=flat-square)](https://raw.githubusercontent.com/securefix-action/action/main/LICENSE) | [action.yaml](action.yaml)
+[![License](http://img.shields.io/badge/license-mit-blue.svg?style=flat-square)](https://raw.githubusercontent.com/securefix-action/action/main/LICENSE)
+
+Securefix Action is GitHub Actions to fix code securely.
 
 ![image](https://github.com/user-attachments/assets/21ec46f9-3c9b-4314-8609-0ef1b8c25791)
 
 ![image](https://github.com/user-attachments/assets/5d854cf1-cff1-4af2-ab71-81cba3d8eb1d)
 
-Securefix Action is GitHub Actions to fix code securely.
-It allows you to fix code securely without sharing a GitHub App private key having strong permissions such as `contents:write` and `actions:write` with GitHub Actions workflows.
+Securefix Action allows you to fix code securely without sharing a GitHub App private key having strong permissions such as `contents:write` and `actions:write` with GitHub Actions workflows.
 You don't need to allow external services to access your code.
 It elevates the security of your workflows to the next level.
 
@@ -17,16 +18,16 @@ It achieves a server/client architecture using GitHub Actions by unique approach
 
 ## Features
 
-- Increase the developer productivity by fixing code in CI
-- Secure
+- 💪 Increase the developer productivity by fixing code in CI
+- 🛡 Secure
   - You don't need to pass a GitHub App private key having storng permissions to GitHub Actions workflows on the client side
   - You don't need to allow external services to access your code
   - You can define custom validation before creating a commit
   - Commits are verified (signed)
-- Easy to use
+- 😊 Easy to use
   - You can create a commit by one action on the client side
   - You don't need to host a server application
-- OSS (MIT License)
+- 😉 [OSS (MIT License)](LICENSE)
 
 ## Overview
 
