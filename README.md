@@ -121,8 +121,8 @@ Installed Repositories: Install the app into the server repository and client re
 1. Add the Client GitHub App's private key to the client repository's Repository Secrets
 
 > [!WARNING]
-> In the getting started, we add private keys to Repository Secrets to make the getting started simple.
-> But when you manage them actually, you must manage the Server GitHub App's private key and the server workflow securely.
+> In the getting started, we add private keys to Repository Secrets simply.
+> But when you use Securefix Action actually, you must manage the Server GitHub App's private key and the server workflow securely.
 > Only the server workflow must be able to access the private key.
 
 ### Workflows
