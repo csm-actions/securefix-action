@@ -12,12 +12,12 @@ inputs:
   workflow_name:
     description: |
       Client Workflow name. If this is empty, the action does not check the workflow name.
-    required: true
+    required: false
     default: securefix
   pull_request_comment:
     description: |
       Pull Request comment
-    required: true
+    required: false
     default: |
       :x: Securefix failed.
 outputs:
