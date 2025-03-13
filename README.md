@@ -100,6 +100,8 @@ You don't need to host a server application.
 
 ### GitHub App for server
 
+Deactivate Webhook.
+
 Permissions:
 
 - `contents:write`: To create commits
@@ -110,6 +112,8 @@ Permissions:
 Installed Repositories: Install the app into the server repository and client repositories.
 
 ### GitHub App for client
+
+Deactivate Webhook.
 
 Permissions:
 
