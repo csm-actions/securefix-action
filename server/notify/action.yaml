@@ -10,7 +10,7 @@ inputs:
       Pull Request comment
     required: false
     default: |
-      :x: Securefix failed.
+      ## :x: Securefix Action failed.
 runs:
   using: composite
   steps:
