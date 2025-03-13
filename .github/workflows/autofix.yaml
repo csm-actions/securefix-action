@@ -18,4 +18,5 @@ jobs:
           GITHUB_TOKEN: ${{github.token}}
       - run: aqua upc -prune
       - run: git ls-files | xargs nllint -f -s
+      - run: pinact run -u **/*.md **/action.yaml
       - uses: autofix-ci/action@2891949f3779a1cafafae1523058501de3d4e944 # v1.3.1
