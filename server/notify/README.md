@@ -1,76 +1,25 @@
-# Server Prepare Action
+# Server Notify Action
 
-[action.yaml](action.yaml)
+[action.yaml](action.yaml) | [Example](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
 
-Server Prepare Action prepares for creating a commit.
+Server Notify Action notifies the failure.
 
-1. Download fixed files and metadata from GitHub Actions Artifacts
-1. Get data about associated Workflow Run, Pull Request, and Branch by GitHub API
-1. Validate the request
-1. Output data for custom validation and creating a commit
-
-## Example
-
-[Workflow](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
-
-```yaml
-name: Fix
-on:
-  label:
-    types:
-      - created
-jobs:
-  fix:
-    if: startsWith(github.event.label.name, 'securefix-')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions: {}
-    steps:
-      - uses: securefix-action/action/server/prepare@main
-        id: prepare
-        with:
-          app_id: ${{ vars.DEMO_SERVER_APP_ID }}
-          app_private_key: ${{ secrets.DEMO_SERVER_PRIVATE_KEY }}
-      - uses: securefix-action/action/server/commit@main
-        with:
-          app_id: ${{ vars.DEMO_SERVER_APP_ID }}
-          app_private_key: ${{ secrets.DEMO_SERVER_PRIVATE_KEY }}
-          outputs: ${{ toJson(steps.prepare.outputs) }}
-```
+![image](https://github.com/user-attachments/assets/014ac821-2609-4e7b-be3f-3076c7250491)
 
 ## Inputs
 
 ### Required Inputs
 
-- `app_id`: A GitHub App ID
-- `app_private_key`: A GitHub App Private Key
+- `outputs`: Server Prepare Action's outputs
+
+```yaml
+outputs: ${{ toJson(steps.prepare.outputs) }}
+```
 
 ### Optional Inputs
 
-- `workflow_name`: An expected client workflow name. If the actual client workflow name is different from this input, the request is denied. The default value is `securefix`. If this is empty, the workflow name is free
-- `pull_request_comment`: A pull request comment template. A comment is posted if server actions fail to create a commit. The default value is `:x: Securefix failed.`
+- `pull_request_comment`: A pull request comment template. A comment is posted if server actions fail to create a commit. The default value is `## :x: Securefix failed.`
 
 ## Outputs
 
-- `pull_request`: A Pull Request Payload ([ref](https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request))
-- `workflow_run`: A Workflow Run Payload ([ref](https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#get-a-workflow-run))
-- `repository_full_name`: A client repository's full name
-- `repository_name`: A client repository's name
-- `workflow_run_id`: A client workflow run id
-- `metadata`: A request's metadata. It's a JSON string.
-
-```json
-{
-  "context": {
-    // github-script's context object
-  },
-  "inputs": {
-    "commit_message": "commit message",
-  },
-}
-```
-
-`context` is a [github-script](https://github.com/actions/github-script)'s context object.
-
-- `fixed_files`: Fixed file paths. Paths are separated with newlines
-- `pull_request_comment`: A pull request comment template.
+Nothing.

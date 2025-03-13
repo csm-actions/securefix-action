@@ -19,7 +19,7 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{fromJson(inputs.outputs).github_token}}
-        REPO: ${{ fromJson(inputs.outputs).repository_full_name }}
+        REPO: ${{ fromJson(inputs.outputs).repository }}
         PR_NUMBER: ${{ fromJson(inputs.outputs).pull_request_number }}
         COMMENT: |
           ${{ inputs.pull_request_comment }}

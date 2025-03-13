@@ -129,6 +129,7 @@ Coming soon.
 - [securefix-action/action](docs/client.md) ([action.yaml](action.yaml)): Client action
 - [securefix-action/action/server/prepare](server/prepare) ([action.yaml](server/prepare/action.yaml)): Server action to prepare for creating commits
 - [securefix-action/action/server/commit](server/commit) ([action.yaml](server/commit/action.yaml)): Server action to create commits
+- [securefix-action/action/server/notify](server/notify) ([action.yaml](server/notify/action.yaml)): Server action to notify the server failure
 
 ## Security
 
@@ -151,10 +152,8 @@ You can use [`server/prepare` action's outputs](server/prepare#outputs).
     app_id: ${{ vars.DEMO_SERVER_APP_ID }}
     app_private_key: ${{ secrets.DEMO_SERVER_PRIVATE_KEY }}
 # Custom Validation
-- uses: securefix-action/action/server/commit@main
+- uses: securefix-action/action/server/commit@feat/notify
   with:
-    app_id: ${{ vars.DEMO_SERVER_APP_ID }}
-    app_private_key: ${{ secrets.DEMO_SERVER_PRIVATE_KEY }}
     outputs: ${{ toJson(steps.prepare.outputs) }}
 ```
 

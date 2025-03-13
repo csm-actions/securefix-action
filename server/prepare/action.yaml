@@ -32,7 +32,7 @@ outputs:
     description: |
       Workflow Run
     value: ${{ steps.workflow_run.outputs.value }}
-  repository_full_name:
+  repository:
     description: |
       Repository Full Name
     value: ${{ steps.info.outputs.repo_full_name }}
