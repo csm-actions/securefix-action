@@ -4,7 +4,7 @@
 
 Server Notify Action notifies the failure.
 
-![image](https://github.com/user-attachments/assets/014ac821-2609-4e7b-be3f-3076c7250491)
+![image](https://github.com/user-attachments/assets/3a06184f-2566-4863-9b2f-20548b8bc990)
 
 ## Inputs
 
