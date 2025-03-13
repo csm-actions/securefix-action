@@ -169,3 +169,8 @@ Coming soon.
 If you use Server Action in many client repositories and face GitHub API limiting, you can avoid the rate limiting by creating new GitHub Apps and a server repository and splitting clients:
 
 ![Image](https://github.com/user-attachments/assets/34551fb7-6471-4bf2-bea1-c6056c005330)
+
+Reference:
+
+- [Rate Limit of REST API](https://docs.github.com/en/enterprise-cloud@latest/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28)
+- [Rate Limit of GraphQL API](https://docs.github.com/en/enterprise-cloud@latest/graphql/overview/rate-limits-and-node-limits-for-the-graphql-api)
