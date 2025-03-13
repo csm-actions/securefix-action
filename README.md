@@ -96,7 +96,9 @@ You don't need to host a server application.
 1. [Create a GitHub App for client](#github-app-for-client)
 1. Create GitHub App private keys
 1. [Add GitHub App's id and private keys to GitHub Secrets and Variables](#add-github-apps-id-and-private-keys-to-github-secrets-and-variables)
-1. Fix client' repository's `foo.yaml` and create a pull request
+1. [Fix the server workflow if necessary](#fix-the-server-workflow-if-necessary)
+1. [Fix the client workflow if necessary](#fix-the-client-workflow-if-necessary)
+1. [Fix client' repository's `foo.yaml` and create a pull request](#fix-client-repositorys-fooyaml-and-create-a-pull-request)
 
 ### GitHub App for server
 
@@ -136,6 +138,19 @@ Add GitHub App's private keys and ID to Repository Secrets and Variables
 > In the getting started, we add private keys to Repository Secrets simply.
 > But when you use Securefix Action actually, you must manage the Server GitHub App's private key and the server workflow securely.
 > Only the server workflow must be able to access the server app's private key.
+
+### Fix the server workflow if necessary
+
+[Workflow](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
+
+If you change a variable name and a secret name, please fix the workflow.
+
+### Fix the client workflow if necessary
+
+[Workflow](https://github.com/securefix-action/demo-client/blob/main/.github/workflows/securefix.yaml)
+
+- If you change a variable name and a secret name, please fix the workflow
+- If you change the server repository name, please fix the input `server_repository`
 
 ### Fix client' repository's `foo.yaml` and create a pull request
 
