@@ -1,0 +1,8 @@
+name: renovate-config-validator
+permissions: {}
+on: workflow_call
+jobs:
+  renovate-config-validator:
+    uses: suzuki-shunsuke/renovate-config-validator-workflow/.github/workflows/validate.yaml@37f3b320ff7dd6fbf4fa25ce9e704ed817437a4c # v0.1.0
+    permissions:
+      contents: read

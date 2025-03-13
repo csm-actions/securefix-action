@@ -1,0 +1,6 @@
+{
+  extends: [
+    "github>suzuki-shunsuke/renovate-config#3.1.0",
+    "github>suzuki-shunsuke/renovate-config:nolimit#3.1.0",
+  ],
+}

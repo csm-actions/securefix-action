@@ -1,0 +1,17 @@
+name: test
+permissions: {}
+on: pull_request
+jobs:
+  status-check:
+    runs-on: ubuntu-24.04
+    if: failure()
+    timeout-minutes: 10
+    permissions: {}
+    needs:
+      - test
+    steps:
+      - run: exit 1
+  test:
+    uses: ./.github/workflows/workflow_call_test.yaml
+    permissions:
+      contents: read
