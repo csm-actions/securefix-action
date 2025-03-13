@@ -211,6 +211,7 @@ So it doesn't allow attackers to create a malicious commit to a different reposi
 
 ### How to manage a server GitHub App and a server workflow
 
+You must protect a server GitHub App and a server workflow from attacks securely.
 There are several ideas:
 
 - GitHub App Private Key:
