@@ -24,3 +24,7 @@ jobs:
     if: needs.path-filter.outputs.renovate-config-validator == 'true'
     permissions:
       contents: read
+
+  typos:
+    uses: ./.github/workflows/typos.yaml
+    permissions: {}
