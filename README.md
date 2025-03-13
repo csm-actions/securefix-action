@@ -91,10 +91,12 @@ You don't need to host a server application.
 
 ## Getting Started
 
-1. Create two repositories
-1. Create two GitHub Apps
-1. Create GitHub App private keys to add them to GitHub Secrets
-1. Add workflows
+1. Create two repositories from templates [demo-server](https://github.com/new?template_name=demo-server&template_owner=securefix-action) and [demo-client](https://github.com/new?template_name=demo-client&template_owner=securefix-action)
+1. [Create a GitHub App for server](#github-app-for-server)
+1. [Create a GitHub App for client](#github-app-for-client)
+1. Create GitHub App private keys
+1. [Add GitHub App's id and private keys to GitHub Secrets and Variables](#add-github-apps-id-and-private-keys-to-github-secrets-and-variables)
+1. Fix client' repository's `foo.yaml` and create a pull request
 
 ### GitHub App for server
 
@@ -115,32 +117,44 @@ Permissions:
 
 Installed Repositories: Install the app into the server repository and client repositories.
 
-### GitHub Apps' Private Keys
+### Add GitHub App's id and private keys to GitHub Secrets and Variables
 
-1. Add the Server GitHub App's private key to the server repository's Repository Secrets
-1. Add the Client GitHub App's private key to the client repository's Repository Secrets
+Add GitHub App's private keys and ID to Repository Secrets and Variables
+
+- client
+  - id: client repository's variable `DEMO_CLIENT_APP_ID`
+  - private key: client repository's Repository Secret `DEMO_CLIENT_PRIVATE_KEY`
+- server
+  - id: server repository's variable `DEMO_SERVER_APP_ID`
+  - private key: server repository's Repository Secret `DEMO_SERVER_PRIVATE_KEY`
 
 > [!WARNING]
 > In the getting started, we add private keys to Repository Secrets simply.
 > But when you use Securefix Action actually, you must manage the Server GitHub App's private key and the server workflow securely.
-> Only the server workflow must be able to access the private key.
+> Only the server workflow must be able to access the server app's private key.
 
-### Workflows
+### Fix client' repository's `foo.yaml` and create a pull request
 
-- [Server workflow](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
-- [Client workflow](https://github.com/securefix-action/demo-client/blob/main/.github/workflows/securefix.yaml)
+1. Fix client repository's `foo.yaml` ([Example](https://github.com/securefix-action/demo-client/pull/6/commits/ba0b0726a972e0b18cccddf8e4b28243bcdab5a4))
 
-#### Client Workflow Name
+```diff
+diff --git a/foo.yaml b/foo.yaml
+index 74753a3..1cd9439 100644
+--- a/foo.yaml
++++ b/foo.yaml
+@@ -1,2 +1,2 @@
+ names:
+-  - foo
++- foo
+```
 
-By default, the client workflow name must be `securefix` for security.
-Otherwise, the server/prepare action fails.
-[You can change the workflow name or remove the restriction using server/prepare action's `workflow_name` input.](server/prepare#optional-inputs)
+2. Create a pull request ([Example](https://github.com/securefix-action/demo-client/pull/6)):
 
-#### How To Fix Workflow Files
+Then workflows are run and `foo.yaml` is fixed automatically:
 
-By default, Serverfix Action doesn't allow you to fix workflow files for security.
-By default, the server action fails if fixed files include workflow files.
-[You can allow it by setting server/prepare action's `allow_workflow_fix` to `true`.](server/prepare#optional-inputs)
+![image](https://github.com/user-attachments/assets/d80e0f5e-451f-40b1-9eb8-4336e4c5fd4c)
+
+![image](https://github.com/user-attachments/assets/0ed98d10-471a-4a85-a3a0-06e669a96931)
 
 ## Actions
 
@@ -207,6 +221,18 @@ These permissions are too strong.
 So we searched better events from [all events](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows), and we found `label` event.
 
 ## Troubleshooting
+
+### Client Workflow Name
+
+By default, the client workflow name must be `securefix` for security.
+Otherwise, the server/prepare action fails.
+[You can change the workflow name or remove the restriction using server/prepare action's `workflow_name` input.](server/prepare#optional-inputs)
+
+### How To Fix Workflow Files
+
+By default, Serverfix Action doesn't allow you to fix workflow files for security.
+By default, the server action fails if fixed files include workflow files.
+[You can allow it by setting server/prepare action's `allow_workflow_fix` to `true`.](server/prepare#optional-inputs)
 
 ### GitHub API Rate Limiting
 
