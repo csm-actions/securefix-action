@@ -166,6 +166,6 @@ Coming soon.
 
 ### GitHub API Rate Limiting
 
-Coming soon.
+If you use Server Action in many client repositories and face GitHub API limiting, you can avoid the rate limiting by creating new GitHub Apps and a server repository and splitting clients:
 
-If you use Server Action in many client repositories and face GitHub API limiting, you can create new GitHub Apps and a server repository and split repositories:
+![Image](https://github.com/user-attachments/assets/34551fb7-6471-4bf2-bea1-c6056c005330)
