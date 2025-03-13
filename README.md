@@ -20,7 +20,7 @@ It achieves a server/client architecture using GitHub Actions by unique approach
 
 - 💪 Increase the developer productivity by fixing code in CI
 - 🛡 Secure
-  - You don't need to pass a GitHub App private key having storng permissions to GitHub Actions workflows on the client side
+  - You don't need to pass a GitHub App private key having strong permissions to GitHub Actions workflows on the client side
   - You don't need to allow external services to access your code
   - You can define custom validation before creating a commit
   - Commits are verified (signed)
