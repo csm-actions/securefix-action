@@ -19,12 +19,6 @@ inputs:
       Either true or false. If true, the action allows the workflow to fix the code.
     required: false
     default: "false"
-  pull_request_comment:
-    description: |
-      Pull Request comment
-    required: false
-    default: |
-      :x: Securefix failed.
 outputs:
   pull_request:
     description: |
@@ -58,11 +52,7 @@ outputs:
     description: |
       Fixed file paths
     value: ${{ steps.files.outputs.value }}
-  pull_request_comment:
-    description: |
-      Pull Request comment
-    value: ${{ inputs.pull_request_comment }}
-  token:
+  github_token:
     description: |
       GitHub App token
     value: ${{ steps.token.outputs.token }}

@@ -1,10 +1,6 @@
 name: Create a commit
 description: Create a commit
 inputs:
-  github_token:
-    description: |
-      GitHub access token
-    required: true
   outputs:
     description: |
       Prepare action's outputs
@@ -14,10 +10,6 @@ inputs:
       Commit message
     required: false
     default: Securefix
-  pull_request_comment:
-    description: |
-      Pull Request comment
-    required: false
 runs:
   using: composite
   steps:
@@ -25,7 +17,7 @@ runs:
     - if: fromJson(inputs.outputs).fixed_files != ''
       uses: suzuki-shunsuke/commit-action@9faad521ea6a1e768439ffbe6b25b6cb3fc1b181 # v0.0.6
       with:
-        github_token: ${{inputs.github_token}}
+        github_token: ${{fromJson(inputs.outputs).github_token}}
         repository: ${{ fromJson(inputs.outputs).repository_full_name }}
         branch: ${{ fromJson(fromJson(inputs.outputs).workflow_run).head_branch }}
         files: ${{ fromJson(inputs.outputs).fixed_files }}
