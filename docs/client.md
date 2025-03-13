@@ -27,7 +27,7 @@ jobs:
       - run: prettier -w .
 
       # Send a request to a server workflow
-      - uses: securefix-action/action@main
+      - uses: securefix-action/action@c5696e3325f3906c5054ad80f3b9cdd92d65173b # v0.1.0
         with:
           app_id: ${{vars.DEMO_CLIENT_APP_ID}}
           app_private_key: ${{secrets.DEMO_CLIENT_PRIVATE_KEY}}
