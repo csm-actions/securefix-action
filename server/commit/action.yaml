@@ -39,9 +39,9 @@ runs:
           ${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}}
 
     # Create a GitHub App token to report an error to a pull request
-    - if: failure() && fromJson(inputs.outputs).pr != ''
+    - if: failure() && fromJson(inputs.outputs).pull_request != ''
       uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
-      id: pr_token
+      id: token
       with:
         app_id: ${{inputs.app_id}}
         private_key: ${{inputs.app_private_key}}
@@ -53,12 +53,12 @@ runs:
           }
 
     # Create a pull request comment to report an error
-    - if: failure() && fromJson(inputs.outputs).pr != ''
+    - if: failure() && fromJson(inputs.outputs).pull_request != ''
       shell: bash
       env:
-        GH_TOKEN: ${{ steps.pr_token.outputs.token }}
+        GH_TOKEN: ${{ steps.token.outputs.token }}
         REPO: ${{ fromJson(inputs.outputs).repository_full_name }}
-        PR_NUMBER: ${{ fromJson(inputs.outputs).pr && fromJson(fromJson(inputs.outputs).pr).number || '' }}
+        PR_NUMBER: ${{ fromJson(inputs.outputs).pull_request && fromJson(fromJson(inputs.outputs).pull_request).number || '' }}
         COMMENT: ${{ inputs.pull_request_comment && inputs.pull_request_comment || fromJson(inputs.outputs).pull_request_comment }}
       run: |
         gh pr comment \

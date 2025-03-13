@@ -21,7 +21,7 @@ inputs:
     default: |
       :x: Securefix failed.
 outputs:
-  pr:
+  pull_request:
     description: |
       Pull Request
     value: ${{ steps.pr.outputs.value }}
