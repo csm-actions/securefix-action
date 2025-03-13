@@ -190,6 +190,8 @@ Then workflows are run and `foo.yaml` is fixed automatically:
 
 ## Actions
 
+Securefix Action composes of four actions:
+
 - [securefix-action/action](docs/client.md) ([action.yaml](action.yaml)): Client action
 - [securefix-action/action/server/prepare](server/prepare) ([action.yaml](server/prepare/action.yaml)): Server action to prepare for creating commits
 - [securefix-action/action/server/commit](server/commit) ([action.yaml](server/commit/action.yaml)): Server action to create commits
