@@ -130,6 +130,18 @@ Installed Repositories: Install the app into the server repository and client re
 - [Server workflow](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
 - [Client workflow](https://github.com/securefix-action/demo-client/blob/main/.github/workflows/securefix.yaml)
 
+#### Client Workflow Name
+
+By default, the client workflow name must be `securefix` for security.
+Otherwise, the server/prepare action fails.
+[You can change the workflow name or remove the restriction using server/prepare action's `workflow_name` input.](server/prepare#optional-inputs)
+
+#### How To Fix Workflow Files
+
+By default, Serverfix Action doesn't allow you to fix workflow files for security.
+By default, the server action fails if fixed files include workflow files.
+[You can allow it by setting server/prepare action's `allow_workflow_fix` to `true`.](server/prepare#optional-inputs)
+
 ## Actions
 
 - [securefix-action/action](docs/client.md) ([action.yaml](action.yaml)): Client action
