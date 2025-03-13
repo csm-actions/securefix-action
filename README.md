@@ -78,7 +78,7 @@ You don't need to host a server application.
 Securefix Action adopts client/server architecture.
 It uses following GitHub Apps, repositories, and workflows:
 
-- GitHub App
+- two GitHub Apps
   - a Server GitHub App: a GitHub App to create commits
   - a Client GitHub App: a GitHub App to send requests to a server workflow
 - Repositories
