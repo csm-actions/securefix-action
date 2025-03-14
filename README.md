@@ -8,7 +8,7 @@ Securefix Action is GitHub Actions to fix code securely.
 
 ![image](https://github.com/user-attachments/assets/5d854cf1-cff1-4af2-ab71-81cba3d8eb1d)
 
-Securefix Action allows you to fix code securely without sharing a GitHub App private key having strong permissions such as `contents:write` and `actions:write` with GitHub Actions workflows.
+Securefix Action allows you to fix code securely without sharing a GitHub App private key with strong permissions such as `contents:write` and `actions:write` across GitHub Actions workflows.
 You don't need to allow external services to access your code.
 It elevates the security of your workflows to the next level.
 
