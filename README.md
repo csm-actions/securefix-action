@@ -253,7 +253,7 @@ You can use [`server/prepare` action's outputs](server/prepare#outputs).
 Securefix Action uses `label` event to trigger a server workflow.
 Generally `workflow_dispatch` and `repository_dispatch` events are used to trigger workflows by API, but they require either `repo:write` or `actions:write`.
 These permissions are too strong.
-So we searched better events from [all events](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows), and we found `label` event.
+So we looked for better events from [all events](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows), and we found `label` event.
 
 ## Troubleshooting
 
