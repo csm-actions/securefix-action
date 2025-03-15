@@ -151,6 +151,7 @@ Add GitHub App's private keys and ID to Repository Secrets and Variables
 > In the getting started, we add private keys to Repository Secrets simply.
 > But when you use Securefix Action actually, you must manage the Server GitHub App's private key and the server workflow securely.
 > Only the server workflow must be able to access the server app's private key.
+> [See also `How to manage a server GitHub App and a server workflow`](#how-to-manage-a-server-github-app-and-a-server-workflow).
 
 ### Fix the server workflow if necessary
 
