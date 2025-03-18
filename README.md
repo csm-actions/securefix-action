@@ -121,7 +121,7 @@ Permissions:
 
 - `contents:write`: To create commits
 - `actions:read`: To download GitHub Actions Artifacts to fix code
-- `workflows:write`: Optional. This is required if you want to fix GitHub Actions workfklows
+- `workflows:write`: Optional. This is required if you want to fix GitHub Actions workflows
 - `pull_requests:write`: To notify problems on the server side to pull requests
 
 Installed Repositories: Install the app into the server repository and client repositories.
