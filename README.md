@@ -111,7 +111,7 @@ It uses following GitHub Apps, repositories, and workflows:
 1. [Add GitHub App's id and private keys to GitHub Secrets and Variables](#add-github-apps-id-and-private-keys-to-github-secrets-and-variables)
 1. [Fix the server workflow if necessary](#fix-the-server-workflow-if-necessary)
 1. [Fix the client workflow if necessary](#fix-the-client-workflow-if-necessary)
-1. [Fix client' repository's `foo.yaml` and create a pull request](#fix-client-repositorys-fooyaml-and-create-a-pull-request)
+1. [Add a new file `bar.yaml` to client' repository and create a pull request](#add-a-new-file-baryaml-to-client-repository-and-create-a-pull-request)
 
 ### GitHub App for server
 
@@ -166,28 +166,35 @@ If you change a variable name and a secret name, please fix the workflow.
 - If you change a variable name and a secret name, please fix the workflow
 - If you change the server repository name, please fix the input `server_repository`
 
-### Fix client' repository's `foo.yaml` and create a pull request
+### Add a new file `bar.yaml` to client' repository and create a pull request
 
-1. Fix client repository's `foo.yaml` ([Example](https://github.com/securefix-action/demo-client/pull/6/commits/ba0b0726a972e0b18cccddf8e4b28243bcdab5a4))
+1. Add `bar.yaml` to client repository ([Example](https://github.com/securefix-action/demo-client/pull/8/commits/0a0103a3c319f08739632b72aef6b539377da11b))
 
-```diff
-diff --git a/foo.yaml b/foo.yaml
-index 74753a3..1cd9439 100644
---- a/foo.yaml
-+++ b/foo.yaml
-@@ -1,2 +1,2 @@
- names:
--  - foo
-+- foo
+bar.yaml:
+
+```yaml
+names:
+- bar
 ```
 
-2. Create a pull request ([Example](https://github.com/securefix-action/demo-client/pull/6)):
+2. Create a pull request ([Example](https://github.com/securefix-action/demo-client/pull/8)):
 
-Then workflows are run and `foo.yaml` is fixed automatically:
+Then workflows are run and `bar.yaml` is fixed automatically:
 
-![image](https://github.com/user-attachments/assets/d80e0f5e-451f-40b1-9eb8-4336e4c5fd4c)
+![image](https://github.com/user-attachments/assets/808b7348-f1a6-41ff-97fb-c4125f31ed14)
 
-![image](https://github.com/user-attachments/assets/0ed98d10-471a-4a85-a3a0-06e669a96931)
+![image](https://github.com/user-attachments/assets/610668c2-a6e9-4c9b-a02a-381f9f1cd56a)
+
+[commit](https://github.com/securefix-action/demo-client/pull/8/commits/e8b1f71602ecacd7948351fd197a55370bdc38dd)
+
+```diff
+--- a/bar.yaml
++++ b/bar.yaml
+@@ -1,2 +1,2 @@
+ names:
+-- bar
++  - bar
+```
 
 ## Actions
 
