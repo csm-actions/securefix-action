@@ -105,9 +105,10 @@ It uses following GitHub Apps, repositories, and workflows:
 ### :bulb: Why are labels used?
 
 Securefix Action uses `label` event to trigger a server workflow.
-Generally `workflow_dispatch` or `repository_dispatch` events are used to trigger workflows by API, but they require either `repo:write` or `actions:write`.
-These permissions are too strong.
+Generally `repository_dispatch` or `workflow_dispatch` events are used to trigger workflows by API, but they require the permission `actions:write`.
+This permission is too strong.
 So we looked for better events from [all events](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows), and we found `label` event.
+Even if the permission is abused, the risk is low.
 
 ## Getting Started
 
