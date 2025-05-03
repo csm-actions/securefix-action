@@ -8,7 +8,7 @@ Securefix Action is GitHub Actions to fix code securely.
 
 ![image](https://github.com/user-attachments/assets/5d854cf1-cff1-4af2-ab71-81cba3d8eb1d)
 
-Securefix Action allows you to fix code securely without sharing a GitHub App private key with strong permissions such as `contents:write` and `actions:write` across GitHub Actions workflows.
+Securefix Action allows you to fix code securely without sharing a GitHub App private key with strong permissions such as `contents:write` across GitHub Actions workflows.
 You don't need to allow external services to access your code.
 It elevates the security of your workflows to the next level.
 
@@ -56,10 +56,10 @@ It's so dangerous.
 
 To prevent such a threat, you should protect personal access tokens and GitHub Apps having strong permissions securely.
 
-One solution is the client/server architecture.
+One solution is [the Client/Server Model](https://github.com/securefix-action/client-server-model-docs).
 Clients are GitHub Actions workflows that want to fix code.
 They send a request to the server, then the server fix code.
-You don't need to pass an access token having strong permissions to clients (GitHub Actions Workflows).
+You don't need to pass an access token with strong permissions to clients (GitHub Actions Workflows).
 
 Then how do you build the server?
 For instance, you would be able to build the server using AWS Lambda, Google Cloud Function, or k8s, and so on.
@@ -75,7 +75,7 @@ You don't need to host a server application.
 
 ## Architecture
 
-Securefix Action adopts client/server architecture.
+Securefix Action adopts [the Client/Server Model](https://github.com/securefix-action/client-server-model-docs).
 It uses following GitHub Apps, repositories, and workflows:
 
 - two GitHub Apps
@@ -105,9 +105,9 @@ It uses following GitHub Apps, repositories, and workflows:
 ### :bulb: Why are labels used?
 
 Securefix Action uses `label` event to trigger a server workflow.
-Generally `repository_dispatch` or `workflow_dispatch` events are used to trigger workflows by API, but they require the permission `actions:write`.
-This permission is too strong.
-So we looked for better events from [all events](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows), and we found `label` event.
+Generally `repository_dispatch` events are used to trigger workflows by API, but they require the permission `contents:write`.
+If we grant `contents:write` permissions to client workflows, this action has no sense because clients can create commits without this action.
+So we looked for alternative events from [all events](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows), and we found `label` event.
 Even if the permission is abused, the risk is low.
 
 ## Getting Started
