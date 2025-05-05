@@ -24,7 +24,7 @@ runs:
         COMMENT: |
           ${{ inputs.pull_request_comment }}
           [Workflow](${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}})
-          The comment was created by [Securefix Action](https://github.com/securefix-action/action).
+          The comment was created by [Securefix Action](https://github.com/csm-actions/securefix-action).
       run: |
         gh pr comment \
           -R "$REPO" \
