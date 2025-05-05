@@ -1,6 +1,6 @@
 # Securefix Action
 
-[![License](http://img.shields.io/badge/license-mit-blue.svg?style=flat-square)](https://raw.githubusercontent.com/securefix-action/action/main/LICENSE) | [Versioning Policy](https://github.com/suzuki-shunsuke/versioning-policy/blob/main/POLICY.md)
+[![License](http://img.shields.io/badge/license-mit-blue.svg?style=flat-square)](https://raw.githubusercontent.com/csm-actions/securefix-action/main/LICENSE) | [Versioning Policy](https://github.com/suzuki-shunsuke/versioning-policy/blob/main/POLICY.md)
 
 Securefix Action is GitHub Actions to fix code securely.
 
@@ -208,10 +208,10 @@ Then workflows are run and `bar.yaml` is fixed automatically:
 
 Securefix Action composes of four actions:
 
-- [securefix-action/action](docs/client.md) ([action.yaml](action.yaml)): Client action
-- [securefix-action/action/server/prepare](server/prepare) ([action.yaml](server/prepare/action.yaml)): Server action to prepare for creating commits
-- [securefix-action/action/server/commit](server/commit) ([action.yaml](server/commit/action.yaml)): Server action to create commits
-- [securefix-action/action/server/notify](server/notify) ([action.yaml](server/notify/action.yaml)): Server action to notify the server failure
+- [csm-actions/securefix-action](docs/client.md) ([action.yaml](action.yaml)): Client action
+- [csm-actions/securefix-action/server/prepare](server/prepare) ([action.yaml](server/prepare/action.yaml)): Server action to prepare for creating commits
+- [csm-actions/securefix-action/server/commit](server/commit) ([action.yaml](server/commit/action.yaml)): Server action to create commits
+- [csm-actions/securefix-action/server/notify](server/notify) ([action.yaml](server/notify/action.yaml)): Server action to notify the server failure
 
 ## Security
 
@@ -244,7 +244,7 @@ You can insert custom validation between `server/prepare` action and `server/com
 You can use [`server/prepare` action's outputs](server/prepare#outputs).
 
 ```yaml
-- uses: securefix-action/action/server/prepare@c5696e3325f3906c5054ad80f3b9cdd92d65173b # v0.1.0
+- uses: csm-actions/securefix-action/server/prepare@c5696e3325f3906c5054ad80f3b9cdd92d65173b # v0.1.0
   id: prepare
   with:
     app_id: ${{ vars.DEMO_SERVER_APP_ID }}
@@ -253,10 +253,10 @@ You can use [`server/prepare` action's outputs](server/prepare#outputs).
 - if: fromJson(steps.prepare.outputs.pull_request).user.login != 'suzuki-shunsuke'
   run: |
     exit 1
-- uses: securefix-action/action/server/commit@c5696e3325f3906c5054ad80f3b9cdd92d65173b # v0.1.0
+- uses: csm-actions/securefix-action/server/commit@c5696e3325f3906c5054ad80f3b9cdd92d65173b # v0.1.0
   with:
     outputs: ${{ toJson(steps.prepare.outputs) }}
-- uses: securefix-action/action/server/notify@c5696e3325f3906c5054ad80f3b9cdd92d65173b # v0.1.0
+- uses: csm-actions/securefix-action/server/notify@c5696e3325f3906c5054ad80f3b9cdd92d65173b # v0.1.0
   failure()
   with:
     outputs: ${{ toJson(steps.prepare.outputs) }}
