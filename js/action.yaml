@@ -1,0 +1,19 @@
+name: JavaScript Action
+description: JavaScript Action
+inputs:
+  config:
+    description: config
+    required: true
+  metadata:
+    description: metadata
+    required: true
+  repository:
+    description: repository
+    required: true
+  branch:
+    description: branch
+    required: true
+outputs: {}
+runs:
+  using: node20
+  main: dist/index.js

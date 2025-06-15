@@ -22,6 +22,42 @@ inputs:
     description: |
       Commit message
     required: false
+  repository:
+    description: |
+      A repository full name where a commit will be pushed.
+    required: false
+  branch:
+    description: |
+      A branch where a commit will be pushed.
+    required: false
+  pull_request_title:
+    description: |
+      A pull request title.
+    required: false
+  pull_request_description:
+    description: |
+      A pull request description.
+    required: false
+  pull_request_labels:
+    description: |
+      Pull request labels.
+    required: false
+  pull_request_draft:
+    description: |
+      Create a pull request as draft.
+    required: false
+  pull_request_reviewers:
+    description: |
+      Pull request reviewers.
+    required: false
+  pull_request_assignees:
+    description: |
+      Pull request assignees.
+    required: false
+  pull_request_comment:
+    description: |
+      Pull request comment.
+    required: false
 runs:
   using: composite
   steps:
@@ -66,12 +102,32 @@ runs:
       id: metadata
       env:
         COMMIT_MESSAGE: ${{inputs.commit_message}}
+        REPO: ${{inputs.repository}}
+        BRANCH: ${{inputs.branch}}
+        PR_TITLE: ${{inputs.pull_request_title}}
+        PR_DESCRIPTION: ${{inputs.pull_request_description}}
+        PR_LABELS: ${{inputs.pull_request_labels}}
+        PR_ASSIGNEES: ${{inputs.pull_request_assignees}}
+        PR_REVIEWERS: ${{inputs.pull_request_reviewers}}
+        PR_DRAFT: ${{inputs.pull_request_draft}}
+        PR_COMMENT: ${{inputs.pull_request_comment}}
       with:
         script: |
           return {
             context: context,
             inputs: {
+              repository: process.env.REPOSITORY || '',
+              branch: process.env.BRANCH || '',
               commit_message: process.env.COMMIT_MESSAGE || '',
+              pull_request: {
+                title: process.env.PR_TITLE || '',
+                description: process.env.PR_DESCRIPTION || '',
+                labels: process.env.PR_LABELS ? process.env.PR_LABELS.split('\n') : [],
+                assignees: process.env.PR_ASSIGNEES ? process.env.PR_ASSIGNEES.split('\n') : [],
+                reviewers: process.env.PR_REVIEWERS ? process.env.PR_REVIEWERS.split('\n') : [],
+                draft: process.env.PR_DRAFT === 'true',
+                comment: process.env.PR_COMMENT || '',
+              }
             },
           };
 
