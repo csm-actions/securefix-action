@@ -24,3 +24,26 @@ runs:
         commit_message: |
           ${{fromJson(fromJson(inputs.outputs).metadata).inputs.commit_message && fromJson(fromJson(inputs.outputs).metadata).inputs.commit_message || inputs.commit_message}}
           ${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}}
+
+    # Create a pull request
+    # - if: fromJson(inputs.outputs).create_pull_request != ''
+    #   uses: actions/github-script@v6
+    #   env:
+    #     OUTPUTS: ${{ fromJson(inputs.outputs) }}
+    #   with:
+    #     github-token: ${{fromJson(inputs.outputs).github_token}}
+    #     script: |
+    #       const repo = fromJson(inputs.outputs).repository;
+    #       const pr = await github.rest.pulls.create({
+    #         owner: repo.split('/')[0],
+    #         repo: repo.split('/')[1],
+    #         title: fromJson(fromJson(inputs.outputs).metadata).inputs.pull_request_title || 'Pull Request',
+    #         body: fromJson(fromJson(inputs.outputs).metadata).inputs.pull_request_description || '',
+    #         head: fromJson(fromJson(inputs.outputs).workflow_run).head_branch,
+    #         base: fromJson(fromJson(inputs.outputs).workflow_run).base_branch,
+    #         draft: fromJson(fromJson(inputs.outputs).metadata).inputs.pull_request_draft || false,
+    #         labels: fromJson(fromJson(inputs.outputs).metadata).inputs.pull_request_labels ? fromJson(fromJson(inputs.outputs).metadata).inputs.pull_request_labels.split(',') : [],
+    #         maintainer_can_modify: true,
+    #       });
+    #       return pr.data;
+    # Create a pull request comment

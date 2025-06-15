@@ -1,0 +1,27 @@
+{
+  "scripts": {
+    "build": "ncc build src/index.ts --license LICENSE",
+    "test": "vitest --run"
+  },
+  "dependencies": {
+    "@actions/core": "1.11.1",
+    "@actions/exec": "^1.1.1",
+    "@actions/github": "6.0.1",
+    "@octokit/core": "^7.0.0",
+    "@octokit/plugin-paginate-graphql": "^6.0.0",
+    "@types/json-diff": "^1.0.3",
+    "glob": "11.0.2",
+    "js-yaml": "4.1.0",
+    "tmp": "^0.2.3",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "4.0.9",
+    "@types/node": "20.19.0",
+    "@types/tmp": "0.2.6",
+    "@vercel/ncc": "0.38.3",
+    "typescript": "5.8.3",
+    "vitest": "3.2.2",
+    "zod-to-json-schema": "3.24.5"
+  }
+}

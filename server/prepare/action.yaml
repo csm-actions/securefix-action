@@ -19,6 +19,10 @@ inputs:
       Either true or false. If true, the action allows the workflow to fix the code.
     required: false
     default: "false"
+  config:
+    description: |
+      YAML config to push other repositories and branches.
+    required: false
 outputs:
   pull_request:
     description: |
@@ -35,11 +39,19 @@ outputs:
   repository:
     description: |
       Repository Full Name
-    value: ${{ steps.info.outputs.repo_full_name }}
+    value: ${{ steps.js.outputs.repository }}
   repository_name:
     description: |
       Repository Name
     value: ${{ steps.info.outputs.repo }}
+  branch:
+    description: |
+      Branch
+    value: ${{ steps.js.outputs.branch }}
+  create_pull_request:
+    description: |
+      Created pull request parameter
+    value: ${{ steps.js.outputs.pull_request }}
   workflow_run_id:
     description: |
       Workflow Run ID
@@ -208,3 +220,14 @@ runs:
           echo EOF
         } >> "$GITHUB_OUTPUT"
         rm "$FILES"
+
+    # Read YAML config to push other repositories and branches
+    # Read metadata to get repository and branch
+    # Validate repository and branch
+    - uses: csm-actions/securefix-action/js@main
+      id: js
+      with:
+        repository: ${{steps.info.outputs.repo_full_name}}
+        branch: ${{fromJson(steps.workflow_run.outputs.value).head_branch}}
+        metadata: ${{github.event.label.name}}.json
+        config: ${{inputs.config}}
