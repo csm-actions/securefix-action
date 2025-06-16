@@ -44,7 +44,7 @@ const PullRequest = z.object({
 const Inputs = z.object({
   repository: z.string(),
   branch: z.string(),
-  pullRequest: PullRequest,
+  pullRequest: z.optional(PullRequest),
 });
 
 const Metadata = z.object({
