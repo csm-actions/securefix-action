@@ -18,9 +18,9 @@ runs:
       uses: suzuki-shunsuke/commit-action@cc96d3a3fd959d05e9b79ca395eb30b835aeba24 # v0.0.7
       with:
         github_token: ${{fromJson(inputs.outputs).github_token}}
-        repository: ${{ fromJson(inputs.outputs).repository }}
-        branch: ${{ fromJson(fromJson(inputs.outputs).workflow_run).head_branch }}
-        files: ${{ fromJson(inputs.outputs).fixed_files }}
+        repository: ${{fromJson(inputs.outputs).repository}}
+        branch: ${{fromJson(inputs.outputs).branch}}
+        files: ${{fromJson(inputs.outputs).fixed_files}}
         commit_message: |
           ${{fromJson(fromJson(inputs.outputs).metadata).inputs.commit_message && fromJson(fromJson(inputs.outputs).metadata).inputs.commit_message || inputs.commit_message}}
           ${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}}
