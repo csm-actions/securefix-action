@@ -28,3 +28,11 @@ jobs:
   typos:
     uses: ./.github/workflows/typos.yaml
     permissions: {}
+
+  create_pr_branch:
+    uses: ./.github/workflows/wc-create-pr-branch.yaml
+    with:
+      pr: ${{github.event.pull_request.number}}
+    permissions:
+      contents: write
+      pull-requests: write
