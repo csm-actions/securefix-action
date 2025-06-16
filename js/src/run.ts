@@ -66,10 +66,10 @@ export const main = (input: Input) => {
   const destRepo = metadata.inputs.repository || input.repository;
   const destBranch = metadata.inputs.branch || input.branch;
   for (const entry of config.entries) {
-    if (entry.source.repositories.includes(metadata.inputs.repository) &&
+    if (entry.source.repositories.includes(input.repository) &&
       // source branches are glob patterns
       // Check if the input branch matches any of the source branches
-      entry.source.branches.some(branch => minimatch(metadata.inputs.branch, branch)) &&
+      entry.source.branches.some(branch => minimatch(input.branch, branch)) &&
       // destination repositories are glob patterns
       entry.destination.repositories.includes(destRepo) &&
       entry.destination.branches.some(branch => minimatch(destBranch, branch))
