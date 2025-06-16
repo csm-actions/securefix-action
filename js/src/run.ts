@@ -57,6 +57,7 @@ export const main = (input: Input) => {
   if (!input.config) {
     core.setOutput("repository", metadata.inputs.repository);
     core.setOutput("branch", metadata.inputs.branch);
+    return;
   }
   // Read YAML config to push other repositories and branches
   const config = Config.parse(load(input.config));
