@@ -52,10 +52,14 @@ const Metadata = z.object({
 });
 
 export const main = (input: Input) => {
-  // Read YAML config to push other repositories and branches
-  const config = Config.parse(load(input.config));
   // Read metadata to get repository and branch
   const metadata = Metadata.parse(load(fs.readFileSync(input.metadataFile, "utf8")));
+  if (!input.config) {
+    core.setOutput("repository", metadata.inputs.repository);
+    core.setOutput("branch", metadata.inputs.branch);
+  }
+  // Read YAML config to push other repositories and branches
+  const config = Config.parse(load(input.config));
   // Validate repository and branch
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
     return;

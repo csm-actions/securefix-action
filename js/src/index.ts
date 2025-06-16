@@ -3,7 +3,7 @@ import { main } from "./run";
 
 try {
   main({
-    config: core.getInput("config", { required: true }),
+    config: core.getInput("config", { required: false }),
     metadataFile: core.getInput("metadata", { required: true }),
     repository: core.getInput("repository", { required: true }),
     branch: core.getInput("branch", { required: true }),

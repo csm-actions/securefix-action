@@ -3,7 +3,7 @@ description: JavaScript Action
 inputs:
   config:
     description: config
-    required: true
+    required: false
   metadata:
     description: metadata
     required: true
