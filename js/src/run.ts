@@ -55,8 +55,8 @@ export const main = (input: Input) => {
   // Read metadata to get repository and branch
   const metadata = Metadata.parse(load(fs.readFileSync(input.metadataFile, "utf8")));
   if (!input.config) {
-    core.setOutput("repository", metadata.inputs.repository);
-    core.setOutput("branch", metadata.inputs.branch);
+    core.setOutput("repository", input.repository);
+    core.setOutput("branch", input.branch);
     return;
   }
   // Read YAML config to push other repositories and branches
