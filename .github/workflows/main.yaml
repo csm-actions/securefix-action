@@ -4,32 +4,10 @@ on:
     branches:
       - main
 jobs:
-  build:
-    timeout-minutes: 15
-    runs-on: ubuntu-latest
+  update-latest-branch:
+    uses: ./.github/workflows/wc-create-pr-branch.yaml
+    with:
+      version: latest
     permissions:
       contents: write
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-
-      - uses: aquaproj/aqua-installer@9ebf656952a20c45a5d66606f083ff34f58b8ce0 # v4.0.0
-        with:
-          aqua_version: v2.53.2
-        env:
-          GITHUB_TOKEN: ${{github.token}}
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version-file: js/.node-version
-          cache: npm
-      - run: npm ci
-        working-directory: js
-
-      - run: npm run build
-        working-directory: js
-
-      - uses: suzuki-shunsuke/release-js-action@8a88dffbd0aa8fc1d301d3d5773f99efd181410b # v0.1.5
-        with:
-          version: latest
+      pull-requests: write
