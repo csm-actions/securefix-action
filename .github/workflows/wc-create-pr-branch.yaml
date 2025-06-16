@@ -52,7 +52,7 @@ jobs:
       - run: npm run build
         working-directory: js
 
-      - uses: suzuki-shunsuke/release-js-action@8a88dffbd0aa8fc1d301d3d5773f99efd181410b # v0.1.5
+      - uses: suzuki-shunsuke/release-js-action@646138a816d700c2aff05214746708b94b21e6cc # v0.1.6
         with:
           version: ${{inputs.version}}
           is_comment: ${{inputs.is_comment}}
