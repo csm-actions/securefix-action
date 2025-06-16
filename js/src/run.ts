@@ -54,17 +54,15 @@ const Metadata = z.object({
 export const main = (input: Input) => {
   // Read metadata to get repository and branch
   const metadata = Metadata.parse(load(fs.readFileSync(input.metadataFile, "utf8")));
-  if (!input.config) {
-    core.setOutput("repository", input.repository);
-    core.setOutput("branch", input.branch);
-    return;
-  }
-  // Read YAML config to push other repositories and branches
-  const config = Config.parse(load(input.config));
   // Validate repository and branch
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
     return;
   }
+  if (!input.config) {
+    input.config = '{"entries": []}'; // Default empty config if not provided
+  }
+  // Read YAML config to push other repositories and branches
+  const config = Config.parse(load(input.config));
   const destRepo = metadata.inputs.repository || input.repository;
   const destBranch = metadata.inputs.branch || input.branch;
   for (const entry of config.entries) {
