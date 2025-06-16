@@ -27,7 +27,9 @@ Server Prepare Action prepares for creating a commit.
 - `pull_request`: A Pull Request Payload ([ref](https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request))
 - `pull_request_number`: A Pull Request Number
 - `workflow_run`: A Workflow Run Payload ([ref](https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#get-a-workflow-run))
-- `repository`: A client repository's full name
+- `client_repository`: A client repository's full name
+- `destination_repository`: A destination repository's full name
+- `branch`: A destination branch
 - `repository_name`: A client repository's name
 - `workflow_run_id`: A client workflow run id
 - `metadata`: A request's metadata. It's a JSON string.

@@ -36,14 +36,14 @@ outputs:
     description: |
       Workflow Run
     value: ${{ steps.workflow_run.outputs.value }}
-  repository:
+  client_repository:
+    description: |
+      Repository Full Name
+    value: ${{steps.info.outputs.repo_full_name}}
+  destination_repository:
     description: |
       Repository Full Name
     value: ${{steps.js.outputs.repository}}
-  repository_name:
-    description: |
-      Repository Name
-    value: ${{ steps.info.outputs.repo }}
   branch:
     description: |
       Branch
