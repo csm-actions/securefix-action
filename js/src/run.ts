@@ -17,14 +17,18 @@ const Client = z.object({
 });
 
 const Push = z.object({
-  pull_request: z.optional(z.boolean()),
   repositories: z.array(z.string()),
   branches: z.array(z.string()),
+});
+
+const PullRequestEntry = z.object({
+  base_branches: z.array(z.string()),
 });
 
 const Entry = z.object({
   client: Client,
   push: Push,
+  pull_request: z.optional(PullRequestEntry),
 });
 
 const Config = z.object({
@@ -34,6 +38,7 @@ const Config = z.object({
 const PullRequest = z.object({
   title: z.string(),
   body: z.string(),
+  base: z.string(),
   labels: z.array(z.string()),
   assignees: z.array(z.string()),
   reviewers: z.array(z.string()),
@@ -77,8 +82,14 @@ export const main = (input: Input) => {
       core.setOutput("repository", destRepo);
       core.setOutput("branch", destBranch);
       if (metadata.inputs.pull_request) {
-        if (!entry.push.pull_request) {
-          throw new Error("Creating a pull request isn't allowed for this entry.");
+        if (!metadata.inputs.pull_request.base) {
+          throw new Error("pull_request base branch is required to create a pull request");
+        }
+        if (!entry.pull_request) {
+          throw new Error("Creating a pull request isn't allowed for this entry");
+        }
+        if (!entry.pull_request.base_branches.includes(metadata.inputs.pull_request.base)) {
+          throw new Error("The given pull request branch isn't allowed for this entry");
         }
         core.setOutput("pull_request", metadata.inputs.pull_request);
       }

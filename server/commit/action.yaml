@@ -55,7 +55,7 @@ runs:
             head: outputs.branch,
             title: param.title,
             body: param.body,
-            // base: fromJSON(fromJSON(inputs.outputs).workflow_run).base_branch,
+            base: param.base,
             draft: param.draft || false,
             labels: param.labels || [],
             reviewers: param.reviewers || [],

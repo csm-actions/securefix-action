@@ -38,6 +38,10 @@ inputs:
     description: |
       A pull request title.
     required: false
+  pull_request_base_branch:
+    description: |
+      A pull request base branch.
+    required: false
   pull_request_body:
     description: |
       A pull request body.
@@ -109,6 +113,7 @@ runs:
         REPO: ${{inputs.repository}}
         BRANCH: ${{inputs.branch}}
         PR_TITLE: ${{inputs.pull_request_title}}
+        PR_BASE_BRANCH: ${{inputs.pull_request_base_branch}}
         PR_BODY: ${{inputs.pull_request_body}}
         PR_LABELS: ${{inputs.pull_request_labels}}
         PR_ASSIGNEES: ${{inputs.pull_request_assignees}}
@@ -126,6 +131,7 @@ runs:
               pull_request: {
                 title: process.env.PR_TITLE || '',
                 body: process.env.PR_BODY || '',
+                base: process.env.PR_BASE_BRANCH || '',
                 labels: process.env.PR_LABELS ? process.env.PR_LABELS.split('\n') : [],
                 assignees: process.env.PR_ASSIGNEES ? process.env.PR_ASSIGNEES.split('\n') : [],
                 reviewers: process.env.PR_REVIEWERS ? process.env.PR_REVIEWERS.split('\n') : [],
