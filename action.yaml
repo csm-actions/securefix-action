@@ -38,9 +38,9 @@ inputs:
     description: |
       A pull request title.
     required: false
-  pull_request_description:
+  pull_request_body:
     description: |
-      A pull request description.
+      A pull request body.
     required: false
   pull_request_labels:
     description: |
@@ -109,7 +109,7 @@ runs:
         REPO: ${{inputs.repository}}
         BRANCH: ${{inputs.branch}}
         PR_TITLE: ${{inputs.pull_request_title}}
-        PR_DESCRIPTION: ${{inputs.pull_request_description}}
+        PR_BODY: ${{inputs.pull_request_body}}
         PR_LABELS: ${{inputs.pull_request_labels}}
         PR_ASSIGNEES: ${{inputs.pull_request_assignees}}
         PR_REVIEWERS: ${{inputs.pull_request_reviewers}}
@@ -125,7 +125,7 @@ runs:
               commit_message: process.env.COMMIT_MESSAGE || '',
               pull_request: {
                 title: process.env.PR_TITLE || '',
-                description: process.env.PR_DESCRIPTION || '',
+                body: process.env.PR_BODY || '',
                 labels: process.env.PR_LABELS ? process.env.PR_LABELS.split('\n') : [],
                 assignees: process.env.PR_ASSIGNEES ? process.env.PR_ASSIGNEES.split('\n') : [],
                 reviewers: process.env.PR_REVIEWERS ? process.env.PR_REVIEWERS.split('\n') : [],

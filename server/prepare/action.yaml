@@ -40,7 +40,7 @@ outputs:
     description: |
       Repository Full Name
     value: ${{steps.info.outputs.repo_full_name}}
-  destination_repository:
+  push_repository:
     description: |
       Repository Full Name
     value: ${{steps.js.outputs.repository}}
