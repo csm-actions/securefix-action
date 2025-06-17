@@ -272,7 +272,7 @@ You can push a commit to the other repository and branch securely.
 1. Configure the client side:
 
 ```yaml
-- uses: csm-actions/securefix-action@pr/123
+- uses: csm-actions/securefix-action@latest
   with:
     app_id: ${{ vars.APP_ID }}
     app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -287,7 +287,7 @@ Allowing to push any repository and branch without any restriction is dangerous,
 2. Configure the server side:
 
 ```yaml
-- uses: csm-actions/securefix-action/server/prepare@pr/123
+- uses: csm-actions/securefix-action/server/prepare@latest
   id: prepare
   with:
     app_id: ${{ vars.APP_ID }}
