@@ -262,7 +262,7 @@ runs:
         app_id: ${{inputs.app_id}}
         private_key: ${{inputs.app_private_key}}
         repositories: >-
-          ["${{ steps.js.outputs.repository }}"]
+          ["${{ steps.js.outputs.repository_name }}"]
         permissions: ${{ steps.push_permissions.outputs.result }}
 
     - id: token2

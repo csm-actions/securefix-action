@@ -62,6 +62,8 @@ export const main = (input: Input) => {
   // Validate repository and branch
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
     core.setOutput("repository", input.repository);
+    core.setOutput("repository_owner", input.repository.split("/")[0]);
+    core.setOutput("repository_name", input.repository.split("/")[1]);
     core.setOutput("branch", input.branch);
     return;
   }
@@ -82,6 +84,8 @@ export const main = (input: Input) => {
       entry.push.branches.some(branch => minimatch(destBranch, branch))
     ) {
       core.setOutput("repository", destRepo);
+      core.setOutput("repository_owner", destRepo.split("/")[0]);
+      core.setOutput("repository_name", destRepo.split("/")[1]);
       core.setOutput("branch", destBranch);
       if (metadata.inputs.pull_request) {
         if (!metadata.inputs.pull_request.base) {
