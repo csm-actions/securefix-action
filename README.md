@@ -326,7 +326,7 @@ New optional inputs:
 - `repository`: A repository full name where a commit will be pushed
 - `branch`: A branch where a commit will be pushed
 - `pull_request_title`: A pull request title
-- `pull_request_description`: A pull request description
+- `pull_request_body`: A pull request description
 - `pull_request_labels`: Pull request labels
 - `pull_request_draft`: If true, create a pull request as draft
 - `pull_request_reviewers`: Pull request reviewers
@@ -353,12 +353,14 @@ entries:
       branches:
         - main
     destination:
-      pull_request: true
       repositories:
         - suzuki-shunsuke/tfaction-example
       branches:
         - "scaffold-working-directory-*" # Glob
         - "follow-up-*" # Glob
+    pull_request:
+      base_branches:
+        - main
   - source:
       repositories:
         - suzuki-shunsuke/tfaction
