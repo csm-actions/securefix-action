@@ -18,7 +18,7 @@ runs:
       id: commit
       uses: suzuki-shunsuke/commit-action@e3299afe2e5ffb76f1987743e3dbc0f00ece72d8 # v0.0.8
       with:
-        github_token: ${{fromJSON(inputs.outputs).github_token}}
+        github_token: ${{fromJSON(inputs.outputs).github_token_for_push}}
         repository: ${{fromJSON(inputs.outputs).push_repository}}
         branch: ${{fromJSON(inputs.outputs).branch}}
         files: ${{fromJSON(inputs.outputs).fixed_files}}
@@ -32,7 +32,7 @@ runs:
       env:
         OUTPUTS: ${{ inputs.outputs }}
       with:
-        github-token: ${{fromJSON(inputs.outputs).github_token}}
+        github-token: ${{fromJSON(inputs.outputs).github_token_for_push}}
         script: |
           const outputs = JSON.parse(process.env.OUTPUTS);
           const param = JSON.parse(outputs.create_pull_request);
