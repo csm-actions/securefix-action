@@ -35,7 +35,7 @@ runs:
         PR: ${{ toJson(fromJson(inputs.outputs).create_pull_request) }}
 
     # Create a pull request
-    - if: fromJson(inputs.outputs).fixed_files != '' && steps.commit.outputs.pushed == 'true' && fromJson(inputs.outputs).create_pull_request.title != ''
+    - if: (fromJson(inputs.outputs).fixed_files != '') && (steps.commit.outputs.pushed == 'true') && (fromJson(inputs.outputs).create_pull_request.title != '')
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       env:
         OUTPUTS: ${{ inputs.outputs }}
