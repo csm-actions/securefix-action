@@ -82,6 +82,7 @@ export const main = (input: Input) => {
         }
         core.setOutput("pull_request", metadata.inputs.pullRequest);
       }
+      return;
     }
   }
   throw new Error("No matching entry found in the config for the given repository and branch.");
