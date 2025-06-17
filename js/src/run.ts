@@ -33,7 +33,7 @@ const Config = z.object({
 
 const PullRequest = z.object({
   title: z.string(),
-  description: z.string(),
+  body: z.string(),
   labels: z.array(z.string()),
   assignees: z.array(z.string()),
   reviewers: z.array(z.string()),
