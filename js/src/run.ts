@@ -61,6 +61,8 @@ export const main = (input: Input) => {
   const metadata = Metadata.parse(load(fs.readFileSync(input.metadataFile, "utf8")));
   // Validate repository and branch
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
+    core.setOutput("repository", input.repository);
+    core.setOutput("branch", input.branch);
     return;
   }
   if (!input.config) {
