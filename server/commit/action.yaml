@@ -26,6 +26,14 @@ runs:
           ${{fromJson(fromJson(inputs.outputs).metadata).inputs.commit_message && fromJson(fromJson(inputs.outputs).metadata).inputs.commit_message || inputs.commit_message}}
           ${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}}
 
+    - shell: bash
+      run: |
+        echo "pushed: $PUSHED"
+        echo "PR: $PR"
+      env:
+        PUSHED: ${{ steps.commit.outputs.pushed }}
+        PR: ${{ toJson(fromJson(inputs.outputs).create_pull_request) }}
+
     # Create a pull request
     - if: fromJson(inputs.outputs).fixed_files != '' && steps.commit.outputs.pushed == 'true' && fromJson(inputs.outputs).create_pull_request.title != ''
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
