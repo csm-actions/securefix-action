@@ -26,19 +26,6 @@ runs:
           ${{fromJSON(fromJSON(inputs.outputs).metadata).inputs.commit_message && fromJSON(fromJSON(inputs.outputs).metadata).inputs.commit_message || inputs.commit_message}}
           ${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}}
 
-    - shell: bash
-      run: |
-        echo "pushed: $PUSHED"
-        echo "PR: $PR"
-      env:
-        PUSHED: ${{ steps.commit.outputs.pushed }}
-        PR: ${{ toJson(fromJSON(inputs.outputs).create_pull_request) }}
-        PR_TITLE: ${{fromJSON(fromJSON(inputs.outputs).create_pull_request).title}}
-        IF_FIXED: ${{fromJSON(inputs.outputs).fixed_files != ''}}
-        IF_PUSHED: ${{steps.commit.outputs.pushed == 'true'}}
-        IF_TITLE: ${{fromJSON(fromJSON(inputs.outputs).create_pull_request).title != ''}}
-        IF: ${{ (fromJSON(inputs.outputs).fixed_files != '') && (steps.commit.outputs.pushed == 'true') && (fromJSON(fromJSON(inputs.outputs).create_pull_request).title != '') }}
-
     # Create a pull request
     - if: (fromJSON(inputs.outputs).fixed_files != '') && (steps.commit.outputs.pushed == 'true') && (fromJSON(fromJSON(inputs.outputs).create_pull_request).title != '')
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -49,9 +36,11 @@ runs:
         script: |
           const outputs = JSON.parse(process.env.OUTPUTS);
           const param = JSON.parse(outputs.create_pull_request);
+          const owner = outputs.push_repository.split('/')[0];
+          const repo = outputs.push_repository.split('/')[1];
           const pr = await github.rest.pulls.create({
-            owner: outputs.push_repository.split('/')[0],
-            repo: outputs.push_repository.split('/')[1],
+            owner: owner,
+            repo: repo,
             head: outputs.branch,
             title: param.title,
             body: param.body,
@@ -61,4 +50,14 @@ runs:
             reviewers: param.reviewers || [],
             assignees: param.assignees || [],
           });
-    # Create a pull request comment
+          core.info(`Created a pull request: ${pr.data.html_url}`);
+          if (param.comment) {
+            // Create a pull request comment
+            await github.rest.issues.createComment({
+              owner: owner,
+              repo: repo,
+              issue_number: pr.data.number,
+              body: param.comment,
+            });
+          }
+          return pr;
