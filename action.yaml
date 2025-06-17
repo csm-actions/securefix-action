@@ -139,9 +139,9 @@ runs:
                 title: process.env.PR_TITLE || '',
                 body: process.env.PR_BODY || '',
                 base: process.env.PR_BASE_BRANCH || '',
-                labels: process.env.PR_LABELS ? process.env.PR_LABELS.split('\n') : [],
-                assignees: process.env.PR_ASSIGNEES ? process.env.PR_ASSIGNEES.split('\n') : [],
-                reviewers: process.env.PR_REVIEWERS ? process.env.PR_REVIEWERS.split('\n') : [],
+                labels: process.env.PR_LABELS ? process.env.PR_LABELS.trim().split('\n') : [],
+                assignees: process.env.PR_ASSIGNEES ? process.env.PR_ASSIGNEES.trim().split('\n') : [],
+                reviewers: process.env.PR_REVIEWERS ? process.env.PR_REVIEWERS.trim().split('\n') : [],
                 draft: process.env.PR_DRAFT === 'true',
                 comment: process.env.PR_COMMENT || '',
               }
