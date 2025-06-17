@@ -33,6 +33,11 @@ runs:
       env:
         PUSHED: ${{ steps.commit.outputs.pushed }}
         PR: ${{ toJson(fromJson(inputs.outputs).create_pull_request) }}
+        PR_TITLE: ${{fromJson(inputs.outputs).create_pull_request.title}}
+        IF_FIXED: ${{fromJson(inputs.outputs).fixed_files != ''}}}
+        IF_PUSHED: ${{steps.commit.outputs.pushed == 'true'}}
+        IF_TITLE: ${{fromJson(inputs.outputs).create_pull_request.title != ''}}
+        IF: ${{fromJson(inputs.outputs).fixed_files != '') && (steps.commit.outputs.pushed == 'true') && (fromJson(inputs.outputs).create_pull_request.title != '')}}
 
     # Create a pull request
     - if: (fromJson(inputs.outputs).fixed_files != '') && (steps.commit.outputs.pushed == 'true') && (fromJson(inputs.outputs).create_pull_request.title != '')
