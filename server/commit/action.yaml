@@ -15,7 +15,7 @@ runs:
   steps:
     # Create and push a commit
     - if: fromJson(inputs.outputs).fixed_files != ''
-      uses: suzuki-shunsuke/commit-action@cc96d3a3fd959d05e9b79ca395eb30b835aeba24 # v0.0.7
+      uses: suzuki-shunsuke/commit-action@e3299afe2e5ffb76f1987743e3dbc0f00ece72d8 # v0.0.8
       with:
         github_token: ${{fromJson(inputs.outputs).github_token}}
         repository: ${{ fromJson(inputs.outputs).repository }}
