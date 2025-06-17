@@ -66,7 +66,7 @@ export const main = (input: Input) => {
     return;
   }
   if (!input.config) {
-    input.config = '{"entries": []}'; // Default empty config if not provided
+    throw new Error("the input config is required to push a commit to other repositories and branches");
   }
   // Read YAML config to push other repositories and branches
   const config = Config.parse(load(input.config));
