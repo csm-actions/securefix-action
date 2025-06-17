@@ -44,7 +44,7 @@ const PullRequest = z.object({
 const Inputs = z.object({
   repository: z.string(),
   branch: z.string(),
-  pullRequest: z.optional(PullRequest),
+  pull_request: z.optional(PullRequest),
 });
 
 const Metadata = z.object({
@@ -76,11 +76,11 @@ export const main = (input: Input) => {
     ) {
       core.setOutput("repository", destRepo);
       core.setOutput("branch", destBranch);
-      if (metadata.inputs.pullRequest) {
+      if (metadata.inputs.pull_request) {
         if (!entry.push.pull_request) {
           throw new Error("Creating a pull request isn't allowed for this entry.");
         }
-        core.setOutput("pull_request", metadata.inputs.pullRequest);
+        core.setOutput("pull_request", metadata.inputs.pull_request);
       }
       return;
     }
