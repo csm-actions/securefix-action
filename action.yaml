@@ -22,6 +22,10 @@ inputs:
     description: |
       Commit message
     required: false
+  fail_if_changes:
+    description: |
+      If true, the action fails if there are changes.
+    required: false
   repository:
     description: |
       A repository full name where a commit will be pushed.
@@ -194,7 +198,12 @@ runs:
       shell: bash
       env:
         FILES: ${{ steps.files.outputs.value }}
+        FAILED: ${{inputs.fail_if_changes != '' && inputs.fail_if_changes || (inputs.repository == '' && inputs.branch == '')}}
       run: |
-        echo "::error:: Changes detected. A commit will be pushed"
+        if [ "$FAILED" = true ]; then
+          echo "::error:: Changes detected. A commit will be pushed"
+          git ls-files --modified --others --exclude-standard
+          exit 1
+        fi
+        echo "::notice:: Changes detected. A commit will be pushed"
         git ls-files --modified --others --exclude-standard
-        exit 1
