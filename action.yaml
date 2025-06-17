@@ -132,7 +132,7 @@ runs:
           return {
             context: context,
             inputs: {
-              repository: process.env.REPOSITORY || '',
+              repository: process.env.REPO || '',
               branch: process.env.BRANCH || '',
               commit_message: process.env.COMMIT_MESSAGE || '',
               pull_request: {
