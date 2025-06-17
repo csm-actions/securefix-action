@@ -11,20 +11,20 @@ type Input = {
   branch: string;
 };
 
-const Source = z.object({
+const Client = z.object({
   repositories: z.array(z.string()),
   branches: z.array(z.string()),
 });
 
-const Destination = z.object({
+const Push = z.object({
   pull_request: z.optional(z.boolean()),
   repositories: z.array(z.string()),
   branches: z.array(z.string()),
 });
 
 const Entry = z.object({
-  source: Source,
-  destination: Destination,
+  client: Client,
+  push: Push,
 });
 
 const Config = z.object({
@@ -66,18 +66,18 @@ export const main = (input: Input) => {
   const destRepo = metadata.inputs.repository || input.repository;
   const destBranch = metadata.inputs.branch || input.branch;
   for (const entry of config.entries) {
-    if (entry.source.repositories.includes(input.repository) &&
+    if (entry.client.repositories.includes(input.repository) &&
       // source branches are glob patterns
       // Check if the input branch matches any of the source branches
-      entry.source.branches.some(branch => minimatch(input.branch, branch)) &&
+      entry.client.branches.some(branch => minimatch(input.branch, branch)) &&
       // destination repositories are glob patterns
-      entry.destination.repositories.includes(destRepo) &&
-      entry.destination.branches.some(branch => minimatch(destBranch, branch))
+      entry.push.repositories.includes(destRepo) &&
+      entry.push.branches.some(branch => minimatch(destBranch, branch))
     ) {
       core.setOutput("repository", destRepo);
       core.setOutput("branch", destBranch);
       if (metadata.inputs.pullRequest) {
-        if (!entry.destination.pull_request) {
+        if (!entry.push.pull_request) {
           throw new Error("Creating a pull request isn't allowed for this entry.");
         }
         core.setOutput("pull_request", metadata.inputs.pullRequest);

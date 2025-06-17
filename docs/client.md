@@ -45,6 +45,16 @@ jobs:
 ### Optional Inputs
 
 - `commit_message`: A commit message
+- `fail_if_changes`: If true, the action fails if there are changes
+- `repository`: A repository full name where a commit will be pushed
+- `branch`: A branch where a commit will be pushed
+- `pull_request_title`: A pull request title
+- `pull_request_description`: A pull request description
+- `pull_request_labels`: Pull request labels
+- `pull_request_draft`: If true, create a pull request as draft
+- `pull_request_reviewers`: Pull request reviewers
+- `pull_request_assignees`: Pull request assignees
+- `pull_request_comment`: Pull request comment
 
 ## Outputs
 
