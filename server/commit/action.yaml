@@ -49,7 +49,7 @@ runs:
             draft: param.draft || false,
           });
           core.info(`Created a pull request: ${pr.data.html_url}`);
-          // Create a pull requeset comment
+          // Create a pull request comment
           if (param.comment) {
             // Create a pull request comment
             await github.rest.issues.createComment({
