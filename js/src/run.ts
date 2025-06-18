@@ -42,6 +42,7 @@ const PullRequest = z.object({
   labels: z.array(z.string()),
   assignees: z.array(z.string()),
   reviewers: z.array(z.string()),
+  team_reviewers: z.array(z.string()),
   draft: z.boolean(),
   comment: z.string(),
 });
