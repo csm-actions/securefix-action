@@ -35,26 +35,29 @@ e.g.
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/csm-actions/securefix-action/main/json-schema/config.json
 entries:
-  - source:
+  - client:
       repositories:
         - suzuki-shunsuke/tfaction-example
       branches:
         - main
-    destination:
+    push:
       repositories:
         - suzuki-shunsuke/tfaction-example
       branches:
         - "scaffold-working-directory-*" # Glob
         - "follow-up-*" # Glob
+    # Allow to create pull requests
     pull_request:
+      # base_branches is required.
+      # The pull request base branch must be included in base_branches.
       base_branches:
         - main
-  - source:
+  - client:
       repositories:
         - suzuki-shunsuke/tfaction
       branches:
         - main
-    destination:
+    push:
       repositories:
         - suzuki-shunsuke/tfaction-docs
       branches:

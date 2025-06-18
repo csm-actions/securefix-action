@@ -16,6 +16,14 @@ Furthermore, it's easy to use.
 You don't need to host a server application.
 It achieves a server/client architecture using GitHub Actions by unique approach.
 
+## :rocket: Recent Important Updates
+
+- [v0.1.1 (2025-06)](https://github.com/csm-actions/securefix-action/releases/tag/v0.1.1)
+  - [You can now push commits to the other repository and branch securely](#push-to-other-repository-and-branch)
+  - [You can now create pull requests](#create-pull-requests)
+
+See also [Release Notes](https://github.com/csm-actions/securefix-action/releases).
+
 ## Features
 
 - 💪 Increase the developer productivity by fixing code in CI
@@ -348,7 +356,28 @@ See also:
 
 You can also create a pull request.
 
+1. Configure the server side:
 
+```yaml
+config: |
+  entries:
+    - client:
+        repositories:
+          - suzuki-shunsuke/tfaction-example
+        branches:
+          - main
+      push:
+        repositories:
+          - suzuki-shunsuke/tfaction-example
+        branches:
+          - "scaffold-working-directory-*"
+      # Allow to create pull request
+      pull_request:
+        base_branches:
+          - main
+```
+
+2. Configure the client side:
 
 ## Troubleshooting
 
