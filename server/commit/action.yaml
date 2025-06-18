@@ -79,6 +79,7 @@ runs:
           }
           // Request reviews
           if (param.reviewers.length > 0 || param.team_reviewers.length > 0) {
+            core.info(`Requesting reviews: ${param.reviewers.join(', ')}, teams: ${param.team_reviewers.join(', ')}`);
             await github.rest.pulls.requestReviewers({
               owner: owner,
               repo: repo,
