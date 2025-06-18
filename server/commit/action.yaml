@@ -61,7 +61,7 @@ runs:
           }
           // Add labels
           if (param.labels.length > 0) {
-            await octokit.rest.issues.addLabels({
+            await github.rest.issues.addLabels({
               owner: owner,
               repo: repo,
               issue_number: pr.data.number,
@@ -70,7 +70,7 @@ runs:
           }
           // Add assignees
           if (param.assignees.length > 0) {
-            await octokit.rest.issues.addAssignees({
+            await github.rest.issues.addAssignees({
               owner: owner,
               repo: repo,
               issue_number: pr.data.number,
@@ -79,7 +79,7 @@ runs:
           }
           // Request reviews
           if (param.reviewers.length > 0 || param.team_reviewers.length > 0) {
-            await octokit.rest.pulls.requestReviewers({
+            await github.rest.pulls.requestReviewers({
               owner: owner,
               repo: repo,
               pull_number: pr.data.number,
