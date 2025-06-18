@@ -30,7 +30,29 @@ Server Prepare Action prepares for creating a commit.
 If a branch or repository is set, they are validated by config.
 If there is no entry matching with source repository and branch and destination repository and branch.
 
-e.g.
+```yaml
+- uses: csm-actions/securefix-action/server/prepare@latest
+  id: prepare
+  with:
+    app_id: ${{ vars.APP_ID }}
+    app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+    config: |
+      entries:
+        - client:
+            repositories:
+              - suzuki-shunsuke/tfaction
+            branches:
+              - main
+          push:
+            repositories:
+              - suzuki-shunsuke/tfaction-docs
+            branches:
+              - gh-pages
+```
+
+:bulb: To improve the maintainability, we recommend `config_file` rather than `config`.
+
+e.g. config.yaml
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/csm-actions/securefix-action/main/json-schema/config.json
@@ -63,6 +85,23 @@ entries:
       branches:
         - gh-pages
 ```
+
+```yaml
+- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+  with:
+    persist-credentials: false
+    sparse-checkout: |
+      config.yaml
+    sparse-checkout-cone-mode: false
+- uses: csm-actions/securefix-action/server/prepare@latest
+  id: prepare
+  with:
+    app_id: ${{ vars.AUTOFIX_APP_ID }}
+    app_private_key: ${{ secrets.AUTOFIX_APP_PRIVATE_KEY }}
+    config_file: config.yaml
+```
+
+##### JSON Schema
 
 You can validate the configuration file using JSON Schema.
 
@@ -106,7 +145,7 @@ Specific version:
 - `fixed_files`: Fixed file paths. Paths are separated with newlines
 - `pull_request_comment`: A pull request comment template.
 
-## Validate `config` and `config_file`
+## Validate `config_file`
 
 You can also validate the configuration file by GitHub Actions:
 

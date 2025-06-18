@@ -27,17 +27,17 @@ jobs:
       - run: prettier -w .
 
       # Send a request to a server workflow
-      - uses: csm-actions/securefix-action@c5696e3325f3906c5054ad80f3b9cdd92d65173b # v0.1.0
+      - uses: csm-actions/securefix-action@latest
         with:
           app_id: ${{vars.DEMO_CLIENT_APP_ID}}
           app_private_key: ${{secrets.DEMO_CLIENT_PRIVATE_KEY}}
           server_repository: demo-server
 ```
 
-Change the repository and branch to be pushed:
+### Push a commit to the other repository and branch
 
 ```yaml
-- uses: csm-actions/securefix-action@c5696e3325f3906c5054ad80f3b9cdd92d65173b # v0.1.0
+- uses: csm-actions/securefix-action@latest
   with:
     app_id: ${{vars.DEMO_CLIENT_APP_ID}}
     app_private_key: ${{secrets.DEMO_CLIENT_PRIVATE_KEY}}
@@ -45,6 +45,48 @@ Change the repository and branch to be pushed:
     # Push csm-actions/demo-client's foo branch
     repository: csm-actions/demo-client
     branch: foo
+```
+
+### Create a pull request
+
+```yaml
+- uses: csm-actions/securefix-action@latest
+  with:
+    app_id: ${{vars.DEMO_CLIENT_APP_ID}}
+    app_private_key: ${{secrets.DEMO_CLIENT_PRIVATE_KEY}}
+    server_repository: demo-server
+    # Push csm-actions/demo-client's foo branch
+    repository: csm-actions/demo-client
+    branch: foo
+    # pull_request_title and pull_request_base_branch are required
+    pull_request_title: Title
+    pull_request_base_branch: main
+```
+
+You can also configure pull request body, labels, reviewers, assignees, and so on.
+
+```yaml
+- uses: csm-actions/securefix-action@latest
+  with:
+    app_id: ${{vars.AUTOFIX_TRIGGER_APP_ID}}
+    app_private_key: ${{secrets.AUTOFIX_TRIGGER_APP_PRIVATE_KEY}}
+    server_repository: securefix-demo-server
+    repository: szksh-lab/test-delete-branch
+    branch: test-2
+    pull_request_title: PR title
+    pull_request_base_branch: main
+    pull_request_body: PR Body
+    pull_request_draft: true
+    pull_request_assignees: |
+      suzuki-shunsuke
+    pull_request_reviewers: |
+      suzuki-shunsuke
+    pull_request_team_reviewers: |
+      sre
+    pull_request_labels: |
+      enhancement
+      yo
+    pull_request_comment: Hello, @suzuki-shunsuke
 ```
 
 ## Inputs

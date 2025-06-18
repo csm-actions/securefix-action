@@ -282,102 +282,15 @@ You can change the repository and branch securely.
 Allowing to push any repository and branch without any restriction is dangerous, so by default changing the repository and branch isn't allowed.
 To change the repository and branch, you need to configure the server action and allow them.
 
-1. Configure the server side:
-
-```yaml
-- uses: csm-actions/securefix-action/server/prepare@latest
-  id: prepare
-  with:
-    app_id: ${{ vars.APP_ID }}
-    app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
-    config: |
-      entries:
-        - client:
-            repositories:
-              - suzuki-shunsuke/tfaction-example
-            branches:
-              - main
-          push:
-            repositories:
-              - suzuki-shunsuke/tfaction-example
-            branches:
-              - "scaffold-working-directory-*" # Glob
-              - "follow-up-*" # Glob
-        - client:
-            repositories:
-              - suzuki-shunsuke/tfaction
-            branches:
-              - main
-          push:
-            repositories:
-              - suzuki-shunsuke/tfaction-docs
-            branches:
-              - gh-pages
-```
-
-:bulb: To improve the maintainability, it's good to manage the config in a dedicated file and read it from action.
-
-e.g.
-
-```yaml
-- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-  with:
-    persist-credentials: false
-    sparse-checkout: |
-      config.yaml
-    sparse-checkout-cone-mode: false
-- uses: csm-actions/securefix-action/server/prepare@latest
-  id: prepare
-  with:
-    app_id: ${{ vars.AUTOFIX_APP_ID }}
-    app_private_key: ${{ secrets.AUTOFIX_APP_PRIVATE_KEY }}
-    config_file: config.yaml
-```
-
-2. Configure the client side:
-
-```yaml
-- uses: csm-actions/securefix-action@latest
-  with:
-    app_id: ${{ vars.APP_ID }}
-    app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
-    server_repository: securefix-demo-server
-    # Push csm-actions/demo-client's foo branch
-    repository: csm-actions/demo-client
-    branch: foo
-```
-
-See also:
-
-- [client action](docs/client.md)
-- [server prepare action](server/prepare/README.md)
+1. [Configure the server side](server/prepare/README.md#config-config_file)
+2. [Configure the client side](docs/client.md#push-a-commit-to-the-other-repository-and-branch)
 
 ### Create pull requests
 
 You can also create a pull request.
 
-1. Configure the server side:
-
-```yaml
-config: |
-  entries:
-    - client:
-        repositories:
-          - suzuki-shunsuke/tfaction-example
-        branches:
-          - main
-      push:
-        repositories:
-          - suzuki-shunsuke/tfaction-example
-        branches:
-          - "scaffold-working-directory-*"
-      # Allow to create pull request
-      pull_request:
-        base_branches:
-          - main
-```
-
-2. Configure the client side:
+1. [Configure the server side](server/prepare/README.md#config-config_file)
+2. [Configure the client side](docs/client.md#create-a-pull-request)
 
 ## Troubleshooting
 
