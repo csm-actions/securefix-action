@@ -1,6 +1,9 @@
 name: JavaScript Action
 description: JavaScript Action
 inputs:
+  action:
+    description: config
+    required: true
   config:
     description: config
     required: false

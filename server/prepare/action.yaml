@@ -231,6 +231,7 @@ runs:
     - uses: csm-actions/securefix-action/js@main
       id: js
       with:
+        action: validate-repository
         repository: ${{steps.info.outputs.repo_full_name}}
         branch: ${{fromJson(steps.workflow_run.outputs.value).head_branch}}
         metadata: ${{github.event.label.name}}.json

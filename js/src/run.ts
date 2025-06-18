@@ -7,6 +7,7 @@ import * as core from "@actions/core";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 type Input = {
+  action: string;
   config: string;
   metadataFile: string;
   repository: string;
@@ -60,6 +61,13 @@ const Metadata = z.object({
 });
 
 export const main = (input: Input) => {
+  if (input.action === "validate-config") {
+    Config.parse(load(input.config));
+    return;
+  }
+  if (input.action !== "validate-repository") {
+    throw new Error(`Unknown action (${input.action}). action must be either validate-config or validate-repository`);
+  }
   // Read metadata to get repository and branch
   const metadata = Metadata.parse(load(fs.readFileSync(input.metadataFile, "utf8")));
   // Validate repository and branch
