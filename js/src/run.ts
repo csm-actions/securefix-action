@@ -1,8 +1,10 @@
 import * as fs from "fs";
+import * as path from "path";
 import { z } from "zod";
 import { load } from "js-yaml";
 import { minimatch } from 'minimatch';
 import * as core from "@actions/core";
+import { zodToJsonSchema } from "zod-to-json-schema";
 
 type Input = {
   config: string;
@@ -104,4 +106,12 @@ export const main = (input: Input) => {
     }
   }
   throw new Error("No matching entry found in the config for the given repository and branch.");
+};
+
+export const generateJSONSchema = (dir: string) => {
+  const configJSONSchema = zodToJsonSchema(Config, "config");
+  fs.writeFileSync(
+    path.join(dir, "config.json"),
+    JSON.stringify(configJSONSchema, null, 2),
+  );
 };
