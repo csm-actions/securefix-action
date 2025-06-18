@@ -33,6 +33,7 @@ If there is no entry matching with source repository and branch and destination 
 e.g.
 
 ```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/csm-actions/securefix-action/main/json-schema/config.json
 entries:
   - source:
       repositories:
@@ -58,6 +59,20 @@ entries:
         - suzuki-shunsuke/tfaction-docs
       branches:
         - gh-pages
+```
+
+You can validate the configuration file using JSON Schema.
+
+main:
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/csm-actions/securefix-action/main/json-schema/config.json
+```
+
+Specific version:
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/csm-actions/securefix-action/v0.1.1/json-schema/config.json
 ```
 
 ## Outputs
@@ -87,3 +102,14 @@ entries:
 
 - `fixed_files`: Fixed file paths. Paths are separated with newlines
 - `pull_request_comment`: A pull request comment template.
+
+## Validate `config` and `config_file`
+
+You can also validate the configuration file by GitHub Actions:
+
+```yaml
+- uses: csm-actions/securefix-action/js@latest
+  with:
+    action: validate-config
+    config_file: config.yaml
+```

@@ -1,3 +1,3 @@
 import { generateJSONSchema } from "./run";
 
-generateJSONSchema("../jsonschema");
+generateJSONSchema("../json-schema");
