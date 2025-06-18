@@ -21,6 +21,43 @@ Server Prepare Action prepares for creating a commit.
 - `allow_workflow_fix`: Either `true` or `false`. The default is `false`. If `true`, the action can fix workflow files. You need to grant `workflows:write` permission to the Server GitHub App
 - `workflow_name`: An expected client workflow name. If the actual client workflow name is different from this input, the request is denied. The default value is `securefix`. If this is empty, the workflow name is free
 - `pull_request_comment`: A pull request comment template. A comment is posted if server actions fail to create a commit. The default value is `:x: Securefix failed.`
+- `config`: YAML config to push other repositories and branches. This is required if you want to change repositories and branches where commits are pushed
+
+#### `config`
+
+config is ignored if no repository or branch is set by the client action.
+If a branch or repository is set, they are validated by config.
+If there is no entry matching with source repository and branch and destination repository and branch.
+
+e.g.
+
+```yaml
+entries:
+  - source:
+      repositories:
+        - suzuki-shunsuke/tfaction-example
+      branches:
+        - main
+    destination:
+      repositories:
+        - suzuki-shunsuke/tfaction-example
+      branches:
+        - "scaffold-working-directory-*" # Glob
+        - "follow-up-*" # Glob
+    pull_request:
+      base_branches:
+        - main
+  - source:
+      repositories:
+        - suzuki-shunsuke/tfaction
+      branches:
+        - main
+    destination:
+      repositories:
+        - suzuki-shunsuke/tfaction-docs
+      branches:
+        - gh-pages
+```
 
 ## Outputs
 

@@ -34,6 +34,19 @@ jobs:
           server_repository: demo-server
 ```
 
+Change the repository and branch to be pushed:
+
+```yaml
+- uses: csm-actions/securefix-action@c5696e3325f3906c5054ad80f3b9cdd92d65173b # v0.1.0
+  with:
+    app_id: ${{vars.DEMO_CLIENT_APP_ID}}
+    app_private_key: ${{secrets.DEMO_CLIENT_PRIVATE_KEY}}
+    server_repository: demo-server
+    # Push csm-actions/demo-client's foo branch
+    repository: csm-actions/demo-client
+    branch: foo
+```
+
 ## Inputs
 
 ### Required Inputs
@@ -56,6 +69,12 @@ jobs:
 - `pull_request_team_reviewers`: Pull request team reviewers. This requires the `members:read` permission
 - `pull_request_assignees`: Pull request assignees
 - `pull_request_comment`: Pull request comment
+
+#### `fail_if_changes`
+
+By default, this action fails if any files are changed, but if a commit is pushed to the other repository or branch, the action succeeds.
+If `fail_if_changes` is `true`, this action fails if any files are changed.
+If `fail_if_changes` is `false`, this action succeeds even if any files are changed.
 
 ## Outputs
 

@@ -129,8 +129,10 @@ Permissions:
 
 - `contents:write`: To create commits
 - `actions:read`: To download GitHub Actions Artifacts to fix code
-- `workflows:write`: Optional. This is required if you want to fix GitHub Actions workflows
 - `pull_requests:write`: To notify problems on the server side to pull requests
+- `workflows:write`: Optional. This is required if you want to fix GitHub Actions workflows
+- `issues:write`: Optional. This is required if you want to add labels to pull requests
+- `members:read`: Optional. This is required if you want to request reviews to teams
 
 Installed Repositories: Install the app into the server repository and client repositories.
 
@@ -266,25 +268,13 @@ You can use [`server/prepare` action's outputs](server/prepare#outputs).
 
 Securefix Action >= v0.2.0 [#123](https://github.com/csm-actions/securefix-action/pull/123)
 
-By default, securefix-action pushes a commit to the same repository and branch with the repository and branch where the action is run.
-You can push a commit to the other repository and branch securely.
+By default, securefix-action pushes a commit to the repository and branch where the action is run.
+You can change the repository and branch securely.
 
-1. Configure the client side:
+Allowing to push any repository and branch without any restriction is dangerous, so by default changing the repository and branch isn't allowed.
+To change the repository and branch, you need to configure the server action and allow them.
 
-```yaml
-- uses: csm-actions/securefix-action@latest
-  with:
-    app_id: ${{ vars.APP_ID }}
-    app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
-    server_repository: securefix-demo-server
-    # Push csm-actions/demo-client's foo branch
-    repository: csm-actions/demo-client
-    branch: foo
-```
-
-Allowing to push any repository and branch without any restriction is dangerous, so you must restrict the client repository and branch and pushed repository and branch on the server side.
-
-2. Configure the server side:
+1. Configure the server side:
 
 ```yaml
 - uses: csm-actions/securefix-action/server/prepare@latest
@@ -300,7 +290,6 @@ Allowing to push any repository and branch without any restriction is dangerous,
             branches:
               - main
           push:
-            pull_request: true
             repositories:
               - suzuki-shunsuke/tfaction-example
             branches:
@@ -318,64 +307,55 @@ Allowing to push any repository and branch without any restriction is dangerous,
               - gh-pages
 ```
 
-## csm-actions/securefix-action
+:bulb: To improve the maintainability, it's good to manage the config in a dedicated file and read it from action.
 
-New optional inputs:
-
-- `fail_if_changes`: If true, the action fails if there are changes
-- `repository`: A repository full name where a commit will be pushed
-- `branch`: A branch where a commit will be pushed
-- `pull_request_title`: A pull request title
-- `pull_request_body`: A pull request description
-- `pull_request_labels`: Pull request labels
-- `pull_request_draft`: If true, create a pull request as draft
-- `pull_request_reviewers`: Pull request reviewers
-- `pull_request_assignees`: Pull request assignees
-- `pull_request_comment`: Pull request comment
-
-### `fail_if_changes`
-
-By default, the client action fails if any files are changed, but if a commit is pushed to the other repository or branch, the action succeeds.
-If `fail_if_changes` is `true`, the client action fails if  any files are changed.
-If `fail_if_changes` is `false`, the client action succeeds even if any files are changed.
-
-## csm-actions/securefix-action/server/prepare
-
-New optional inputs:
-
- - `config`: YAML config to push other repositories and branches
+e.g.
 
 ```yaml
-entries:
-  - source:
-      repositories:
-        - suzuki-shunsuke/tfaction-example
-      branches:
-        - main
-    destination:
-      repositories:
-        - suzuki-shunsuke/tfaction-example
-      branches:
-        - "scaffold-working-directory-*" # Glob
-        - "follow-up-*" # Glob
-    pull_request:
-      base_branches:
-        - main
-  - source:
-      repositories:
-        - suzuki-shunsuke/tfaction
-      branches:
-        - main
-    destination:
-      repositories:
-        - suzuki-shunsuke/tfaction-docs
-      branches:
-        - gh-pages
+- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+  with:
+    persist-credentials: false
+    sparse-checkout: |
+      config.yaml
+    sparse-checkout-cone-mode: false
+- id: config
+  run: |
+    {
+      echo 'value<<EOF'
+      cat config.yaml
+      echo EOF
+    } >> "$GITHUB_OUTPUT"
+- uses: csm-actions/securefix-action/server/prepare@latest
+  id: prepare
+  with:
+    app_id: ${{ vars.AUTOFIX_APP_ID }}
+    app_private_key: ${{ secrets.AUTOFIX_APP_PRIVATE_KEY }}
+    config: ${{steps.config.outputs.value}}
 ```
 
-config is ignored if no repository or branch is set by the client action.
-If branch or repository is set, they are validated config.
-If there is no entry matching with source repository and branch and destination repository and branch.
+2. Configure the client side:
+
+```yaml
+- uses: csm-actions/securefix-action@latest
+  with:
+    app_id: ${{ vars.APP_ID }}
+    app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+    server_repository: securefix-demo-server
+    # Push csm-actions/demo-client's foo branch
+    repository: csm-actions/demo-client
+    branch: foo
+```
+
+See also:
+
+- [client action](docs/client.md)
+- [server prepare action](server/prepare/README.md)
+
+### Create pull requests
+
+You can also create a pull request.
+
+
 
 ## Troubleshooting
 
