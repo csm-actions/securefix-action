@@ -37,10 +37,12 @@ inputs:
   pull_request_title:
     description: |
       A pull request title.
+      To create a pull request, this is required.
     required: false
   pull_request_base_branch:
     description: |
       A pull request base branch.
+      To create a pull request, this is required.
     required: false
   pull_request_body:
     description: |
@@ -49,6 +51,7 @@ inputs:
   pull_request_labels:
     description: |
       Pull request labels.
+      This requires the `issues:write` permission.
     required: false
   pull_request_draft:
     description: |
@@ -61,6 +64,7 @@ inputs:
   pull_request_team_reviewers:
     description: |
       Pull request team reviewers.
+      This requires the `members:read` permission.
     required: false
   pull_request_assignees:
     description: |
@@ -69,6 +73,7 @@ inputs:
   pull_request_comment:
     description: |
       Pull request comment.
+      If this is set, a pull request comment is posted after a pull request is created.
     required: false
 runs:
   using: composite

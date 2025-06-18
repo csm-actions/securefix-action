@@ -46,13 +46,14 @@ jobs:
 
 - `commit_message`: A commit message
 - `fail_if_changes`: If true, the action fails if there are changes
-- `repository`: A repository full name where a commit will be pushed
+- `repository`: A repository full name where a commit will be pushed. The Server GitHub App must be installed into this repository
 - `branch`: A branch where a commit will be pushed
 - `pull_request_title`: A pull request title
-- `pull_request_description`: A pull request description
-- `pull_request_labels`: Pull request labels
+- `pull_request_body`: A pull request description
+- `pull_request_labels`: Pull request labels. This requires `issues:write` permission
 - `pull_request_draft`: If true, create a pull request as draft
 - `pull_request_reviewers`: Pull request reviewers
+- `pull_request_team_reviewers`: Pull request team reviewers. This requires the `members:read` permission
 - `pull_request_assignees`: Pull request assignees
 - `pull_request_comment`: Pull request comment
 

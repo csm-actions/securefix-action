@@ -48,7 +48,7 @@ runs:
             base: param.base,
             draft: param.draft || false,
           });
-          core.info(`Created a pull request: ${pr.data.html_url}`);
+          core.notice(`Created a pull request: ${pr.data.html_url}`);
           // Create a pull request comment
           if (param.comment) {
             // Create a pull request comment
