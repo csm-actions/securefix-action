@@ -112,6 +112,6 @@ export const generateJSONSchema = (dir: string) => {
   const configJSONSchema = zodToJsonSchema(Config, "config");
   fs.writeFileSync(
     path.join(dir, "config.json"),
-    JSON.stringify(configJSONSchema, null, 2),
+    JSON.stringify(configJSONSchema, null, 2) + "\n",
   );
 };
