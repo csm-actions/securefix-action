@@ -7,7 +7,6 @@ import * as core from "@actions/core";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 type Input = {
-  action: string;
   config: string;
   configFile: string;
   metadataFile: string;
@@ -38,6 +37,7 @@ const Entry = z.object({
 const Config = z.object({
   entries: z.array(Entry),
 });
+export type Config = z.infer<typeof Config>;
 
 const PullRequest = z.object({
   title: z.string(),
@@ -61,14 +61,31 @@ const Metadata = z.object({
   inputs: Inputs,
 });
 
-export const main = (input: Input) => {
-  if (input.action === "validate-config") {
-    Config.parse(load(input.config));
+export const readConfig = (config: string, configFile: string): Config => {
+  if (!config && !configFile) {
+    throw new Error("Either config or config_file input is required");
+  }
+  return Config.parse(load(config ? config : fs.readFileSync(configFile, "utf8")));
+};
+
+export const main = () => {
+  const action = core.getInput("action", { required: true });
+  const configS = core.getInput("config", { required: false });
+  const configFile = core.getInput("config_file", { required: false });
+  if (action === "validate-config") {
+    readConfig(configS, configFile);
     return;
   }
-  if (input.action !== "validate-repository") {
-    throw new Error(`Unknown action (${input.action}). action must be either validate-config or validate-repository`);
+  if (action !== "validate-repository") {
+    throw new Error(`Unknown action (${action}). action must be either validate-config or validate-repository`);
   }
+  const input: Input = {
+    metadataFile: core.getInput("metadata", { required: true }),
+    repository: core.getInput("repository", { required: true }),
+    branch: core.getInput("branch", { required: true }),
+    config: configS,
+    configFile: configFile,
+  };
   // Read metadata to get repository and branch
   const metadata = Metadata.parse(load(fs.readFileSync(input.metadataFile, "utf8")));
   // Validate repository and branch
@@ -79,11 +96,8 @@ export const main = (input: Input) => {
     core.setOutput("branch", input.branch);
     return;
   }
-  if (!input.config && !input.configFile) {
-    throw new Error("the input config is required to push a commit to other repositories and branches");
-  }
   // Read YAML config to push other repositories and branches
-  const config = Config.parse(load(input.config ? input.config : fs.readFileSync(input.configFile, "utf8")));
+  const config = readConfig(configS, configFile);
   const destRepo = metadata.inputs.repository || input.repository;
   const destBranch = metadata.inputs.branch || input.branch;
   for (const entry of config.entries) {
