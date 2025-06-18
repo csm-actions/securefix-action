@@ -38,6 +38,7 @@ runs:
           const param = JSON.parse(outputs.create_pull_request);
           const owner = outputs.push_repository.split('/')[0];
           const repo = outputs.push_repository.split('/')[1];
+          // Create a pull request
           const pr = await github.rest.pulls.create({
             owner: owner,
             repo: repo,
@@ -46,11 +47,9 @@ runs:
             body: param.body,
             base: param.base,
             draft: param.draft || false,
-            labels: param.labels || [],
-            reviewers: param.reviewers || [],
-            assignees: param.assignees || [],
           });
           core.info(`Created a pull request: ${pr.data.html_url}`);
+          // Create a pull requeset comment
           if (param.comment) {
             // Create a pull request comment
             await github.rest.issues.createComment({
@@ -58,6 +57,34 @@ runs:
               repo: repo,
               issue_number: pr.data.number,
               body: param.comment,
+            });
+          }
+          // Add labels
+          if (param.labels.length > 0) {
+            await octokit.rest.issues.addLabels({
+              owner: owner,
+              repo: repo,
+              issue_number: pr.data.number,
+              labels: param.labels,
+            });
+          }
+          // Add assignees
+          if (param.assignees.length > 0) {
+            await octokit.rest.issues.addAssignees({
+              owner: owner,
+              repo: repo,
+              issue_number: pr.data.number,
+              assignees: param.assignees,
+            });
+          }
+          // Request reviews
+          if (param.reviewers.length > 0 || param.team_reviewers.length > 0) {
+            await octokit.rest.pulls.requestReviewers({
+              owner: owner,
+              repo: repo,
+              pull_number: pr.data.number,
+              reviewers: param.reviewers,
+              team_reviewers: param.team_reviewers,
             });
           }
           return pr;

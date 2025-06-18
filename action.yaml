@@ -58,6 +58,10 @@ inputs:
     description: |
       Pull request reviewers.
     required: false
+  pull_request_team_reviewers:
+    description: |
+      Pull request team reviewers.
+    required: false
   pull_request_assignees:
     description: |
       Pull request assignees.
@@ -118,6 +122,7 @@ runs:
         PR_LABELS: ${{inputs.pull_request_labels}}
         PR_ASSIGNEES: ${{inputs.pull_request_assignees}}
         PR_REVIEWERS: ${{inputs.pull_request_reviewers}}
+        PR_TEAM_REVIEWERS: ${{inputs.pull_request_team_reviewers}}
         PR_DRAFT: ${{inputs.pull_request_draft}}
         PR_COMMENT: ${{inputs.pull_request_comment}}
       with:
@@ -126,7 +131,7 @@ runs:
             if (!process.env.PR_BASE_BRANCH) {
               throw new Error('pull_request_base_branch is required to create a pull request');
             }
-          } else if (process.env.PR_BASE_BRANCH || process.env.PR_BODY || process.env.PR_LABELS || process.env.PR_ASSIGNEES || process.env.PR_REVIEWERS || process.env.PR_DRAFT || process.env.PR_COMMENT) {
+          } else if (process.env.PR_BASE_BRANCH || process.env.PR_BODY || process.env.PR_LABELS || process.env.PR_ASSIGNEES || process.env.PR_REVIEWERS || process.env.PR_TEAM_REVIEWERS || process.env.PR_DRAFT || process.env.PR_COMMENT) {
             throw new Error('pull_request_title is required to create a pull request');
           }
           return {
@@ -142,6 +147,7 @@ runs:
                 labels: process.env.PR_LABELS ? process.env.PR_LABELS.trim().split('\n') : [],
                 assignees: process.env.PR_ASSIGNEES ? process.env.PR_ASSIGNEES.trim().split('\n') : [],
                 reviewers: process.env.PR_REVIEWERS ? process.env.PR_REVIEWERS.trim().split('\n') : [],
+                team_reviewers: process.env.PR_TEAM_REVIEWERS ? process.env.PR_TEAM_REVIEWERS.trim().split('\n') : [],
                 draft: process.env.PR_DRAFT === 'true',
                 comment: process.env.PR_COMMENT || '',
               }
