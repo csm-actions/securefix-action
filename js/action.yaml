@@ -7,6 +7,9 @@ inputs:
   config:
     description: config
     required: false
+  config_file:
+    description: File path to the config file
+    required: false
   metadata:
     description: metadata
     required: true

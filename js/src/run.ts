@@ -9,6 +9,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 type Input = {
   action: string;
   config: string;
+  configFile: string;
   metadataFile: string;
   repository: string;
   branch: string;
@@ -78,11 +79,11 @@ export const main = (input: Input) => {
     core.setOutput("branch", input.branch);
     return;
   }
-  if (!input.config) {
+  if (!input.config && !input.configFile) {
     throw new Error("the input config is required to push a commit to other repositories and branches");
   }
   // Read YAML config to push other repositories and branches
-  const config = Config.parse(load(input.config));
+  const config = Config.parse(load(input.config ? input.config : fs.readFileSync(input.configFile, "utf8")));
   const destRepo = metadata.inputs.repository || input.repository;
   const destBranch = metadata.inputs.branch || input.branch;
   for (const entry of config.entries) {

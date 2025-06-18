@@ -23,6 +23,10 @@ inputs:
     description: |
       YAML config to push other repositories and branches.
     required: false
+  config_file:
+    description: |
+      A file path to YAML config.
+    required: false
 outputs:
   pull_request:
     description: |
@@ -236,6 +240,7 @@ runs:
         branch: ${{fromJson(steps.workflow_run.outputs.value).head_branch}}
         metadata: ${{github.event.label.name}}.json
         config: ${{inputs.config}}
+        config_file: ${{inputs.config_file}}
 
     - if: steps.js.outputs.repository != steps.info.outputs.repo_full_name || join(fromJSON(steps.metadata.outputs.value).inputs.pull_request.labels) != '' || join(fromJSON(steps.metadata.outputs.value).inputs.pull_request.team_reviewers) != ''
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1

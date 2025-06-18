@@ -268,7 +268,7 @@ You can use [`server/prepare` action's outputs](server/prepare#outputs).
 
 Securefix Action >= v0.2.0 [#123](https://github.com/csm-actions/securefix-action/pull/123)
 
-By default, securefix-action pushes a commit to the repository and branch where the action is run.
+By default, Securefix Action pushes a commit to the repository and branch where the action is run.
 You can change the repository and branch securely.
 
 Allowing to push any repository and branch without any restriction is dangerous, so by default changing the repository and branch isn't allowed.
@@ -318,19 +318,12 @@ e.g.
     sparse-checkout: |
       config.yaml
     sparse-checkout-cone-mode: false
-- id: config
-  run: |
-    {
-      echo 'value<<EOF'
-      cat config.yaml
-      echo EOF
-    } >> "$GITHUB_OUTPUT"
 - uses: csm-actions/securefix-action/server/prepare@latest
   id: prepare
   with:
     app_id: ${{ vars.AUTOFIX_APP_ID }}
     app_private_key: ${{ secrets.AUTOFIX_APP_PRIVATE_KEY }}
-    config: ${{steps.config.outputs.value}}
+    config_file: config.yaml
 ```
 
 2. Configure the client side:
