@@ -7,7 +7,7 @@ version: 3
 
 ignore_actions:
   - name: csm-actions/securefix-action/js
-    ref: main
+    ref: latest
   - name: csm-actions/securefix-action
     ref: latest
   - name: csm-actions/securefix-action/server/prepare
