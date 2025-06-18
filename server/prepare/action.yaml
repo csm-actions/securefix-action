@@ -236,26 +236,31 @@ runs:
         metadata: ${{github.event.label.name}}.json
         config: ${{inputs.config}}
 
-    - if: steps.js.outputs.repository != steps.info.outputs.repo_full_name
+    - if: steps.js.outputs.repository != steps.info.outputs.repo_full_name || join(fromJSON(steps.metadata.outputs.value).inputs.pull_request.labels) != ''
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       id: push_permissions
       env:
         ALLOW_WORKFLOW_FIX: ${{inputs.allow_workflow_fix}}
         PR_TITLE: ${{fromJSON(steps.js.outputs.pull_request).title}}
+        PR_LABELS: ${{toJSON(fromJSON(steps.metadata.outputs.value).inputs.pull_request.labels)}}
       with:
         script: |
           let permissions = {
             contents: "write",
           };
+          const labels = JSON.parse(process.env.PR_LABELS);
           if (process.env.ALLOW_WORKFLOW_FIX === 'true') {
             permissions.workflows = "write";
           }
           if (process.env.PR_TITLE) {
             permissions.pull_requests = "write";
           }
+          if (labels.length > 0) {
+            permissions.issues = "write";
+          }
           return permissions;
 
-    - if: steps.js.outputs.repository != steps.info.outputs.repo_full_name
+    - if: steps.js.outputs.repository != steps.info.outputs.repo_full_name || join(fromJSON(steps.metadata.outputs.value).inputs.pull_request.labels) != ''
       uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
       id: push_token
       with:
@@ -268,7 +273,7 @@ runs:
     - id: token2
       shell: bash
       env:
-        IS_PUSH_TOKEN: ${{steps.js.outputs.repository != steps.info.outputs.repo_full_name}}
+        IS_PUSH_TOKEN: ${{steps.js.outputs.repository != steps.info.outputs.repo_full_name || join(fromJSON(steps.metadata.outputs.value).inputs.pull_request.labels) != ''}}
         TOKEN: ${{ steps.token.outputs.token }}
         PUSH_TOKEN: ${{ steps.push_token.outputs.token }}
       run: |
