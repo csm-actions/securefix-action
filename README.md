@@ -285,7 +285,7 @@ But actually there are usecases that you want to push a commit to other reposito
 - etc
 
 Securefix Action can push a commit to the other repository and branch securely.
-Allowing to push any repository and branch without any restriction is dangerous, so by default changing the repository and branch isn't allowed, meaning it the action fails.
+Allowing to push any repository and branch without any restriction is dangerous, so by default changing the repository and branch isn't allowed, meaning the action fails.
 You can push a commit from only allowed repositories and branches to only allowed repositories and branches.
 
 1. [Configure the server side](server/prepare/README.md#config-config_file)
