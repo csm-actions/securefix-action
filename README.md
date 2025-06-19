@@ -277,17 +277,23 @@ You can use [`server/prepare` action's outputs](server/prepare#outputs).
 Securefix Action >= v0.2.0 [#123](https://github.com/csm-actions/securefix-action/pull/123)
 
 By default, Securefix Action pushes a commit to the repository and branch where the action is run.
-You can change the repository and branch securely.
+But actually there are usecases that you want to push a commit to other repository and branch.
 
-Allowing to push any repository and branch without any restriction is dangerous, so by default changing the repository and branch isn't allowed.
-To change the repository and branch, you need to configure the server action and allow them.
+- Scaffold a pull request by `workflow_dispatch`
+- Update GitHub Pages
+- Create a pull request to the repository A when the repository B is updated
+- etc
+
+Securefix Action can push a commit to the other repository and branch securely.
+Allowing to push any repository and branch without any restriction is dangerous, so by default changing the repository and branch isn't allowed, meaning it the action fails.
+You can push a commit from only allowed repositories and branches to only allowed repositories and branches.
 
 1. [Configure the server side](server/prepare/README.md#config-config_file)
 2. [Configure the client side](docs/client.md#push-a-commit-to-the-other-repository-and-branch)
 
 ### Create pull requests
 
-You can also create a pull request.
+When pushing a commit to the other repository and branch, you can also create a pull request.
 
 1. [Configure the server side](server/prepare/README.md#config-config_file)
 2. [Configure the client side](docs/client.md#create-a-pull-request)
