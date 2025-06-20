@@ -100,8 +100,6 @@ export const readConfig = (config: string, configFile: string): Config => {
   return Config.parse(load(config ? config : fs.readFileSync(configFile, "utf8")));
 };
 
-
-
 export const main = async () => {
   const action = core.getInput("action", { required: true });
   const configS = core.getInput("config", { required: false });

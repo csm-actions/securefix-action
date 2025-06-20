@@ -131,7 +131,6 @@ runs:
       id: js
       with:
         action: validate-repository
-        repository: ${{steps.info.outputs.repo_full_name}}
         metadata_file: ${{github.event.label.name}}.json
         changed_files: ${{ github.event.label.name}}_files.txt
         config: ${{inputs.config}}
