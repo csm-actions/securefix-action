@@ -5,7 +5,7 @@ import { load } from "js-yaml";
 import { minimatch } from 'minimatch';
 import * as core from "@actions/core";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import github from '@actions/github';
+import * as github from "@actions/github";
 
 type Input = {
   config: string;
@@ -121,8 +121,7 @@ export const main = async () => {
   const metadata = Metadata.parse(JSON.parse(fs.readFileSync(input.metadataFile, "utf8")));
   core.setOutput("changed_files", fs.readFileSync(core.getInput("changed_files", { required: true }), "utf8"));
 
-  const ghToken = core.getInput("github_token", { required: true });
-  const octokit = github.getOctokit(ghToken);
+  const octokit = github.getOctokit(core.getInput("github_token", { required: true }));
   // Get a pull request
   let sha = "";
   let ref = "";
