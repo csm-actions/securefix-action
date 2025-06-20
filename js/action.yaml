@@ -10,15 +10,24 @@ inputs:
   config_file:
     description: File path to the config file
     required: false
-  metadata:
-    description: metadata
-    required: true
-  repository:
-    description: repository
-    required: true
-  branch:
-    description: branch
-    required: true
+
+  metadata_file:
+    description: metadata file path
+    required: false
+  changed_files:
+    description: A file that changed files are listed in
+    required: false
+  github_token:
+    description: A GitHub access token
+    required: false
+  run_id:
+    description: A workflow run id
+    required: false
+  allow_workflow_fix:
+    description: |
+      Either true or false. If true, the action allows the workflow to fix the code.
+    required: false
+    default: "false"
 outputs: {}
 runs:
   using: node20

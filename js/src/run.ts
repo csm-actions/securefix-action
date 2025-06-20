@@ -5,13 +5,21 @@ import { load } from "js-yaml";
 import { minimatch } from 'minimatch';
 import * as core from "@actions/core";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import github from '@actions/github';
 
 type Input = {
   config: string;
   configFile: string;
   metadataFile: string;
-  repository: string;
-  branch: string;
+};
+
+type Permissions = {
+  contents?: "read" | "write" | "none";
+  actions?: "read" | "write" | "none";
+  pull_requests?: "read" | "write" | "none";
+  issues?: "read" | "write" | "none";
+  members?: "read" | "write" | "none";
+  workflows?: "read" | "write" | "none";
 };
 
 const Client = z.object({
@@ -57,8 +65,32 @@ const Inputs = z.object({
   pull_request: z.optional(PullRequest),
 });
 
+const User = z.object({
+  login: z.string(),
+});
+
+const Repository = z.object({
+  name: z.string(),
+  full_name: z.string(),
+  owner: User,
+});
+
+const PayloadPullRequest = z.object({
+  number: z.number(),
+});
+
+const Payload = z.object({
+  pull_request: z.optional(PayloadPullRequest),
+  repository: Repository,
+});
+
+const Context = z.object({
+  payload: Payload,
+});
+
 const Metadata = z.object({
   inputs: Inputs,
+  context: Context,
 });
 
 export const readConfig = (config: string, configFile: string): Config => {
@@ -68,7 +100,9 @@ export const readConfig = (config: string, configFile: string): Config => {
   return Config.parse(load(config ? config : fs.readFileSync(configFile, "utf8")));
 };
 
-export const main = () => {
+
+
+export const main = async () => {
   const action = core.getInput("action", { required: true });
   const configS = core.getInput("config", { required: false });
   const configFile = core.getInput("config_file", { required: false });
@@ -80,55 +114,116 @@ export const main = () => {
     throw new Error(`Unknown action (${action}). action must be either validate-config or validate-repository`);
   }
   const input: Input = {
-    metadataFile: core.getInput("metadata", { required: true }),
-    repository: core.getInput("repository", { required: true }),
-    branch: core.getInput("branch", { required: true }),
+    metadataFile: core.getInput("metadata_file", { required: true }),
     config: configS,
     configFile: configFile,
   };
-  // Read metadata to get repository and branch
-  const metadata = Metadata.parse(load(fs.readFileSync(input.metadataFile, "utf8")));
+
+  // Read metadata 
+  const metadata = Metadata.parse(JSON.parse(fs.readFileSync(input.metadataFile, "utf8")));
+  core.setOutput("changed_files", fs.readFileSync(core.getInput("changed_files", { required: true }), "utf8"));
+
+  const ghToken = core.getInput("github_token", { required: true });
+  const octokit = github.getOctokit(ghToken);
+  // Get a pull request
+  let sha = "";
+  let ref = "";
+  if (metadata.context.payload.pull_request) {
+    const { data: pullRequest } = await octokit.rest.pulls.get({
+      owner: metadata.context.payload.repository.owner.login,
+      repo: metadata.context.payload.repository.name,
+      pull_number: metadata.context.payload.pull_request.number,
+    });
+    sha = pullRequest.head.sha;
+    ref = pullRequest.head.ref;
+  }
+  // Get GitHub Actions Workflow Run
+  const workflowName = core.getInput("workflow_name", { required: false });
+  if (workflowName) {
+    const { data: workflowRun } = await octokit.rest.actions.getWorkflowRun({
+      owner: metadata.context.payload.repository.owner.login,
+      repo: metadata.context.payload.repository.name,
+      run_id: parseInt(core.getInput("run_id", { required: true }), 10),
+    });
+    // Validate workflow name
+    if (workflowRun.name !== workflowName) {
+      throw new Error(`The client workflow name must be ${workflowName}, but got ${workflowRun.name}`);
+    }
+    if (workflowRun.head_branch) {
+      ref = workflowRun.head_branch;
+      // Get a branch
+      const { data: branch } = await octokit.rest.repos.getBranch({
+        owner: metadata.context.payload.repository.owner.login,
+        repo: metadata.context.payload.repository.name,
+        branch: workflowRun.head_branch,
+      });
+      // Validate if the workflow commit sha is latest
+      if (branch.commit.sha !== workflowRun.head_sha) {
+        throw new Error(`The workflow commit sha (${workflowRun.head_sha}) is not the latest (${branch.commit.sha})`);
+      }
+    }
+  }
+
   // Validate repository and branch
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
-    core.setOutput("repository", input.repository);
-    core.setOutput("repository_owner", input.repository.split("/")[0]);
-    core.setOutput("repository_name", input.repository.split("/")[1]);
-    core.setOutput("branch", input.branch);
+    core.setOutput("repository", metadata.context.payload.repository.full_name);
+    core.setOutput("repository_owner", metadata.context.payload.repository.owner.login);
+    core.setOutput("repository_name", metadata.context.payload.repository.name);
+    core.setOutput("branch", ref);
     return;
   }
   // Read YAML config to push other repositories and branches
   const config = readConfig(configS, configFile);
-  const destRepo = metadata.inputs.repository || input.repository;
-  const destBranch = metadata.inputs.branch || input.branch;
-  for (const entry of config.entries) {
-    if (entry.client.repositories.includes(input.repository) &&
-      // source branches are glob patterns
-      // Check if the input branch matches any of the source branches
-      entry.client.branches.some(branch => minimatch(input.branch, branch)) &&
-      // destination repositories are glob patterns
-      entry.push.repositories.includes(destRepo) &&
-      entry.push.branches.some(branch => minimatch(destBranch, branch))
-    ) {
-      core.setOutput("repository", destRepo);
-      core.setOutput("repository_owner", destRepo.split("/")[0]);
-      core.setOutput("repository_name", destRepo.split("/")[1]);
-      core.setOutput("branch", destBranch);
-      if (metadata.inputs.pull_request) {
-        if (!metadata.inputs.pull_request.base) {
-          throw new Error("pull_request base branch is required to create a pull request");
+  const destRepo = metadata.inputs.repository || metadata.context.payload.repository.full_name;
+  const destBranch = metadata.inputs.branch || ref;
+  () => {
+    for (const entry of config.entries) {
+      if (entry.client.repositories.includes(metadata.context.payload.repository.full_name) &&
+        // source branches are glob patterns
+        // Check if the input branch matches any of the source branches
+        entry.client.branches.some(branch => minimatch(ref, branch)) &&
+        // destination repositories are glob patterns
+        entry.push.repositories.includes(destRepo) &&
+        entry.push.branches.some(branch => minimatch(destBranch, branch))
+      ) {
+        core.setOutput("repository", destRepo);
+        core.setOutput("repository_owner", destRepo.split("/")[0]);
+        core.setOutput("repository_name", destRepo.split("/")[1]);
+        core.setOutput("branch", destBranch);
+        if (metadata.inputs.pull_request) {
+          if (!metadata.inputs.pull_request.base) {
+            throw new Error("pull_request base branch is required to create a pull request");
+          }
+          if (!entry.pull_request) {
+            throw new Error("Creating a pull request isn't allowed for this entry");
+          }
+          if (!entry.pull_request.base_branches.includes(metadata.inputs.pull_request.base)) {
+            throw new Error("The given pull request branch isn't allowed for this entry");
+          }
+          core.setOutput("pull_request", metadata.inputs.pull_request);
         }
-        if (!entry.pull_request) {
-          throw new Error("Creating a pull request isn't allowed for this entry");
-        }
-        if (!entry.pull_request.base_branches.includes(metadata.inputs.pull_request.base)) {
-          throw new Error("The given pull request branch isn't allowed for this entry");
-        }
-        core.setOutput("pull_request", metadata.inputs.pull_request);
+        return;
       }
-      return;
     }
+    throw new Error("No matching entry found in the config for the given repository and branch.");
+  };
+
+  let permissions: Permissions = {
+    contents: "write",
+  };
+  if (core.getBooleanInput("allow_workflow_fix", { required: true })) {
+    permissions.workflows = "write";
   }
-  throw new Error("No matching entry found in the config for the given repository and branch.");
+  if (metadata.inputs.pull_request?.title) {
+    permissions.pull_requests = "write";
+  }
+  if ((metadata.inputs.pull_request?.labels || []).length > 0) {
+    permissions.issues = "write";
+  }
+  if ((metadata.inputs.pull_request?.team_reviewers || []).length > 0) {
+    permissions.members = "read";
+  }
+  core.setOutput("permissions", permissions);
 };
 
 export const generateJSONSchema = (dir: string) => {
