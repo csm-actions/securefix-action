@@ -120,7 +120,11 @@ export const main = async () => {
   // Read metadata 
   const metadata = Metadata.parse(JSON.parse(fs.readFileSync(input.metadataFile, "utf8")));
   core.setOutput("metadata", metadata);
-  core.setOutput("fixed_files", fs.readFileSync(core.getInput("changed_files", { required: true }), "utf8"));
+  const fixedFiles = fs.readFileSync(core.getInput("changed_files", { required: true }), "utf8").trim();
+  core.setOutput("fixed_files", fixedFiles);
+  if (metadata.inputs.pull_request?.title && fixedFiles) {
+    core.setOutput("create_pull_request", metadata.inputs.pull_request);
+  }
 
   const octokit = github.getOctokit(core.getInput("github_token", { required: true }));
   // Get a pull request

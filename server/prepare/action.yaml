@@ -55,7 +55,7 @@ outputs:
   create_pull_request:
     description: |
       Created pull request parameter
-    value: ${{steps.js.outputs.pull_request}}
+    value: ${{steps.js.outputs.create_pull_request}}
   workflow_run_id:
     description: |
       Workflow Run ID
