@@ -181,7 +181,7 @@ export const main = async () => {
   const config = readConfig(configS, configFile);
   const destRepo = metadata.inputs.repository || metadata.context.payload.repository.full_name;
   const destBranch = metadata.inputs.branch || ref;
-  () => {
+  (() => {
     for (const entry of config.entries) {
       if (entry.client.repositories.includes(metadata.context.payload.repository.full_name) &&
         // source branches are glob patterns
@@ -211,7 +211,7 @@ export const main = async () => {
       }
     }
     throw new Error("No matching entry found in the config for the given repository and branch.");
-  };
+  })();
 
   let permissions: Permissions = {
     contents: "write",
