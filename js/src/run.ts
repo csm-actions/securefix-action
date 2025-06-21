@@ -128,8 +128,6 @@ export const main = async () => {
 
   const octokit = github.getOctokit(core.getInput("github_token", { required: true }));
   // Get a pull request
-  let sha = "";
-  let ref = "";
   if (metadata.context.payload.pull_request) {
     core.setOutput("pull_request_number", metadata.context.payload.pull_request.number);
     const { data: pullRequest } = await octokit.rest.pulls.get({
@@ -138,35 +136,23 @@ export const main = async () => {
       pull_number: metadata.context.payload.pull_request.number,
     });
     core.setOutput("pull_request", pullRequest);
-    sha = pullRequest.head.sha;
-    ref = pullRequest.head.ref;
   }
   // Get GitHub Actions Workflow Run
   const workflowName = core.getInput("workflow_name", { required: false });
-  if (workflowName) {
-    const { data: workflowRun } = await octokit.rest.actions.getWorkflowRun({
-      owner: metadata.context.payload.repository.owner.login,
-      repo: metadata.context.payload.repository.name,
-      run_id: parseInt(core.getInput("run_id", { required: true }), 10),
-    });
-    core.setOutput("workflow_run", workflowRun);
-    // Validate workflow name
-    if (workflowRun.name !== workflowName) {
-      throw new Error(`The client workflow name must be ${workflowName}, but got ${workflowRun.name}`);
-    }
-    if (workflowRun.head_branch) {
-      ref = workflowRun.head_branch;
-      // Get a branch
-      const { data: branch } = await octokit.rest.repos.getBranch({
-        owner: metadata.context.payload.repository.owner.login,
-        repo: metadata.context.payload.repository.name,
-        branch: workflowRun.head_branch,
-      });
-      // Validate if the workflow commit sha is latest
-      if (branch.commit.sha !== workflowRun.head_sha) {
-        throw new Error(`The workflow commit sha (${workflowRun.head_sha}) is not the latest (${branch.commit.sha})`);
-      }
-    }
+  const { data: workflowRun } = await octokit.rest.actions.getWorkflowRun({
+    owner: metadata.context.payload.repository.owner.login,
+    repo: metadata.context.payload.repository.name,
+    run_id: parseInt(core.getInput("run_id", { required: true }), 10),
+  });
+
+  if (!workflowRun.head_branch) {
+    throw new Error("workflowRun.head_branch is not set");
+  }
+
+  core.setOutput("workflow_run", workflowRun);
+  // Validate workflow name
+  if (workflowName && workflowRun.name !== workflowName) {
+    throw new Error(`The client workflow name must be ${workflowName}, but got ${workflowRun.name}`);
   }
 
   // Validate repository and branch
@@ -174,19 +160,19 @@ export const main = async () => {
     core.setOutput("repository", metadata.context.payload.repository.full_name);
     core.setOutput("repository_owner", metadata.context.payload.repository.owner.login);
     core.setOutput("repository_name", metadata.context.payload.repository.name);
-    core.setOutput("branch", ref);
+    core.setOutput("branch", workflowRun.head_branch);
     return;
   }
   // Read YAML config to push other repositories and branches
   const config = readConfig(configS, configFile);
   const destRepo = metadata.inputs.repository || metadata.context.payload.repository.full_name;
-  const destBranch = metadata.inputs.branch || ref;
+  const destBranch = metadata.inputs.branch || workflowRun.head_branch;
   (() => {
     for (const entry of config.entries) {
       if (entry.client.repositories.includes(metadata.context.payload.repository.full_name) &&
         // source branches are glob patterns
         // Check if the input branch matches any of the source branches
-        entry.client.branches.some(branch => minimatch(ref, branch)) &&
+        entry.client.branches.some(branch => minimatch(workflowRun.head_branch || "", branch)) &&
         // destination repositories are glob patterns
         entry.push.repositories.includes(destRepo) &&
         entry.push.branches.some(branch => minimatch(destBranch, branch))
