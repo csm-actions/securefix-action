@@ -135,6 +135,7 @@ runs:
         changed_files: ${{ github.event.label.name}}_files.txt
         config: ${{inputs.config}}
         config_file: ${{inputs.config_file}}
+        workflow_name: ${{inputs.workflow_name}}
         allow_workflow_fix: ${{inputs.allow_workflow_fix}}
         run_id: ${{steps.info.outputs.run_id}}
         github_token: ${{steps.token.outputs.token}}
