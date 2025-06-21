@@ -119,18 +119,21 @@ export const main = async () => {
 
   // Read metadata 
   const metadata = Metadata.parse(JSON.parse(fs.readFileSync(input.metadataFile, "utf8")));
-  core.setOutput("changed_files", fs.readFileSync(core.getInput("changed_files", { required: true }), "utf8"));
+  core.setOutput("metadata", metadata);
+  core.setOutput("fixed_files", fs.readFileSync(core.getInput("changed_files", { required: true }), "utf8"));
 
   const octokit = github.getOctokit(core.getInput("github_token", { required: true }));
   // Get a pull request
   let sha = "";
   let ref = "";
   if (metadata.context.payload.pull_request) {
+    core.setOutput("pull_request_number", metadata.context.payload.pull_request.number);
     const { data: pullRequest } = await octokit.rest.pulls.get({
       owner: metadata.context.payload.repository.owner.login,
       repo: metadata.context.payload.repository.name,
       pull_number: metadata.context.payload.pull_request.number,
     });
+    core.setOutput("pull_request", pullRequest);
     sha = pullRequest.head.sha;
     ref = pullRequest.head.ref;
   }
@@ -142,6 +145,7 @@ export const main = async () => {
       repo: metadata.context.payload.repository.name,
       run_id: parseInt(core.getInput("run_id", { required: true }), 10),
     });
+    core.setOutput("workflow_run", workflowRun);
     // Validate workflow name
     if (workflowRun.name !== workflowName) {
       throw new Error(`The client workflow name must be ${workflowName}, but got ${workflowRun.name}`);

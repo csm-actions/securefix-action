@@ -31,15 +31,15 @@ outputs:
   pull_request:
     description: |
       Pull Request
-    value: ${{steps.pr.outputs.value}}
+    value: ${{steps.js.outputs.pull_request}}
   pull_request_number:
     description: |
       Pull Request number
-    value: ${{steps.pr.outputs.number}}
+    value: ${{steps.pr.outputs.pull_request_number}}
   workflow_run:
     description: |
       Workflow Run
-    value: ${{steps.workflow_run.outputs.value}}
+    value: ${{steps.js.outputs.workflow_run}}
   client_repository:
     description: |
       Repository Full Name
@@ -63,11 +63,11 @@ outputs:
   metadata:
     description: |
       Metadata
-    value: ${{steps.metadata.outputs.value}}
+    value: ${{steps.js.outputs.metadata}}
   fixed_files:
     description: |
       Fixed file paths
-    value: ${{steps.files.outputs.value}}
+    value: ${{steps.js.outputs.fixed_files}}
   github_token:
     description: |
       GitHub App token
