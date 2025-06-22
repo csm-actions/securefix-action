@@ -215,8 +215,8 @@ runs:
       run: |
         if [ "$FAILED" = true ]; then
           echo "::error:: Changes detected. A commit will be pushed"
-          git ls-files --modified --others --exclude-standard
+          echo "$FILES"
           exit 1
         fi
         echo "::notice:: Changes detected. A commit will be pushed"
-        git ls-files --modified --others --exclude-standard
+        echo "$FILES"
