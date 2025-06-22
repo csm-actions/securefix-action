@@ -60,9 +60,9 @@ const PullRequest = z.object({
 });
 
 const Inputs = z.object({
-  repository: z.string(),
-  branch: z.string(),
-  pull_request: PullRequest,
+  repository: z.optional(z.string()),
+  branch: z.optional(z.string()),
+  pull_request: z.optional(PullRequest),
 });
 
 const User = z.object({
@@ -123,7 +123,7 @@ export const main = async () => {
   core.setOutput("metadata", metadataS);
   const fixedFiles = fs.readFileSync(core.getInput("changed_files", { required: true }), "utf8").trim();
   core.setOutput("fixed_files", fixedFiles);
-  if (metadata.inputs.pull_request.title && fixedFiles) {
+  if (metadata.inputs.pull_request?.title && fixedFiles) {
     core.setOutput("create_pull_request", metadata.inputs.pull_request);
   }
 
@@ -182,7 +182,7 @@ export const main = async () => {
         core.setOutput("repository_owner", destRepo.split("/")[0]);
         core.setOutput("repository_name", destRepo.split("/")[1]);
         core.setOutput("branch", destBranch);
-        if (metadata.inputs.pull_request.title) {
+        if (metadata.inputs.pull_request?.title) {
           if (!metadata.inputs.pull_request.base) {
             throw new Error("pull_request base branch is required to create a pull request");
           }
@@ -206,13 +206,13 @@ export const main = async () => {
   if (core.getBooleanInput("allow_workflow_fix", { required: true })) {
     permissions.workflows = "write";
   }
-  if (metadata.inputs.pull_request.title) {
+  if (metadata.inputs.pull_request?.title) {
     permissions.pull_requests = "write";
   }
-  if ((metadata.inputs.pull_request.labels || []).length > 0) {
+  if ((metadata.inputs.pull_request?.labels || []).length > 0) {
     permissions.issues = "write";
   }
-  if ((metadata.inputs.pull_request.team_reviewers || []).length > 0) {
+  if ((metadata.inputs.pull_request?.team_reviewers || []).length > 0) {
     permissions.members = "read";
   }
   core.setOutput("permissions", permissions);
