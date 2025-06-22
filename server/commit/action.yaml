@@ -13,6 +13,18 @@ inputs:
 runs:
   using: composite
   steps:
+    - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      id: commit-message
+      env:
+        METADATA: ${{fromJSON(inputs.outputs).metadata)}}
+        DEFAULT_COMMIT_MESSAGE: ${{inputs.commit_message}}
+      with:
+        result-encoding: string
+        script: |
+          const metadata = JSON.parse(process.env.METADATA);
+          core.info(`Metadata: ${JSON.stringify(metadata)}`);
+          return metadata.inputs.commit_message || process.env.DEFAULT_COMMIT_MESSAGE;
+
     # Create and push a commit
     - if: fromJSON(inputs.outputs).fixed_files != ''
       id: commit
@@ -23,7 +35,7 @@ runs:
         branch: ${{fromJSON(inputs.outputs).branch}}
         files: ${{fromJSON(inputs.outputs).fixed_files}}
         commit_message: |
-          ${{fromJSON(fromJSON(inputs.outputs).metadata).inputs.commit_message && fromJSON(fromJSON(inputs.outputs).metadata).inputs.commit_message || inputs.commit_message}}
+          ${{steps.commit-message.outputs.result}}
           ${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}}
 
     # Create a pull request
