@@ -22,6 +22,10 @@ inputs:
     description: |
       Commit message
     required: false
+  files:
+    description: |
+      Fixed files
+    required: false
   fail_if_changes:
     description: |
       If true, the action fails if there are changes.
@@ -78,30 +82,15 @@ inputs:
 runs:
   using: composite
   steps:
-    - id: artifact-name
-      shell: bash
-      run: |
-        value=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 32 || :)
-        echo "value=securefix-${value}" >> "$GITHUB_OUTPUT"
-    # List fixed file paths
-    - id: files
-      shell: bash
-      env:
-        ARTIFACT_NAME: ${{ steps.artifact-name.outputs.value }}
-      run: |
-        FILES=$(git ls-files --modified --others --exclude-standard)
-        if [ -z "$FILES" ]; then
-          echo "::notice:: No changes" >&2
-          exit 0
-        fi
-        {
-          echo 'value<<EOF'
-          echo "$FILES"
-          echo EOF
-        } >> "$GITHUB_OUTPUT"
+    - uses: csm-actions/securefix-action/js@main
+      id: client1
+      with:
+        action: client1
+        files: ${{inputs.files}}
+
     # Create a GitHub App token to create and delete a label
     - uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
-      if: steps.files.outputs.value != ''
+      if: steps.client1.outputs.changed_files != ''
       id: token
       with:
         app_id: ${{inputs.app_id}}
@@ -114,7 +103,7 @@ runs:
           }
 
     # Create metadata
-    - if: steps.files.outputs.value != ''
+    - if: steps.client1.outputs.changed_files != ''
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       id: metadata
       env:
@@ -160,7 +149,7 @@ runs:
           };
 
     # Create a metadata file
-    - if: steps.files.outputs.value != ''
+    - if: steps.client1.outputs.changed_files != ''
       shell: bash
       run: echo "$EVENT" > "${ARTIFACT_NAME}.json"
       env:
@@ -168,33 +157,33 @@ runs:
         EVENT: ${{steps.metadata.outputs.result}}
 
     # Create a file where fixed file paths are listed
-    - if: steps.files.outputs.value != ''
+    - if: steps.client1.outputs.changed_files != ''
       shell: bash
       run: echo "$FILES" > "${ARTIFACT_NAME}_files.txt"
       env:
-        ARTIFACT_NAME: ${{ steps.artifact-name.outputs.value }}
-        FILES: ${{ steps.files.outputs.value }}
+        ARTIFACT_NAME: ${{ steps.client1.outputs.artifact_name }}
+        FILES: ${{ steps.client1.outputs.changed_files }}
     # Upload files to GitHub Actions Artifact
-    - if: steps.files.outputs.value != ''
+    - if: steps.client1.outputs.changed_files != ''
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
-        name: ${{steps.artifact-name.outputs.value}}
+        name: ${{steps.client1.outputs.artifact_name}}
         path: |
-          ${{ steps.files.outputs.value }}
-          ${{steps.artifact-name.outputs.value}}.json
-          ${{steps.artifact-name.outputs.value}}_files.txt
+          ${{ steps.client1.outputs.changed_files }}
+          ${{steps.client1.outputs.artifact_name}}.json
+          ${{steps.client1.outputs.artifact_name}}_files.txt
     # Delete metadata files
-    - if: steps.files.outputs.value != ''
+    - if: steps.client1.outputs.changed_files != ''
       shell: bash
       run: rm "${ARTIFACT_NAME}.json" "${ARTIFACT_NAME}_files.txt"
       env:
-        ARTIFACT_NAME: ${{ steps.artifact-name.outputs.value }}
+        ARTIFACT_NAME: ${{ steps.client1.outputs.artifact_name }}
     # Create a label
-    - if: steps.files.outputs.value != ''
+    - if: steps.client1.outputs.changed_files != ''
       shell: bash
       env:
         GH_TOKEN: ${{ steps.token.outputs.token }}
-        ARTIFACT_NAME: ${{ steps.artifact-name.outputs.value }}
+        ARTIFACT_NAME: ${{ steps.client1.outputs.artifact_name }}
         REPO: ${{inputs.server_repository}}
       run: |
         gh label create \
@@ -202,15 +191,15 @@ runs:
           "$ARTIFACT_NAME" \
           --description "$GITHUB_REPOSITORY/${GITHUB_RUN_ID}"
     # Sleep for a while
-    - if: steps.files.outputs.value != ''
+    - if: steps.client1.outputs.changed_files != ''
       shell: bash
       run: sleep 1
     # Delete a label
-    - if: steps.files.outputs.value != ''
+    - if: steps.client1.outputs.changed_files != ''
       shell: bash
       env:
         GH_TOKEN: ${{ steps.token.outputs.token }}
-        ARTIFACT_NAME: ${{ steps.artifact-name.outputs.value }}
+        ARTIFACT_NAME: ${{ steps.client1.outputs.artifact_name }}
         REPO: ${{inputs.server_repository}}
       run: |
         gh label delete \
@@ -218,10 +207,10 @@ runs:
           --yes \
           "$ARTIFACT_NAME"
     # Fail if changes are detected
-    - if: steps.files.outputs.value != ''
+    - if: steps.client1.outputs.changed_files != ''
       shell: bash
       env:
-        FILES: ${{ steps.files.outputs.value }}
+        FILES: ${{ steps.client1.outputs.changed_files }}
         FAILED: ${{inputs.fail_if_changes != '' && inputs.fail_if_changes || (inputs.repository == '' && inputs.branch == '')}}
       run: |
         if [ "$FAILED" = true ]; then

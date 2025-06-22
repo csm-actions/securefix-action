@@ -4,6 +4,7 @@ import { z } from "zod";
 import { load } from "js-yaml";
 import { minimatch } from 'minimatch';
 import * as core from "@actions/core";
+import * as exec from "@actions/exec";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import * as github from "@actions/github";
 
@@ -102,6 +103,30 @@ export const readConfig = (config: string, configFile: string): Config => {
 
 export const main = async () => {
   const action = core.getInput("action", { required: true });
+  if (action === "client1") {
+    // Generate artifact name
+    const artifactName = `securefix-${Array.from({ length: 50 - "securefix-".length }, () => Math.floor(Math.random() * 36).toString(36)).join("")}`;
+    core.setOutput("artifact_name", artifactName);
+    // List fixed files
+    const result = await exec.getExecOutput("git", ["ls-files", "--modified", "--others", "--exclude-standard"]);
+    const fixedFiles = new Set(result.stdout.trim().split("\n").filter(file => file.length > 0));
+    if (fixedFiles.size === 0) {
+      core.notice("No changes");
+      return;
+    }
+    const files = new Set(core.getInput("files", { required: false }).trim().split("\n").map(file => file.trim()).filter(file => file.length > 0));
+    if (files.size === 0) {
+      core.setOutput("changed_files", [...fixedFiles].join("\n"));
+      return;
+    }
+    const filteredFiles = [...files].filter(file => fixedFiles.has(file)).join("\n");
+    if (!filteredFiles) {
+      core.notice("No changes");
+      return;
+    }
+    core.setOutput("changed_files", filteredFiles);
+    return;
+  }
   const configS = core.getInput("config", { required: false });
   const configFile = core.getInput("config_file", { required: false });
   if (action === "validate-config") {
