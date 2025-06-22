@@ -153,7 +153,7 @@ runs:
       shell: bash
       run: echo "$EVENT" > "${ARTIFACT_NAME}.json"
       env:
-        ARTIFACT_NAME: ${{ steps.artifact-name.outputs.value }}
+        ARTIFACT_NAME: ${{ steps.client1.outputs.artifact_name }}
         EVENT: ${{steps.metadata.outputs.result}}
 
     # Create a file where fixed file paths are listed
