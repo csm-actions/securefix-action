@@ -118,8 +118,9 @@ export const main = async () => {
   };
 
   // Read metadata 
-  const metadata = Metadata.parse(JSON.parse(fs.readFileSync(input.metadataFile, "utf8")));
-  core.setOutput("metadata", metadata);
+  const metadataS = fs.readFileSync(input.metadataFile, "utf8");
+  const metadata = Metadata.parse(JSON.parse(metadataS));
+  core.setOutput("metadata", metadataS);
   const fixedFiles = fs.readFileSync(core.getInput("changed_files", { required: true }), "utf8").trim();
   core.setOutput("fixed_files", fixedFiles);
   if (metadata.inputs.pull_request.title && fixedFiles) {
