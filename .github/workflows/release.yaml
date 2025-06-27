@@ -1,0 +1,21 @@
+---
+name: Release
+run-name: Release ${{inputs.tag}}
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "tag"
+        required: true
+      pr:
+        description: "pr number (pre-release)"
+        required: false
+jobs:
+  release:
+    uses: ./.github/workflows/wc-create-pr-branch.yaml
+    with:
+      version: ${{inputs.tag}}
+      pr: ${{inputs.pr}}
+    permissions:
+      contents: write
+      pull-requests: write

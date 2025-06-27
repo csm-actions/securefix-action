@@ -19,52 +19,72 @@ inputs:
       Either true or false. If true, the action allows the workflow to fix the code.
     required: false
     default: "false"
+  config:
+    description: |
+      YAML config to push other repositories and branches.
+    required: false
+  config_file:
+    description: |
+      A file path to YAML config.
+    required: false
 outputs:
   pull_request:
     description: |
       Pull Request
-    value: ${{ steps.pr.outputs.value }}
+    value: ${{steps.js.outputs.pull_request}}
   pull_request_number:
     description: |
       Pull Request number
-    value: ${{ steps.metadata.outputs.value && (fromJson(steps.metadata.outputs.value).context.payload.pull_request && fromJson(steps.metadata.outputs.value).context.payload.pull_request.number || '') || '' }}
+    value: ${{steps.pr.outputs.pull_request_number}}
   workflow_run:
     description: |
       Workflow Run
-    value: ${{ steps.workflow_run.outputs.value }}
-  repository:
+    value: ${{steps.js.outputs.workflow_run}}
+  client_repository:
     description: |
       Repository Full Name
-    value: ${{ steps.info.outputs.repo_full_name }}
-  repository_name:
+    value: ${{steps.info.outputs.repo_full_name}}
+  push_repository:
     description: |
-      Repository Name
-    value: ${{ steps.info.outputs.repo }}
+      Repository Full Name
+    value: ${{steps.js.outputs.repository}}
+  branch:
+    description: |
+      Branch
+    value: ${{steps.js.outputs.branch}}
+  create_pull_request:
+    description: |
+      Created pull request parameter
+    value: ${{steps.js.outputs.create_pull_request}}
   workflow_run_id:
     description: |
       Workflow Run ID
-    value: ${{ steps.info.outputs.run_id }}
+    value: ${{steps.info.outputs.run_id}}
   metadata:
     description: |
       Metadata
-    value: ${{ steps.metadata.outputs.value }}
+    value: ${{steps.js.outputs.metadata}}
   fixed_files:
     description: |
       Fixed file paths
-    value: ${{ steps.files.outputs.value }}
+    value: ${{steps.js.outputs.fixed_files}}
   github_token:
     description: |
       GitHub App token
-    value: ${{ steps.token.outputs.token }}
+    value: ${{steps.token.outputs.token}}
+  github_token_for_push:
+    description: |
+      GitHub App token to push a commit to the other repository
+    value: ${{steps.token2.outputs.token}}
 runs:
   using: composite
   steps:
     - id: info
       shell: bash
       env:
-        LABEL_NAME: ${{ github.event.label.name }}
+        LABEL_NAME: ${{github.event.label.name}}
         # $GITHUB_REPOSITORY/${GITHUB_RUN_ID}
-        LABEL_DESCRIPTION: ${{ github.event.label.description }}
+        LABEL_DESCRIPTION: ${{github.event.label.description}}
       run: |
         repo_full_name=${LABEL_DESCRIPTION%/*}
         {
@@ -102,109 +122,43 @@ runs:
     # Download a GitHub Actions Artifact
     - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
       with:
-        github-token: ${{ steps.token.outputs.token }}
-        name: ${{ github.event.label.name }}
-        repository: ${{ steps.info.outputs.repo_full_name }}
-        run-id: ${{ steps.info.outputs.run_id }}
+        github-token: ${{steps.token.outputs.token}}
+        name: ${{github.event.label.name}}
+        repository: ${{steps.info.outputs.repo_full_name}}
+        run-id: ${{steps.info.outputs.run_id}}
 
-    # Read a metadata file
-    - id: metadata
+    - uses: csm-actions/securefix-action/js@main
+      id: js
+      with:
+        action: validate-repository
+        metadata_file: ${{github.event.label.name}}.json
+        changed_files: ${{ github.event.label.name}}_files.txt
+        config: ${{inputs.config}}
+        config_file: ${{inputs.config_file}}
+        workflow_name: ${{inputs.workflow_name}}
+        allow_workflow_fix: ${{inputs.allow_workflow_fix}}
+        run_id: ${{steps.info.outputs.run_id}}
+        github_token: ${{steps.token.outputs.token}}
+
+    - if: steps.js.outputs.permissions
+      uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
+      id: push_token
+      with:
+        app_id: ${{inputs.app_id}}
+        private_key: ${{inputs.app_private_key}}
+        repositories: >-
+          ["${{ steps.js.outputs.repository_name }}"]
+        permissions: ${{steps.js.outputs.permissions}}
+
+    - id: token2
       shell: bash
       env:
-        METADATA_FILE: ${{ github.event.label.name}}.json
+        IS_PUSH_TOKEN: ${{steps.js.outputs.permissions != ''}}
+        TOKEN: ${{steps.token.outputs.token}}
+        PUSH_TOKEN: ${{steps.push_token.outputs.token}}
       run: |
-        {
-          echo 'value<<EOF'
-          cat "$METADATA_FILE"
-          echo EOF
-        } >> "$GITHUB_OUTPUT"
-
-    # Get a pull request
-    - if: fromJson(steps.metadata.outputs.value).context.payload.pull_request
-      id: pr
-      shell: bash
-      env:
-        NUMBER: ${{ fromJson(steps.metadata.outputs.value).context.payload.pull_request.number }}
-        GH_TOKEN: ${{ steps.token.outputs.token }}
-        REPO: ${{ steps.info.outputs.repo_full_name }}
-      run: |
-        data=$(gh api \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "/repos/$REPO/pulls/$NUMBER")
-        {
-          echo 'value<<EOF'
-          echo "$data"
-          echo EOF
-        } >> "$GITHUB_OUTPUT"
-
-    # Get GitHub Actions Workflow Run
-    - id: workflow_run
-      shell: bash
-      env:
-        GH_TOKEN: ${{ steps.token.outputs.token }}
-        REPO: ${{ steps.info.outputs.repo_full_name }}
-        RUN_ID: ${{ steps.info.outputs.run_id }}
-        WORKFLOW: ${{ inputs.workflow_name }}
-      run: |
-        data=$(gh api \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "/repos/$REPO/actions/runs/$RUN_ID")
-        {
-          echo 'value<<EOF'
-          echo "$data"
-          echo EOF
-        } >> "$GITHUB_OUTPUT"
-
-    # Validate workflow name
-    - if: inputs.workflow_name != '' && fromJson(steps.workflow_run.outputs.value).name != inputs.workflow_name
-      shell: bash
-      env:
-        WORKFLOW: ${{ inputs.workflow_name }}
-      run: |
-        echo "::error:: The client workflow name must be $WORKFLOW"
-        exit 1
-
-    # Get a branch
-    - if: |
-        !fromJson(steps.metadata.outputs.value).context.payload.pull_request
-      id: branch
-      shell: bash
-      env:
-        GH_TOKEN: ${{ steps.token.outputs.token }}
-        REPO: ${{ steps.info.outputs.repo_full_name }}
-        BRANCH: ${{ fromJson(steps.workflow_run.outputs.value).head_branch }}
-      run: |
-        data=$(gh api \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "/repos/$REPO/branches/$BRANCH")
-        {
-          echo 'value<<EOF'
-          echo "$data"
-          echo EOF
-        } >> "$GITHUB_OUTPUT"
-
-    # Validate if the workflow commit sha is latest
-    - shell: bash
-      if: fromJson(steps.workflow_run.outputs.value).head_sha != (fromJson(steps.metadata.outputs.value).context.payload.pull_request && fromJson(steps.pr.outputs.value).head.sha || fromJson(steps.branch.outputs.value).commit.sha)
-      env:
-        EXPECTED: ${{ fromJson(steps.workflow_run.outputs.value).head_sha }}
-        ACTUAL: ${{ fromJson(steps.metadata.outputs.value).context.payload.pull_request && fromJson(steps.pr.outputs.value).head.sha || fromJson(steps.branch.outputs.value).commit.sha }}
-      run: |
-        echo "::error:: The workflow commit sha ($ACTUAL) is not the latest ($EXPECTED)"
-        exit 1
-
-    # Read changed file paths
-    - id: files
-      shell: bash
-      env:
-        FILES: ${{ github.event.label.name}}_files.txt
-      run: |
-        {
-          echo 'value<<EOF'
-          cat "$FILES"
-          echo EOF
-        } >> "$GITHUB_OUTPUT"
-        rm "$FILES"
+        if [ "$IS_PUSH_TOKEN" = "true" ]; then
+          echo "token=${PUSH_TOKEN}" >> "$GITHUB_OUTPUT"
+        else
+          echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
+        fi

@@ -14,11 +14,26 @@ jobs:
       - uses: aquaproj/aqua-installer@d1fe50798dbadd4eb5b98957290ca175f6b4870f # v4.0.2
         with:
           aqua_version: v2.53.3
-      - run: aqua upc -prune
+      - name: Update aqua-checksums.json
+        run: aqua upc -prune
         env:
           GITHUB_TOKEN: ${{github.token}}
-      - run: git ls-files | xargs nllint -f -s
-      - env:
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: js/.node-version
+          cache-dependency-path: js/package-lock.json
+          cache: npm
+      - run: npm ci
+        working-directory: js
+      - name: Update JSONSchema
+        run: npx ts-node src/generate_schema.ts
+        working-directory: js
+
+      - name: Fix newlines
+        run: git ls-files | xargs nllint -f -s
+      - name: Update actions in the document
+        env:
           GITHUB_TOKEN: ${{github.token}}
         run: |
           git ls-files | grep -E '\.md$' | xargs pinact run -u

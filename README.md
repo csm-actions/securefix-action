@@ -16,6 +16,14 @@ Furthermore, it's easy to use.
 You don't need to host a server application.
 It achieves a server/client architecture using GitHub Actions by unique approach.
 
+## :rocket: Recent Important Updates
+
+- [v0.1.1 (2025-06)](https://github.com/csm-actions/securefix-action/releases/tag/v0.1.1)
+  - [You can now push commits to the other repository and branch securely](#push-to-other-repository-and-branch)
+  - [You can now create pull requests](#create-pull-requests)
+
+See also [Release Notes](https://github.com/csm-actions/securefix-action/releases).
+
 ## Features
 
 - 💪 Increase the developer productivity by fixing code in CI
@@ -129,8 +137,10 @@ Permissions:
 
 - `contents:write`: To create commits
 - `actions:read`: To download GitHub Actions Artifacts to fix code
-- `workflows:write`: Optional. This is required if you want to fix GitHub Actions workflows
 - `pull_requests:write`: To notify problems on the server side to pull requests
+- `workflows:write`: Optional. This is required if you want to fix GitHub Actions workflows
+- `issues:write`: Optional. This is required if you want to add labels to pull requests
+- `members:read`: Optional. This is required if you want to request reviews to teams
 
 Installed Repositories: Install the app into the server repository and client repositories.
 
@@ -261,6 +271,32 @@ You can use [`server/prepare` action's outputs](server/prepare#outputs).
   with:
     outputs: ${{ toJson(steps.prepare.outputs) }}
 ```
+
+### Push to other repository and branch
+
+Securefix Action >= v0.2.0 [#123](https://github.com/csm-actions/securefix-action/pull/123)
+
+By default, Securefix Action pushes a commit to the repository and branch where the action is run.
+But actually there are usecases that you want to push a commit to other repository and branch.
+
+- Scaffold a pull request by `workflow_dispatch`
+- Update GitHub Pages
+- Create a pull request to the repository A when the repository B is updated
+- etc
+
+Securefix Action can push a commit to the other repository and branch securely.
+Allowing to push any repository and branch without any restriction is dangerous, so by default changing the repository and branch isn't allowed, meaning the action fails.
+You can push a commit from only allowed repositories and branches to only allowed repositories and branches.
+
+1. [Configure the server side](server/prepare/README.md#config-config_file)
+2. [Configure the client side](docs/client.md#push-a-commit-to-the-other-repository-and-branch)
+
+### Create pull requests
+
+When pushing a commit to the other repository and branch, you can also create a pull request.
+
+1. [Configure the server side](server/prepare/README.md#config-config_file)
+2. [Configure the client side](docs/client.md#create-a-pull-request)
 
 ## Troubleshooting
 
