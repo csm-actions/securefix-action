@@ -223,6 +223,11 @@ Securefix Action composes of four actions:
 - [csm-actions/securefix-action/server/commit](server/commit) ([action.yaml](server/commit/action.yaml)): Server action to create commits
 - [csm-actions/securefix-action/server/notify](server/notify) ([action.yaml](server/notify/action.yaml)): Server action to notify the server failure
 
+## Actions' Available Versions
+
+As of Securefix Action v0.2.0, Securefix Action is released using [release-js-action](https://github.com/suzuki-shunsuke/release-js-action).
+[About available versions, please see the document.](https://github.com/suzuki-shunsuke/release-js-action/blob/main/docs/available_versions.md)
+
 ## Security
 
 > - You don't need to pass a GitHub App private key having strong permissions to GitHub Actions workflows on the client side
