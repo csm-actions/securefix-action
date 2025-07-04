@@ -13,14 +13,93 @@ inputs:
 runs:
   using: composite
   steps:
+    - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      id: commit-message
+      env:
+        METADATA: ${{fromJSON(inputs.outputs).metadata}}
+        DEFAULT_COMMIT_MESSAGE: ${{inputs.commit_message}}
+      with:
+        result-encoding: string
+        script: |
+          const metadata = JSON.parse(process.env.METADATA);
+          core.info(`Metadata: ${JSON.stringify(metadata)}`);
+          return metadata.inputs.commit_message || process.env.DEFAULT_COMMIT_MESSAGE;
+
     # Create and push a commit
-    - if: fromJson(inputs.outputs).fixed_files != ''
+    - if: fromJSON(inputs.outputs).fixed_files != ''
+      id: commit
       uses: suzuki-shunsuke/commit-action@e3299afe2e5ffb76f1987743e3dbc0f00ece72d8 # v0.0.8
       with:
-        github_token: ${{fromJson(inputs.outputs).github_token}}
-        repository: ${{ fromJson(inputs.outputs).repository }}
-        branch: ${{ fromJson(fromJson(inputs.outputs).workflow_run).head_branch }}
-        files: ${{ fromJson(inputs.outputs).fixed_files }}
+        github_token: ${{fromJSON(inputs.outputs).github_token_for_push}}
+        repository: ${{fromJSON(inputs.outputs).push_repository}}
+        branch: ${{fromJSON(inputs.outputs).branch}}
+        files: ${{fromJSON(inputs.outputs).fixed_files}}
         commit_message: |
-          ${{fromJson(fromJson(inputs.outputs).metadata).inputs.commit_message && fromJson(fromJson(inputs.outputs).metadata).inputs.commit_message || inputs.commit_message}}
+          ${{steps.commit-message.outputs.result}}
           ${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}}
+
+    # Create a pull request
+    - if: |
+        fromJSON(inputs.outputs).fixed_files &&
+        (steps.commit.outputs.pushed == 'true') &&
+        fromJSON(inputs.outputs).create_pull_request
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      env:
+        OUTPUTS: ${{ inputs.outputs }}
+      with:
+        github-token: ${{fromJSON(inputs.outputs).github_token_for_push}}
+        script: |
+          const outputs = JSON.parse(process.env.OUTPUTS);
+          const param = JSON.parse(outputs.create_pull_request);
+          const owner = outputs.push_repository.split('/')[0];
+          const repo = outputs.push_repository.split('/')[1];
+          // Create a pull request
+          const pr = await github.rest.pulls.create({
+            owner: owner,
+            repo: repo,
+            head: outputs.branch,
+            title: param.title,
+            body: param.body,
+            base: param.base,
+            draft: param.draft || false,
+          });
+          core.notice(`Created a pull request: ${pr.data.html_url}`);
+          // Create a pull request comment
+          if (param.comment) {
+            // Create a pull request comment
+            await github.rest.issues.createComment({
+              owner: owner,
+              repo: repo,
+              issue_number: pr.data.number,
+              body: param.comment,
+            });
+          }
+          // Add labels
+          if (param.labels.length > 0) {
+            await github.rest.issues.addLabels({
+              owner: owner,
+              repo: repo,
+              issue_number: pr.data.number,
+              labels: param.labels,
+            });
+          }
+          // Add assignees
+          if (param.assignees.length > 0) {
+            await github.rest.issues.addAssignees({
+              owner: owner,
+              repo: repo,
+              issue_number: pr.data.number,
+              assignees: param.assignees,
+            });
+          }
+          // Request reviews
+          if (param.reviewers.length > 0 || param.team_reviewers.length > 0) {
+            await github.rest.pulls.requestReviewers({
+              owner: owner,
+              repo: repo,
+              pull_number: pr.data.number,
+              reviewers: param.reviewers,
+              team_reviewers: param.team_reviewers,
+            });
+          }
+          return pr;

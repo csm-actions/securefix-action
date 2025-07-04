@@ -1,0 +1,87 @@
+{
+  "$ref": "#/definitions/config",
+  "definitions": {
+    "config": {
+      "type": "object",
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "client": {
+                "type": "object",
+                "properties": {
+                  "repositories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "branches": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "repositories",
+                  "branches"
+                ],
+                "additionalProperties": false
+              },
+              "push": {
+                "type": "object",
+                "properties": {
+                  "repositories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "branches": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "repositories",
+                  "branches"
+                ],
+                "additionalProperties": false
+              },
+              "pull_request": {
+                "type": "object",
+                "properties": {
+                  "base_branches": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "base_branches"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "client",
+              "push"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "entries"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
