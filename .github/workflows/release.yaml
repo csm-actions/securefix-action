@@ -15,8 +15,7 @@ jobs:
     uses: ./.github/workflows/wc-create-pr-branch.yaml
     with:
       version: ${{inputs.tag}}
-      # https://github.com/orgs/community/discussions/67182
-      pr: ${{inputs.pr && fromJSON(inputs.pr) || ''}}
+      pr: ${{inputs.pr}}
     permissions:
       contents: write
       pull-requests: write
