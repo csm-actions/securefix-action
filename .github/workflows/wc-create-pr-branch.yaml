@@ -35,7 +35,7 @@ jobs:
           GITHUB_TOKEN: ${{github.token}}
           PR: ${{inputs.pr}}
 
-      - uses: aquaproj/aqua-installer@9ebf656952a20c45a5d66606f083ff34f58b8ce0 # v4.0.0
+      - uses: aquaproj/aqua-installer@d1fe50798dbadd4eb5b98957290ca175f6b4870f # v4.0.2
         with:
           aqua_version: v2.53.2
         env:
@@ -52,7 +52,7 @@ jobs:
       - run: npm run build
         working-directory: js
 
-      - uses: suzuki-shunsuke/release-js-action@0c8995bef6136b89f294badd3f6b1f2615f7ba56 # v0.1.7
+      - uses: suzuki-shunsuke/release-js-action@23ab6d1545309c79664bc0e9aea74daf27339193 # v0.1.8-2
         with:
           version: ${{inputs.version}}
           is_comment: ${{inputs.is_comment}}
