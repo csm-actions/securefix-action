@@ -18,7 +18,7 @@ It achieves a server/client architecture using GitHub Actions by unique approach
 
 ## :rocket: Recent Important Updates
 
-- [v0.1.1 (2025-06)](https://github.com/csm-actions/securefix-action/releases/tag/v0.1.1)
+- [v0.2.0 (2025-07)](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)
   - [You can now push commits to the other repository and branch securely](#push-to-other-repository-and-branch)
   - [You can now create pull requests](#create-pull-requests)
 
@@ -104,11 +104,12 @@ It uses following GitHub Apps, repositories, and workflows:
 ![Image](https://github.com/user-attachments/assets/383de1da-a267-4f96-a86c-9151d66cebc5)
 
 1. The client workflow uploads fixed files and metadata to GitHub Actions Artifacts
-2. The client workflow creates an issue label to the server repository (The label is deleted immediately)
+2. The client workflow creates an issue label to the server repository
 3. The server workflow is triggered by `label:created` event
-4. The server workflow downloads fixed files and metadata from GitHub Actions Artifacts
-5. The server workflow validates the request
-6. The server workflow pushes a commit to the client repository
+4. The server workflow deletes the issue label
+5. The server workflow downloads fixed files and metadata from GitHub Actions Artifacts
+6. The server workflow validates the request
+7. The server workflow pushes a commit to the client repository
 
 ### :bulb: Why are labels used?
 
