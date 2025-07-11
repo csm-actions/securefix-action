@@ -27,6 +27,23 @@ inputs:
     description: |
       A file path to YAML config.
     required: false
+  label_name:
+    description: |
+      Label name to trigger the action.
+    required: false
+    default: ${{github.event.label.name}}
+  label_description:
+    description: |
+      Label description to trigger the action.
+      The format must be <repository owner>/<repository name>/<workflow run ID>.
+    required: false
+    default: ${{github.event.label.description}}
+  delete_label:
+    description: |
+      Either true or false. If true, the label is deleted.
+    required: false
+    default: "true"
+  
 outputs:
   pull_request:
     description: |
@@ -82,16 +99,49 @@ runs:
     - id: info
       shell: bash
       env:
-        LABEL_NAME: ${{github.event.label.name}}
-        # $GITHUB_REPOSITORY/${GITHUB_RUN_ID}
+        APP_ID: ${{inputs.app_id}}
+        APP_PRIVATE_KEY: ${{inputs.app_private_key}}
+        LABEL_NAME: ${{inputs.label_name}}
         LABEL_DESCRIPTION: ${{github.event.label.description}}
       run: |
-        repo_full_name=${LABEL_DESCRIPTION%/*}
+        if [ -z "$APP_ID" ]; then
+          echo "::error:: GitHub App ID is required"
+          exit 1
+        fi
+        if [ -z "$APP_PRIVATE_KEY" ]; then
+          echo "::error:: GitHub App Private Key is required"
+          exit 1
+        fi
+        if [ -z "$LABEL_NAME" ]; then
+          echo "::error:: Label name is required"
+          exit 1
+        fi
+        if [ -z "$LABEL_DESCRIPTION" ]; then
+          echo "::error:: Label description is required"
+          exit 1
+        fi
+        repo_full_name="${LABEL_DESCRIPTION%/*}"
+        repo="${repo_full_name#*/}"
+        run_id="${LABEL_DESCRIPTION##*/}"
+        if [ -z "$repo_full_name" ] || [ -z "$repo" ]; then
+          echo "::error:: Label description must be in the format <repository owner>/<repository name>/<workflow run ID>"
+          exit 1
+        fi
         {
           echo "repo_full_name=${repo_full_name}"
           echo "repo=${repo_full_name#*/}"
           echo "run_id=${LABEL_DESCRIPTION##*/}"
         } >> "$GITHUB_OUTPUT"
+
+    # Delete a label
+    # github.token requires issues:write permission
+    - shell: bash
+      if: inputs.delete_label == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        LABEL_NAME: ${{ inputs.label_name }}
+      run: |
+        gh label delete --yes "$LABEL_NAME" || :
 
     - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       id: permissions

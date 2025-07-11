@@ -191,22 +191,6 @@ runs:
           -R "${GITHUB_REPOSITORY_OWNER}/${REPO}" \
           "$ARTIFACT_NAME" \
           --description "$GITHUB_REPOSITORY/${GITHUB_RUN_ID}"
-    # Sleep for a while
-    - if: steps.client1.outputs.changed_files != ''
-      shell: bash
-      run: sleep 1
-    # Delete a label
-    - if: steps.client1.outputs.changed_files != ''
-      shell: bash
-      env:
-        GH_TOKEN: ${{ steps.token.outputs.token }}
-        ARTIFACT_NAME: ${{ steps.client1.outputs.artifact_name }}
-        REPO: ${{inputs.server_repository}}
-      run: |
-        gh label delete \
-          -R "${GITHUB_REPOSITORY_OWNER}/${REPO}" \
-          --yes \
-          "$ARTIFACT_NAME"
     # Fail if changes are detected
     - if: steps.client1.outputs.changed_files != ''
       shell: bash
