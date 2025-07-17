@@ -118,7 +118,7 @@ export const main = async () => {
   if (action === "client1") {
     // Generate artifact name
     const n = nowS();
-    const artifactName = `securefix-${Array.from({ length: 50 - `securefix-${n}`.length }, () => Math.floor(Math.random() * 36).toString(36)).join("")}`;
+    const artifactName = `securefix-${n}-${Array.from({ length: 50 - `securefix-${n}-`.length }, () => Math.floor(Math.random() * 36).toString(36)).join("")}`;
     core.setOutput("artifact_name", artifactName);
     // List fixed files
     const result = await exec.getExecOutput("git", ["ls-files", "--modified", "--others", "--exclude-standard"]);
