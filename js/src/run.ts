@@ -101,11 +101,24 @@ export const readConfig = (config: string, configFile: string): Config => {
   return Config.parse(load(config ? config : fs.readFileSync(configFile, "utf8")));
 };
 
+const nowS = (): string => {
+  const date = new Date();
+  const pad = (n: number): string => n.toString().padStart(2, '0');
+  const yyyy = date.getFullYear();
+  const mm = pad(date.getMonth() + 1);
+  const dd = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const min = pad(date.getMinutes());
+  const ss = pad(date.getSeconds());
+  return `${yyyy}${mm}${dd}${hh}${min}${ss}`;
+};
+
 export const main = async () => {
   const action = core.getInput("action", { required: true });
   if (action === "client1") {
     // Generate artifact name
-    const artifactName = `securefix-${Array.from({ length: 50 - "securefix-".length }, () => Math.floor(Math.random() * 36).toString(36)).join("")}`;
+    const n = nowS();
+    const artifactName = `securefix-${Array.from({ length: 50 - `securefix-${n}`.length }, () => Math.floor(Math.random() * 36).toString(36)).join("")}`;
     core.setOutput("artifact_name", artifactName);
     // List fixed files
     const result = await exec.getExecOutput("git", ["ls-files", "--modified", "--others", "--exclude-standard"]);
