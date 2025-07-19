@@ -21,6 +21,8 @@ It achieves a server/client architecture using GitHub Actions by unique approach
 - [v0.2.0 (2025-07)](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)
   - [You can now push commits to the other repository and branch securely](#push-to-other-repository-and-branch)
   - [You can now create pull requests](#create-pull-requests)
+  - Fix a bug that it fails to push a commit if hidden files are included
+  - :warning: [Delete labels on the server side](https://github.com/csm-actions/securefix-action/pull/164)
 
 See also [Release Notes](https://github.com/csm-actions/securefix-action/releases).
 
@@ -114,8 +116,8 @@ It uses following GitHub Apps, repositories, and workflows:
 ### :bulb: Why are labels used?
 
 Securefix Action uses `label` event to trigger a server workflow.
-Generally `repository_dispatch` events are used to trigger workflows by API, but they require the permission `contents:write`.
-If we grant `contents:write` permissions to client workflows, this action has no sense because clients can create commits without this action.
+Generally `repository_dispatch` events are used to trigger workflows by API, but they require the permission `actions:write`.
+`actions:write` permissions is strong and dangerous, so we don't want to grant the permission.
 So we looked for alternative events from [all events](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows), and we found `label` event.
 Even if the permission is abused, the risk is low.
 
