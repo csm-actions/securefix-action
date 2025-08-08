@@ -28,7 +28,7 @@ runs:
     # Create and push a commit
     - if: fromJSON(inputs.outputs).fixed_files != ''
       id: commit
-      uses: suzuki-shunsuke/commit-action@pr/180
+      uses: suzuki-shunsuke/commit-action@ca8e761ccb3533295065c3e90a8555fcdde8b467 # v0.0.10
       with:
         github_token: ${{fromJSON(inputs.outputs).github_token_for_push}}
         repository: ${{fromJSON(inputs.outputs).push_repository}}
