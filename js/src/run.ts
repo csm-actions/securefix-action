@@ -63,6 +63,7 @@ const PullRequest = z.object({
 const Inputs = z.object({
   repository: z.optional(z.string()),
   branch: z.optional(z.string()),
+  root_dir: z.optional(z.string()),
   pull_request: z.optional(PullRequest),
 });
 

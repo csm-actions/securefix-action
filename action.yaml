@@ -38,6 +38,10 @@ inputs:
     description: |
       A branch where a commit will be pushed.
     required: false
+  root_dir:
+    description: |
+      A Git root directory where a commit will be pushed.
+    required: false
   pull_request_title:
     description: |
       A pull request title.
@@ -110,6 +114,7 @@ runs:
         COMMIT_MESSAGE: ${{inputs.commit_message}}
         REPO: ${{inputs.repository}}
         BRANCH: ${{inputs.branch}}
+        ROOT_DIR: ${{inputs.root_dir}}
         PR_TITLE: ${{inputs.pull_request_title}}
         PR_BASE_BRANCH: ${{inputs.pull_request_base_branch}}
         PR_BODY: ${{inputs.pull_request_body}}
@@ -134,6 +139,7 @@ runs:
               repository: process.env.REPO || '',
               branch: process.env.BRANCH || '',
               commit_message: process.env.COMMIT_MESSAGE || '',
+              root_dir: process.env.ROOT_DIR || '',
               pull_request: {
                 title: process.env.PR_TITLE || '',
                 body: process.env.PR_BODY || '',
