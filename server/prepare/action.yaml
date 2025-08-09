@@ -177,7 +177,7 @@ runs:
         run_id: ${{steps.info.outputs.run_id}}
         github_token: ${{steps.token.outputs.token}}
 
-    - if: steps.js.outputs.permissions
+    - if: steps.js.outputs.permission-issues || steps.js.outputs.permission-members
       uses: actions/create-github-app-token@0f859bf9e69e887678d5bbfbee594437cb440ffe # v2.1.0
       id: push_token
       with:
@@ -185,6 +185,11 @@ runs:
         private-key: ${{inputs.app_private_key}}
         owner: ${{github.repository_owner}}
         repositories: ${{ steps.js.outputs.repository_name }}
+        permission-contents: write
+        permission-workflows: ${{ steps.js.outputs.permission-workflows }}
+        permission-pull-requests: ${{ steps.js.outputs.permission-pull-requests }}
+        permission-issues: ${{ steps.js.outputs.permission-issues }}
+        permission-members: ${{ steps.js.outputs.permission-members }}
 
     - id: token2
       shell: bash
