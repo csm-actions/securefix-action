@@ -122,8 +122,9 @@ export const main = async () => {
     const artifactName = `${prefix}${Array.from({ length: 50 - prefix.length }, () => Math.floor(Math.random() * 36).toString(36)).join("")}`;
     core.setOutput("artifact_name", artifactName);
     // List fixed files
+    const rootDir = core.getInput("root_dir", { required: false }) || "";
     const result = await exec.getExecOutput("git", ["ls-files", "--modified", "--others", "--exclude-standard"], {
-      cwd: core.getInput("root_dir", { required: false }) || undefined,
+      cwd: rootDir || undefined,
     });
     const fixedFiles = new Set(result.stdout.trim().split("\n").filter(file => file.length > 0));
     if (fixedFiles.size === 0) {
@@ -132,15 +133,17 @@ export const main = async () => {
     }
     const files = new Set(core.getInput("files", { required: false }).trim().split("\n").map(file => file.trim()).filter(file => file.length > 0));
     if (files.size === 0) {
-      core.setOutput("changed_files", [...fixedFiles].join("\n"));
+      core.setOutput("changed_files_from_root_dir", [...fixedFiles].join("\n"));
+      core.setOutput("changed_files", [...fixedFiles].map(file => path.join(rootDir, file)).join("\n"));
       return;
     }
-    const filteredFiles = [...files].filter(file => fixedFiles.has(file)).join("\n");
-    if (!filteredFiles) {
+    const filteredFiles = [...files].filter(file => fixedFiles.has(file));
+    if (filteredFiles.length === 0) {
       core.notice("No changes");
       return;
     }
-    core.setOutput("changed_files", filteredFiles);
+    core.setOutput("changed_files_from_root_dir", filteredFiles.join("\n"));
+    core.setOutput("changed_files", filteredFiles.map(file => path.join(rootDir, file)).join("\n"));
     return;
   }
   const configS = core.getInput("config", { required: false });
