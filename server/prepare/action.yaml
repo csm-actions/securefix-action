@@ -141,7 +141,7 @@ runs:
         GH_TOKEN: ${{ github.token }}
         LABEL_NAME: ${{ inputs.label_name }}
       run: |
-        gh label delete --yes "$LABEL_NAME" || :
+        gh label delete -R "$GITHUB_REPOSITORY" --yes "$LABEL_NAME" || :
 
     - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       id: permissions
