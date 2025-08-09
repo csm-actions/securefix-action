@@ -123,7 +123,9 @@ export const main = async () => {
     const artifactName = `${prefix}${Array.from({ length: 50 - prefix.length }, () => Math.floor(Math.random() * 36).toString(36)).join("")}`;
     core.setOutput("artifact_name", artifactName);
     // List fixed files
-    const result = await exec.getExecOutput("git", ["ls-files", "--modified", "--others", "--exclude-standard"]);
+    const result = await exec.getExecOutput("git", ["ls-files", "--modified", "--others", "--exclude-standard"], {
+      cwd: core.getInput("root_dir", { required: false }) || undefined,
+    });
     const fixedFiles = new Set(result.stdout.trim().split("\n").filter(file => file.length > 0));
     if (fixedFiles.size === 0) {
       core.notice("No changes");
