@@ -141,7 +141,7 @@ runs:
         GH_TOKEN: ${{ github.token }}
         LABEL_NAME: ${{ inputs.label_name }}
       run: |
-        gh label delete --yes "$LABEL_NAME" || :
+        gh label delete -R "$GITHUB_REPOSITORY" --yes "$LABEL_NAME" || :
 
     # Create a GitHub App token
     - uses: actions/create-github-app-token@0f859bf9e69e887678d5bbfbee594437cb440ffe # v2.1.0
