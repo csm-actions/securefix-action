@@ -160,14 +160,17 @@ runs:
           return permissions;
 
     # Create a GitHub App token
-    - uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
+    - uses: actions/create-github-app-token@0f859bf9e69e887678d5bbfbee594437cb440ffe # v2.1.0
       id: token
       with:
-        app_id: ${{inputs.app_id}}
-        private_key: ${{inputs.app_private_key}}
-        repositories: >-
-          ["${{ steps.info.outputs.repo }}"]
-        permissions: ${{ steps.permissions.outputs.result }}
+        app-id: ${{inputs.app_id}}
+        private-key: ${{inputs.app_private_key}}
+        owner: ${{github.repository_owner}}
+        repositories: ${{ steps.info.outputs.repo }}
+        permission-actions: read
+        permission-contents: write
+        permission-pull-requests: write
+        permission-workflows: ${{ inputs.allow_workflow_fix == 'true' && 'write' || '' }}
 
     # Download a GitHub Actions Artifact
     - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
@@ -191,14 +194,13 @@ runs:
         github_token: ${{steps.token.outputs.token}}
 
     - if: steps.js.outputs.permissions
-      uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
+      uses: actions/create-github-app-token@0f859bf9e69e887678d5bbfbee594437cb440ffe # v2.1.0
       id: push_token
       with:
-        app_id: ${{inputs.app_id}}
-        private_key: ${{inputs.app_private_key}}
-        repositories: >-
-          ["${{ steps.js.outputs.repository_name }}"]
-        permissions: ${{steps.js.outputs.permissions}}
+        app-id: ${{inputs.app_id}}
+        private-key: ${{inputs.app_private_key}}
+        owner: ${{github.repository_owner}}
+        repositories: ${{ steps.js.outputs.repository_name }}
 
     - id: token2
       shell: bash
