@@ -143,22 +143,6 @@ runs:
       run: |
         gh label delete --yes "$LABEL_NAME" || :
 
-    - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-      id: permissions
-      env:
-        ALLOW_WORKFLOW_FIX: ${{inputs.allow_workflow_fix}}
-      with:
-        script: |
-          let permissions = {
-            actions: "read",
-            contents: "write",
-            pull_requests: "write",
-          };
-          if (process.env.ALLOW_WORKFLOW_FIX === 'true') {
-            permissions.workflows = "write";
-          }
-          return permissions;
-
     # Create a GitHub App token
     - uses: actions/create-github-app-token@0f859bf9e69e887678d5bbfbee594437cb440ffe # v2.1.0
       id: token
