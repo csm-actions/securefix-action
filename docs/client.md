@@ -99,32 +99,51 @@ You can also configure pull request body, labels, reviewers, assignees, and so o
 
 ### Optional Inputs
 
-- `commit_message`: A commit message
-- `fail_if_changes`: If true, the action fails if there are changes
-- `repository`: A repository full name where a commit will be pushed. The Server GitHub App must be installed into this repository
-- `branch`: A branch where a commit will be pushed
-- `pull_request_title`: A pull request title
-- `pull_request_body`: A pull request description
-- `pull_request_labels`: Pull request labels
+- `commit_message` ([v0.1.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.1.0)): A commit message
+- `fail_if_changes` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): If true, the action fails if there are changes
+- `repository` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A repository full name where a commit will be pushed. The Server GitHub App must be installed into this repository
+- `branch` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A branch where a commit will be pushed
+- `root_dir` ([v0.2.2](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.2)): A root directory of fixed files
+- `files` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A fixed files. By default, `git ls-files --modified --others --exclude-standard`. If `root_dir` is given, `files` must be relative paths from `root_dir`
+- `pull_request_title` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A pull request title
+- `pull_request_body` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A pull request description
+- `pull_request_labels` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request labels
 
 > [!WARNING]
 > `pull_request_labels` requires `issues:write` permission
 
-- `pull_request_draft`: If true, create a pull request as draft
-- `pull_request_reviewers`: Pull request reviewers
-- `pull_request_team_reviewers`: Pull request team reviewers
+- `pull_request_draft` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): If true, create a pull request as draft
+- `pull_request_reviewers` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request reviewers
+- `pull_request_team_reviewers` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request team reviewers
 
 > [!WARNING]
 > `pull_request_team_reviewers` requires the `members:read` permission
 
-- `pull_request_assignees`: Pull request assignees
-- `pull_request_comment`: Pull request comment
+- `pull_request_assignees` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request assignees
+- `pull_request_comment` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request comment
 
 #### `fail_if_changes`
 
 By default, this action fails if any files are changed, but if a commit is pushed to the other repository or branch, the action succeeds.
 If `fail_if_changes` is `true`, this action fails if any files are changed.
 If `fail_if_changes` is `false`, this action succeeds even if any files are changed.
+
+#### `root_dir`
+
+This is useful when the repository is checked out on the different path from `${{github.workspace}}`.
+
+e.g.
+
+```yaml
+- uses: csm-actions/securefix-action@latest
+  with:
+    app_id: ${{ vars.APP_ID }}
+    app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+    server_repository: demo-server
+    root_dir: docs # By default, this is empty (${{github.workspace}})
+    # files must be relative paths from root_dir
+    files: index.html
+```
 
 ## Outputs
 
