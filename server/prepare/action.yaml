@@ -194,7 +194,7 @@ runs:
     - id: token2
       shell: bash
       env:
-        IS_PUSH_TOKEN: ${{steps.js.outputs.permissions != ''}}
+        IS_PUSH_TOKEN: ${{ steps.push_token.outputs.token != '' }}
         TOKEN: ${{steps.token.outputs.token}}
         PUSH_TOKEN: ${{steps.push_token.outputs.token}}
       run: |
