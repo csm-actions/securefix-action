@@ -34,7 +34,6 @@ runs:
         repository: ${{fromJSON(inputs.outputs).push_repository}}
         branch: ${{fromJSON(inputs.outputs).branch}}
         files: ${{fromJSON(inputs.outputs).fixed_files}}
-        root_dir: ${{fromJSON(inputs.outputs).root_dir}}
         commit_message: |
           ${{steps.commit-message.outputs.result}}
           ${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}}
