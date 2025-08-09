@@ -166,6 +166,7 @@ export const main = async () => {
   if (metadata.inputs.pull_request?.title && fixedFiles) {
     core.setOutput("create_pull_request", metadata.inputs.pull_request);
   }
+  core.setOutput("root_dir", metadata.inputs.root_dir || "");
 
   const octokit = github.getOctokit(core.getInput("github_token", { required: true }));
   // Get a pull request
