@@ -52,7 +52,7 @@ outputs:
   pull_request_number:
     description: |
       Pull Request number
-    value: ${{steps.pr.outputs.pull_request_number}}
+    value: ${{steps.js.outputs.pull_request_number}}
   workflow_run:
     description: |
       Workflow Run
