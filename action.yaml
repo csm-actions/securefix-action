@@ -38,6 +38,10 @@ inputs:
     description: |
       A branch where a commit will be pushed.
     required: false
+  root_dir:
+    description: |
+      A Git root directory where a commit will be pushed.
+    required: false
   pull_request_title:
     description: |
       A pull request title.
@@ -87,6 +91,7 @@ runs:
       with:
         action: client1
         files: ${{inputs.files}}
+        root_dir: ${{inputs.root_dir}}
 
     # Create a GitHub App token to create and delete a label
     - uses: actions/create-github-app-token@0f859bf9e69e887678d5bbfbee594437cb440ffe # v2.1.0
@@ -107,6 +112,7 @@ runs:
         COMMIT_MESSAGE: ${{inputs.commit_message}}
         REPO: ${{inputs.repository}}
         BRANCH: ${{inputs.branch}}
+        ROOT_DIR: ${{inputs.root_dir}}
         PR_TITLE: ${{inputs.pull_request_title}}
         PR_BASE_BRANCH: ${{inputs.pull_request_base_branch}}
         PR_BODY: ${{inputs.pull_request_body}}
@@ -131,6 +137,7 @@ runs:
               repository: process.env.REPO || '',
               branch: process.env.BRANCH || '',
               commit_message: process.env.COMMIT_MESSAGE || '',
+              root_dir: process.env.ROOT_DIR || '',
               pull_request: {
                 title: process.env.PR_TITLE || '',
                 body: process.env.PR_BODY || '',
@@ -159,7 +166,7 @@ runs:
       run: echo "$FILES" > "${ARTIFACT_NAME}_files.txt"
       env:
         ARTIFACT_NAME: ${{ steps.client1.outputs.artifact_name }}
-        FILES: ${{ steps.client1.outputs.changed_files }}
+        FILES: ${{ steps.client1.outputs.changed_files_from_root_dir }}
     # Upload files to GitHub Actions Artifact
     - if: steps.client1.outputs.changed_files != ''
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
