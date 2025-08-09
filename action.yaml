@@ -91,6 +91,7 @@ runs:
       with:
         action: client1
         files: ${{inputs.files}}
+        root_dir: ${{inputs.root_dir}}
 
     # Create a GitHub App token to create and delete a label
     - uses: actions/create-github-app-token@0f859bf9e69e887678d5bbfbee594437cb440ffe # v2.1.0
