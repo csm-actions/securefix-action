@@ -63,6 +63,7 @@ const PullRequest = z.object({
 const Inputs = z.object({
   repository: z.optional(z.string()),
   branch: z.optional(z.string()),
+  root_dir: z.optional(z.string()),
   pull_request: z.optional(PullRequest),
 });
 
@@ -170,6 +171,7 @@ export const main = async () => {
   if (metadata.inputs.pull_request?.title && fixedFiles) {
     core.setOutput("create_pull_request", metadata.inputs.pull_request);
   }
+  core.setOutput("root_dir", metadata.inputs.root_dir || "");
 
   const octokit = github.getOctokit(core.getInput("github_token", { required: true }));
   // Get a pull request

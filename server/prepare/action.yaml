@@ -93,6 +93,10 @@ outputs:
     description: |
       GitHub App token to push a commit to the other repository
     value: ${{steps.token2.outputs.token}}
+  root_dir:
+    description: |
+      Root directory for commit-action
+    value: ${{steps.js.outputs.root_dir}}
 runs:
   using: composite
   steps:
