@@ -240,22 +240,18 @@ export const main = async () => {
     throw new Error("No matching entry found in the config for the given repository and branch.");
   })();
 
-  let permissions: Permissions = {
-    contents: "write",
-  };
   if (core.getBooleanInput("allow_workflow_fix", { required: true })) {
-    permissions.workflows = "write";
+    core.setOutput("permission-workflows", "write");
   }
   if (metadata.inputs.pull_request?.title) {
-    permissions.pull_requests = "write";
+    core.setOutput("permission-pull-requests", "write");
   }
   if ((metadata.inputs.pull_request?.labels || []).length > 0) {
-    permissions.issues = "write";
+    core.setOutput("permission-issues", "write");
   }
   if ((metadata.inputs.pull_request?.team_reviewers || []).length > 0) {
-    permissions.members = "read";
+    core.setOutput("permission-members", "read");
   }
-  core.setOutput("permissions", permissions);
 };
 
 export const generateJSONSchema = (dir: string) => {

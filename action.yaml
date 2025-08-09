@@ -93,18 +93,15 @@ runs:
         files: ${{inputs.files}}
 
     # Create a GitHub App token to create and delete a label
-    - uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2.1.0
+    - uses: actions/create-github-app-token@0f859bf9e69e887678d5bbfbee594437cb440ffe # v2.1.0
       if: steps.client1.outputs.changed_files != ''
       id: token
       with:
-        app_id: ${{inputs.app_id}}
-        private_key: ${{inputs.app_private_key}}
-        repositories: >-
-          ["${{inputs.server_repository}}"]
-        permissions: >-
-          {
-            "issues": "write"
-          }
+        app-id: ${{inputs.app_id}}
+        private-key: ${{inputs.app_private_key}}
+        owner: ${{github.repository_owner}}
+        repositories: ${{inputs.server_repository}}
+        permission-issues: write
 
     # Create metadata
     - if: steps.client1.outputs.changed_files != ''
