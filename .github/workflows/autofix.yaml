@@ -37,5 +37,4 @@ jobs:
           GITHUB_TOKEN: ${{github.token}}
         run: |
           git ls-files | grep -E '\.md$' | xargs pinact run -u
-          pinact run -u
       - uses: autofix-ci/action@635ffb0c9798bd160680f18fd73371e355b85f27 # v1.3.2
