@@ -168,7 +168,7 @@ runs:
         repository: ${{steps.info.outputs.repo_full_name}}
         run-id: ${{steps.info.outputs.run_id}}
 
-    - uses: csm-actions/securefix-action/js@main
+    - uses: csm-actions/securefix-action/js@f269649daee7f6aad36235c317e9b3377b8cc081
       id: js
       with:
         action: validate-repository
