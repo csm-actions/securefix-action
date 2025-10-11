@@ -195,6 +195,7 @@ export const main = async () => {
   if (!workflowRun.head_branch) {
     throw new Error("workflowRun.head_branch is not set");
   }
+  const headBranch = workflowRun.head_branch;
 
   core.setOutput("workflow_run", workflowRun);
   // Validate workflow name
@@ -210,18 +211,26 @@ export const main = async () => {
     core.setOutput("branch", workflowRun.head_branch);
     return;
   }
+
+  // check if head branch is protected
+  const { data: branch } = await octokit.rest.repos.getBranch({
+    owner: metadata.context.payload.repository.owner.login,
+    repo: metadata.context.payload.repository.name,
+    branch: headBranch,
+  });
+  if (!branch.protected) {
+    throw new Error("the workflow run head branch must be protected");
+  }
+
   // Read YAML config to push other repositories and branches
   const config = readConfig(configS, configFile);
   const destRepo = metadata.inputs.repository || metadata.context.payload.repository.full_name;
   const destBranch = metadata.inputs.branch || workflowRun.head_branch;
   (() => {
     for (const entry of config.entries) {
-      if (entry.client.repositories.includes(metadata.context.payload.repository.full_name) &&
-        // source branches are glob patterns
-        // Check if the input branch matches any of the source branches
-        entry.client.branches.some(branch => minimatch(workflowRun.head_branch || "", branch)) &&
-        // destination repositories are glob patterns
-        entry.push.repositories.includes(destRepo) &&
+      if (entry.client.repositories.some(repo => minimatch(metadata.context.payload.repository.full_name, repo)) &&
+        entry.client.branches.some(branch => minimatch(headBranch, branch)) &&
+        entry.push.repositories.some(repo => minimatch(destRepo, repo)) &&
         entry.push.branches.some(branch => minimatch(destBranch, branch))
       ) {
         core.setOutput("repository", destRepo);
