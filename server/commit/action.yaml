@@ -108,13 +108,13 @@ runs:
 
     - if: |
         steps.pr.outputs.result &&
-        fromJSON(inputs.outputs).create_pull_request.project &&
-        fromJSON(inputs.outputs).create_pull_request.project.owner
+        fromJSON(fromJSON(inputs.outputs).create_pull_request).project &&
+        fromJSON(fromJSON(inputs.outputs).create_pull_request).project.owner
       shell: bash
       env:
         GH_TOKEN: ${{fromJSON(inputs.outputs).github_token_for_push}}
         PR_URL: ${{fromJSON(steps.pr.outputs.result).data.html_url}}
-        OWNER: ${{fromJSON(inputs.outputs).create_pull_request.project.owner}}
-        NUMBER: ${{fromJSON(inputs.outputs).create_pull_request.project.number}}
+        OWNER: ${{fromJSON(fromJSON(inputs.outputs).create_pull_request).project.owner}}
+        NUMBER: ${{fromJSON(fromJSON(inputs.outputs).create_pull_request).project.number}}
       run: |
         gh project item-add "$NUMBER" --owner "$OWNER" --url "$PR_URL"
