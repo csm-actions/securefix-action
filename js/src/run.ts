@@ -58,10 +58,10 @@ const PullRequest = z.object({
   team_reviewers: z.array(z.string()),
   draft: z.boolean(),
   comment: z.string(),
-  project: z.optional(z.object({
+  project: z.optional(z.nullable(z.object({
     number: z.number(),
     owner: z.string(),
-  })),
+  }))),
 });
 
 const Inputs = z.object({
