@@ -181,7 +181,7 @@ runs:
         run_id: ${{steps.info.outputs.run_id}}
         github_token: ${{steps.token.outputs.token}}
 
-    - if: steps.js.outputs.permission-issues || steps.js.outputs.permission-members || steps.js.outputs.repository_name != steps.info.outputs.repo
+    - if: steps.js.outputs.permission-issues || steps.js.outputs.permission-members || steps.js.outputs.permission-organization-projects || steps.js.outputs.repository_name != steps.info.outputs.repo
       uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
       id: push_token
       with:
@@ -194,6 +194,7 @@ runs:
         permission-pull-requests: ${{ steps.js.outputs.permission-pull-requests }}
         permission-issues: ${{ steps.js.outputs.permission-issues }}
         permission-members: ${{ steps.js.outputs.permission-members }}
+        permission-organization-projects: ${{ steps.js.outputs.permission-organization-projects }}
 
     - id: token2
       shell: bash

@@ -58,6 +58,10 @@ const PullRequest = z.object({
   team_reviewers: z.array(z.string()),
   draft: z.boolean(),
   comment: z.string(),
+  project: z.optional(z.nullable(z.object({
+    number: z.number(),
+    owner: z.string(),
+  }))),
 });
 
 const Inputs = z.object({
@@ -266,6 +270,9 @@ export const main = async () => {
   }
   if ((metadata.inputs.pull_request?.team_reviewers || []).length > 0) {
     core.setOutput("permission-members", "read");
+  }
+  if (metadata.inputs.pull_request?.project?.number) {
+    core.setOutput("permission-organization-projects", "write");
   }
 };
 
