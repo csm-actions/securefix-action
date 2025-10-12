@@ -94,7 +94,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: csm-actions/securefix-action/js@main
+    - uses: csm-actions/securefix-action/js@37bd059897dc9be19bc3d17c3ff9b8e642cc4980
       id: client1
       with:
         action: client1
