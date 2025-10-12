@@ -121,6 +121,11 @@ You can also configure pull request body, labels, reviewers, assignees, and so o
 
 - `pull_request_assignees` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request assignees
 - `pull_request_comment` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request comment
+- `project_owner` ([v0.3.2](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.2)): GitHub Project Owner
+- `project_number` ([v0.3.2](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.2)): GitHub Project Number
+
+> [!WARNING]
+> `project_owner` and `project_number` require Organization's `projects:write` permission
 
 #### `fail_if_changes`
 

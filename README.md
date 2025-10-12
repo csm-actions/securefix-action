@@ -144,6 +144,7 @@ Permissions:
 - `workflows:write`: Optional. This is required if you want to fix GitHub Actions workflows
 - `issues:write`: Optional. This is required if you want to add labels to pull requests
 - `members:read`: Optional. This is required if you want to request reviews to teams
+- Organization's `projects:write`: Optional. This is required if you want to add pull requests to GitHub Organization Projects
 
 Installed Repositories: Install the app into the server repository and client repositories.
 
