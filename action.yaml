@@ -159,7 +159,7 @@ runs:
                 draft: process.env.PR_DRAFT === 'true',
                 comment: process.env.PR_COMMENT || '',
                 project: process.env.PROJECT_NUMBER ? {
-                  number: process.env.PROJECT_NUMBER,
+                  number: parseInt(process.env.PROJECT_NUMBER, 10),
                   owner: process.env.PROJECT_OWNER,
                 } : null,
               }
