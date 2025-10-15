@@ -104,6 +104,15 @@ runs:
               team_reviewers: param.team_reviewers,
             });
           }
+          // Set milestone
+          if (param.milestone_number) {
+            await github.rest.issues.update({
+              owner: owner,
+              repo: repo,
+              issue_number: pr.data.number,
+              milestone: param.milestone_number, // Set milestone
+            });
+          }
           return pr;
 
     - if: |
