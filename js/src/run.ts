@@ -62,6 +62,7 @@ const PullRequest = z.object({
     number: z.number(),
     owner: z.string(),
   }))),
+  milestone_number: z.optional(z.number()),
 });
 
 const Inputs = z.object({

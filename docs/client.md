@@ -63,7 +63,7 @@ jobs:
     pull_request_base_branch: main
 ```
 
-You can also configure pull request body, labels, reviewers, assignees, and so on.
+You can also configure pull request body, labels, reviewers, assignees, milestone, and so on.
 
 ```yaml
 - uses: csm-actions/securefix-action@latest
@@ -87,6 +87,7 @@ You can also configure pull request body, labels, reviewers, assignees, and so o
       enhancement
       yo
     pull_request_comment: Hello, @suzuki-shunsuke
+    milestone: 1
 ```
 
 ## Inputs
@@ -126,6 +127,8 @@ You can also configure pull request body, labels, reviewers, assignees, and so o
 
 > [!WARNING]
 > `project_owner` and `project_number` require Organization's `projects:write` permission
+
+- `milestone_number` ([v0.3.3](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.3)): Milestone Number
 
 #### `fail_if_changes`
 
