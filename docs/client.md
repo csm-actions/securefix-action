@@ -58,9 +58,8 @@ jobs:
     # Push csm-actions/demo-client's foo branch
     repository: csm-actions/demo-client
     branch: foo
-    # pull_request_title and pull_request_base_branch are required
+    # pull_request_title is required
     pull_request_title: Title
-    pull_request_base_branch: main
 ```
 
 You can also configure pull request body, labels, reviewers, assignees, milestone, and so on.
@@ -107,6 +106,7 @@ You can also configure pull request body, labels, reviewers, assignees, mileston
 - `root_dir` ([v0.2.2](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.2)): A root directory of fixed files
 - `files` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A fixed files. By default, `git ls-files --modified --others --exclude-standard`. If `root_dir` is given, `files` must be relative paths from `root_dir`
 - `pull_request_title` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A pull request title
+- `pull_request_base_branch` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A pull request base branch. From v0.3.4, `pull_request_base_branch` becomes optional. By default the default branch is used
 - `pull_request_body` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A pull request description
 - `pull_request_labels` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request labels
 

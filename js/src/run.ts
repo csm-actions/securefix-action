@@ -173,12 +173,23 @@ export const main = async () => {
   core.setOutput("metadata", metadataS);
   const fixedFiles = fs.readFileSync(core.getInput("changed_files", { required: true }), "utf8").trim();
   core.setOutput("fixed_files", fixedFiles);
+
+  const octokit = github.getOctokit(core.getInput("github_token", { required: true }));
+
+  if (metadata.inputs.pull_request?.title && !metadata.inputs.pull_request?.base) {
+    // Get the default branch
+    const { data: repository } = await octokit.rest.repos.get({
+      owner: metadata.context.payload.repository.owner.login,
+      repo: metadata.context.payload.repository.name,
+    });
+    metadata.inputs.pull_request.base = repository.default_branch;
+  }
+
   if (metadata.inputs.pull_request?.title && fixedFiles) {
     core.setOutput("create_pull_request", metadata.inputs.pull_request);
   }
   core.setOutput("root_dir", metadata.inputs.root_dir || "");
 
-  const octokit = github.getOctokit(core.getInput("github_token", { required: true }));
   // Get a pull request
   if (metadata.context.payload.pull_request) {
     core.setOutput("pull_request_number", metadata.context.payload.pull_request.number);
