@@ -139,11 +139,7 @@ runs:
         MILESTONE_NUMBER: ${{inputs.milestone_number}}
       with:
         script: |
-          if (process.env.PR_TITLE) {
-            if (!process.env.PR_BASE_BRANCH) {
-              throw new Error('pull_request_base_branch is required to create a pull request');
-            }
-          } else if (process.env.PR_BASE_BRANCH || process.env.PR_BODY || process.env.PR_LABELS || process.env.PR_ASSIGNEES || process.env.PR_REVIEWERS || process.env.PR_TEAM_REVIEWERS || process.env.PR_DRAFT || process.env.PR_COMMENT) {
+          if (!process.env.PR_TITLE && (process.env.PR_BASE_BRANCH || process.env.PR_BODY || process.env.PR_LABELS || process.env.PR_ASSIGNEES || process.env.PR_REVIEWERS || process.env.PR_TEAM_REVIEWERS || process.env.PR_DRAFT || process.env.PR_COMMENT)) {
             throw new Error('pull_request_title is required to create a pull request');
           }
           return {
