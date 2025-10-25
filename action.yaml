@@ -95,10 +95,9 @@ inputs:
     description: |
       Milestone number where the pull request is added.
     required: false
-  automerge:
+  automerge_method:
     description: |
-      Enable auto-merge.
-    default: "false"
+      auto-merge. One of "merge", "squash", or "rebase".
     required: false
 runs:
   using: composite
@@ -142,11 +141,15 @@ runs:
         PROJECT_OWNER: ${{inputs.project_owner}}
         PROJECT_NUMBER: ${{inputs.project_number}}
         MILESTONE_NUMBER: ${{inputs.milestone_number}}
-        AUTOMERGE: ${{inputs.automerge}}
+        AUTOMERGE_METHOD: ${{inputs.automerge_method}}
       with:
         script: |
           if (!process.env.PR_TITLE && (process.env.PR_BASE_BRANCH || process.env.PR_BODY || process.env.PR_LABELS || process.env.PR_ASSIGNEES || process.env.PR_REVIEWERS || process.env.PR_TEAM_REVIEWERS || process.env.PR_DRAFT || process.env.PR_COMMENT)) {
             throw new Error('pull_request_title is required to create a pull request');
+          }
+          let automergeMethod = process.env.AUTOMERGE_METHOD || '';
+          if (!['', 'merge', 'squash', 'rebase'].includes(automergeMethod)) {
+            throw new Error('automerge_method must be one of "", "merge", "squash", or "rebase"');
           }
           return {
             context: context,
@@ -165,7 +168,7 @@ runs:
                 team_reviewers: process.env.PR_TEAM_REVIEWERS ? process.env.PR_TEAM_REVIEWERS.trim().split('\n') : [],
                 draft: process.env.PR_DRAFT === 'true',
                 comment: process.env.PR_COMMENT || '',
-                automerge: process.env.AUTOMERGE === 'true',
+                automerge_method: automergeMethod,
                 project: process.env.PROJECT_NUMBER ? {
                   number: parseInt(process.env.PROJECT_NUMBER, 10),
                   owner: process.env.PROJECT_OWNER,
