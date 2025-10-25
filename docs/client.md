@@ -130,7 +130,7 @@ You can also configure pull request body, labels, reviewers, assignees, mileston
 > `project_owner` and `project_number` require Organization's `projects:write` permission
 
 - `milestone_number` ([v0.3.3](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.3)): Milestone Number
-- `automerge_method` ([v0.3.5](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.5)): Enable auto-merge
+- `automerge_method` ([v0.3.5](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.5)): auto-merge method. One of `merge`, `squash`, and `rebase`
 
 #### `fail_if_changes`
 
