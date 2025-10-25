@@ -97,7 +97,8 @@ inputs:
     required: false
   automerge_method:
     description: |
-      auto-merge. One of "merge", "squash", or "rebase".
+      auto-merge method. One of "merge", "squash", or "rebase".
+      By default, auto-merge is disabled.
     required: false
 runs:
   using: composite
