@@ -57,6 +57,7 @@ const PullRequest = z.object({
   reviewers: z.array(z.string()),
   team_reviewers: z.array(z.string()),
   draft: z.boolean(),
+  automerge: z.optional(z.boolean()),
   comment: z.string(),
   project: z.optional(z.nullable(z.object({
     number: z.number(),

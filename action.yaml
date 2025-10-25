@@ -95,6 +95,11 @@ inputs:
     description: |
       Milestone number where the pull request is added.
     required: false
+  automerge:
+    description: |
+      Enable auto-merge.
+    default: "false"
+    required: false
 runs:
   using: composite
   steps:
@@ -137,6 +142,7 @@ runs:
         PROJECT_OWNER: ${{inputs.project_owner}}
         PROJECT_NUMBER: ${{inputs.project_number}}
         MILESTONE_NUMBER: ${{inputs.milestone_number}}
+        AUTOMERGE: ${{inputs.automerge}}
       with:
         script: |
           if (!process.env.PR_TITLE && (process.env.PR_BASE_BRANCH || process.env.PR_BODY || process.env.PR_LABELS || process.env.PR_ASSIGNEES || process.env.PR_REVIEWERS || process.env.PR_TEAM_REVIEWERS || process.env.PR_DRAFT || process.env.PR_COMMENT)) {
@@ -159,6 +165,7 @@ runs:
                 team_reviewers: process.env.PR_TEAM_REVIEWERS ? process.env.PR_TEAM_REVIEWERS.trim().split('\n') : [],
                 draft: process.env.PR_DRAFT === 'true',
                 comment: process.env.PR_COMMENT || '',
+                automerge: process.env.AUTOMERGE === 'true',
                 project: process.env.PROJECT_NUMBER ? {
                   number: parseInt(process.env.PROJECT_NUMBER, 10),
                   owner: process.env.PROJECT_OWNER,
