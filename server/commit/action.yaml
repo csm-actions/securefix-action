@@ -117,25 +117,24 @@ runs:
 
     - if: |
         steps.pr.outputs.result &&
-        fromJSON(fromJSON(inputs.outputs).create_pull_request).automerge_method
+        fromJSON(inputs.outputs).automerge_method
       shell: bash
       env:
         GH_TOKEN: ${{fromJSON(inputs.outputs).github_token_for_push}}
-        PR_URL: ${{fromJSON(steps.pr.outputs.result).data.html_url}}
+        PR_URL: ${{fromJSON(steps.pr.outputs.result && steps.pr.outputs.result || '{}').data.html_url}}
         REPOSITORY: ${{fromJSON(inputs.outputs).push_repository}}
-        METHOD: "--${{fromJSON(fromJSON(inputs.outputs).create_pull_request).automerge_method}}"
+        METHOD: "--${{fromJSON(inputs.outputs).automerge_method}}"
       run: |
         gh pr merge "$PR_URL" -R "$REPOSITORY" --auto "$METHOD"
 
     - if: |
         steps.pr.outputs.result &&
-        fromJSON(fromJSON(inputs.outputs).create_pull_request).project &&
-        fromJSON(fromJSON(inputs.outputs).create_pull_request).project.owner
+        fromJSON(inputs.outputs).project_owner
       shell: bash
       env:
         GH_TOKEN: ${{fromJSON(inputs.outputs).github_token_for_push}}
-        PR_URL: ${{fromJSON(steps.pr.outputs.result).data.html_url}}
-        OWNER: ${{fromJSON(fromJSON(inputs.outputs).create_pull_request).project.owner}}
-        NUMBER: ${{fromJSON(fromJSON(inputs.outputs).create_pull_request).project.number}}
+        PR_URL: ${{fromJSON(steps.pr.outputs.result && steps.pr.outputs.result || '{}').data.html_url}}
+        OWNER: ${{fromJSON(inputs.outputs).project_owner}}
+        NUMBER: ${{fromJSON(inputs.outputs).project_number}}
       run: |
         gh project item-add "$NUMBER" --owner "$OWNER" --url "$PR_URL"
