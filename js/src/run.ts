@@ -188,6 +188,9 @@ export const main = async () => {
 
   if (metadata.inputs.pull_request?.title && fixedFiles) {
     core.setOutput("create_pull_request", metadata.inputs.pull_request);
+    core.setOutput("automerge_method", metadata.inputs.pull_request.automerge_method || "");
+    core.setOutput("project_owner", metadata.inputs.pull_request.project?.owner || "");
+    core.setOutput("project_number", metadata.inputs.pull_request.project?.number || 0);
   }
   core.setOutput("root_dir", metadata.inputs.root_dir || "");
 
