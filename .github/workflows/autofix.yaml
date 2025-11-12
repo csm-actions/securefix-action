@@ -27,7 +27,7 @@ jobs:
       - run: npm ci
         working-directory: js
       - name: Update JSONSchema
-        run: npx ts-node src/generate_schema.ts
+        run: npm run schema
         working-directory: js
 
       - name: Fix newlines
