@@ -97,6 +97,18 @@ outputs:
     description: |
       Root directory for commit-action
     value: ${{steps.js.outputs.root_dir}}
+  automerge_method:
+    description: |
+      Automerge method for pull requests
+    value: ${{steps.js.outputs.automerge_method}}
+  project_owner:
+    description: |
+      Project owner for pull requests
+    value: ${{steps.js.outputs.project_owner}}
+  project_number:
+    description: |
+      Project number for pull requests
+    value: ${{steps.js.outputs.project_number}}
 runs:
   using: composite
   steps:
