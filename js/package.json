@@ -1,7 +1,6 @@
 {
   "scripts": {
-    "build": "ncc build src/index.ts --license LICENSE",
-    "test": "vitest --run"
+    "build": "ncc build src/index.ts --license LICENSE"
   },
   "dependencies": {
     "@actions/core": "1.11.1",
@@ -22,7 +21,6 @@
     "@vercel/ncc": "0.38.4",
     "ts-node": "10.9.2",
     "typescript": "5.9.3",
-    "vitest": "3.2.4",
     "zod-to-json-schema": "3.24.6"
   }
 }
