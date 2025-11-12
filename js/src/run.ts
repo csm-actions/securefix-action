@@ -158,7 +158,7 @@ export const main = async () => {
     await createLabel({
       appId: core.getInput("app_id"),
       privateKey: core.getInput("app_private_key"),
-      owner: core.getInput("server_repository"),
+      owner: github.context.repo.owner,
       repositories: [core.getInput("server_repository")],
       permissions: {
         issues: "write",
