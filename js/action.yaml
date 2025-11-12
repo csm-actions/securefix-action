@@ -1,6 +1,22 @@
 name: JavaScript Action
 description: JavaScript Action
 inputs:
+  app_id:
+    description: |
+      GitHub App ID
+    required: true
+  app_private_key:
+    description: |
+      GitHub App Private Key
+    required: true
+  server_repository:
+    description: |
+      Server repository name
+    required: true
+  label:
+    description: |
+      Label name
+    required: false
   action:
     description: config
     required: true

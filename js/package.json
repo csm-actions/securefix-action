@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "scripts": {
     "build": "ncc build src/index.ts --license LICENSE"
   },
@@ -6,8 +7,10 @@
     "@actions/core": "1.11.1",
     "@actions/exec": "^1.1.1",
     "@actions/github": "6.0.1",
+    "@csm-actions/label": "npm:@jsr/csm-actions__label@^0.0.1",
     "@octokit/core": "^7.0.0",
     "@octokit/plugin-paginate-graphql": "^6.0.0",
+    "@suzuki-shunsuke/github-app-token": "npm:@jsr/suzuki-shunsuke__github-app-token@^0.0.3",
     "@types/json-diff": "^1.0.3",
     "glob": "11.0.3",
     "js-yaml": "4.1.0",

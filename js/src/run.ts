@@ -7,6 +7,8 @@ import * as core from "@actions/core";
 import * as exec from "@actions/exec";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import * as github from "@actions/github";
+import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
+import { newName } from "@csm-actions/label";
 
 type Input = {
   config: string;
@@ -126,7 +128,7 @@ export const main = async () => {
     // Generate artifact name
     const n = nowS();
     const prefix = `securefix-${n}-`;
-    const artifactName = `${prefix}${Array.from({ length: 50 - prefix.length }, () => Math.floor(Math.random() * 36).toString(36)).join("")}`;
+    const artifactName = newName(prefix);
     core.setOutput("artifact_name", artifactName);
     // List fixed files
     const rootDir = core.getInput("root_dir", { required: false }) || "";
@@ -151,6 +153,19 @@ export const main = async () => {
     }
     core.setOutput("changed_files_from_root_dir", filteredFiles.join("\n"));
     core.setOutput("changed_files", filteredFiles.map(file => path.join(rootDir, file)).join("\n"));
+    return;
+  }
+  if (action === "create-label") {
+    await createLabel({
+      appId: core.getInput("app_id"),
+      privateKey: core.getInput("app_private_key"),
+      owner: core.getInput("server_repository"),
+      repositories: [core.getInput("server_repository")],
+      permissions: {
+        issues: "write",
+      },
+    }, core.getInput("label"),
+    `${github.context.repo.owner}/${github.context.repo.repo}/${github.context.runId}`);
     return;
   }
   const configS = core.getInput("config", { required: false });
@@ -298,4 +313,15 @@ export const generateJSONSchema = (dir: string) => {
     path.join(dir, "config.json"),
     JSON.stringify(configJSONSchema, null, 2) + "\n",
   );
+};
+
+const createLabel = async (inputs: githubAppToken.Inputs, labelName: string, description: string) => {
+  const token = await githubAppToken.create(inputs);
+  const octokit = github.getOctokit(token.token);
+  await octokit.rest.issues.createLabel({
+    owner: inputs.owner,
+    repo: inputs.repositories ? inputs.repositories[0] : "",
+    name: labelName,
+    description: description,
+  });
 };
