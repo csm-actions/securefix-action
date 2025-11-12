@@ -1,7 +1,8 @@
 {
   "type": "module",
   "scripts": {
-    "build": "ncc build src/index.ts --license LICENSE"
+    "build": "ncc build src/index.ts --license LICENSE",
+    "schema": "ncc build src/generate_schema.ts && node dist/index.js"
   },
   "dependencies": {
     "@actions/core": "1.11.1",

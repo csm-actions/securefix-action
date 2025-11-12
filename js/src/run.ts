@@ -5,7 +5,6 @@ import { load } from "js-yaml";
 import { minimatch } from 'minimatch';
 import * as core from "@actions/core";
 import * as exec from "@actions/exec";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import * as github from "@actions/github";
 import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
 import { newName } from "@csm-actions/label";
@@ -45,10 +44,10 @@ const Entry = z.object({
   pull_request: z.optional(PullRequestEntry),
 });
 
-const Config = z.object({
+export const Config = z.object({
   entries: z.array(Entry),
 });
-export type Config = z.infer<typeof Config>;
+type Config = z.infer<typeof Config>;
 
 const PullRequest = z.object({
   title: z.string(),
@@ -103,7 +102,7 @@ const Metadata = z.object({
   context: Context,
 });
 
-export const readConfig = (config: string, configFile: string): Config => {
+const readConfig = (config: string, configFile: string): Config => {
   if (!config && !configFile) {
     throw new Error("Either config or config_file input is required");
   }
@@ -305,14 +304,6 @@ export const main = async () => {
   if (metadata.inputs.pull_request?.project?.number) {
     core.setOutput("permission-organization-projects", "write");
   }
-};
-
-export const generateJSONSchema = (dir: string) => {
-  const configJSONSchema = zodToJsonSchema(Config, "config");
-  fs.writeFileSync(
-    path.join(dir, "config.json"),
-    JSON.stringify(configJSONSchema, null, 2) + "\n",
-  );
 };
 
 const createLabel = async (inputs: githubAppToken.Inputs, labelName: string, description: string) => {

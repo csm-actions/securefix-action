@@ -1,3 +1,10 @@
-import { generateJSONSchema } from "./run";
+import { Config } from "./run";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import * as fs from "fs";
+import * as path from "path";
 
-generateJSONSchema("../json-schema");
+const configJSONSchema = zodToJsonSchema(Config, "config");
+fs.writeFileSync(
+  path.join("../json-schema", "config.json"),
+  JSON.stringify(configJSONSchema, null, 2) + "\n",
+);
