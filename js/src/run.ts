@@ -182,10 +182,9 @@ export const main = async () => {
         (files.changed_files || []).concat(`${artifactName}.json`, `${artifactName}_files.txt`),
         process.env.GITHUB_WORKSPACE || "",
       );
+      await fs.rmSync(`${artifactName}_files.txt`);
     }
-    return;
-  }
-  if (action === "create-label") {
+    await fs.rmSync(`${artifactName}.json`);
     await createLabel({
       appId: core.getInput("app_id"),
       privateKey: core.getInput("app_private_key"),
@@ -194,7 +193,7 @@ export const main = async () => {
       permissions: {
         issues: "write",
       },
-    }, core.getInput("label"),
+    }, artifactName,
     `${github.context.repo.owner}/${github.context.repo.repo}/${github.context.runId}`);
     return;
   }
