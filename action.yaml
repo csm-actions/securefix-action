@@ -110,71 +110,13 @@ runs:
         files: ${{inputs.files}}
         root_dir: ${{inputs.root_dir}}
 
-    # Create metadata
-    - if: steps.client1.outputs.changed_files != ''
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-      id: metadata
-      env:
-        COMMIT_MESSAGE: ${{inputs.commit_message}}
-        REPO: ${{inputs.repository}}
-        BRANCH: ${{inputs.branch}}
-        ROOT_DIR: ${{inputs.root_dir}}
-        PR_TITLE: ${{inputs.pull_request_title}}
-        PR_BASE_BRANCH: ${{inputs.pull_request_base_branch}}
-        PR_BODY: ${{inputs.pull_request_body}}
-        PR_LABELS: ${{inputs.pull_request_labels}}
-        PR_ASSIGNEES: ${{inputs.pull_request_assignees}}
-        PR_REVIEWERS: ${{inputs.pull_request_reviewers}}
-        PR_TEAM_REVIEWERS: ${{inputs.pull_request_team_reviewers}}
-        PR_DRAFT: ${{inputs.pull_request_draft}}
-        PR_COMMENT: ${{inputs.pull_request_comment}}
-        PROJECT_OWNER: ${{inputs.project_owner}}
-        PROJECT_NUMBER: ${{inputs.project_number}}
-        MILESTONE_NUMBER: ${{inputs.milestone_number}}
-        AUTOMERGE_METHOD: ${{inputs.automerge_method}}
-      with:
-        script: |
-          if (!process.env.PR_TITLE && (process.env.PR_BASE_BRANCH || process.env.PR_BODY || process.env.PR_LABELS || process.env.PR_ASSIGNEES || process.env.PR_REVIEWERS || process.env.PR_TEAM_REVIEWERS || process.env.PR_DRAFT || process.env.PR_COMMENT)) {
-            throw new Error('pull_request_title is required to create a pull request');
-          }
-          let automergeMethod = process.env.AUTOMERGE_METHOD || '';
-          if (!['', 'merge', 'squash', 'rebase'].includes(automergeMethod)) {
-            throw new Error('automerge_method must be one of "", "merge", "squash", or "rebase"');
-          }
-          return {
-            context: context,
-            inputs: {
-              repository: process.env.REPO || '',
-              branch: process.env.BRANCH || '',
-              commit_message: process.env.COMMIT_MESSAGE || '',
-              root_dir: process.env.ROOT_DIR || '',
-              pull_request: {
-                title: process.env.PR_TITLE || '',
-                body: process.env.PR_BODY || '',
-                base: process.env.PR_BASE_BRANCH || '',
-                labels: process.env.PR_LABELS ? process.env.PR_LABELS.trim().split('\n') : [],
-                assignees: process.env.PR_ASSIGNEES ? process.env.PR_ASSIGNEES.trim().split('\n') : [],
-                reviewers: process.env.PR_REVIEWERS ? process.env.PR_REVIEWERS.trim().split('\n') : [],
-                team_reviewers: process.env.PR_TEAM_REVIEWERS ? process.env.PR_TEAM_REVIEWERS.trim().split('\n') : [],
-                draft: process.env.PR_DRAFT === 'true',
-                comment: process.env.PR_COMMENT || '',
-                automerge_method: automergeMethod,
-                project: process.env.PROJECT_NUMBER ? {
-                  number: parseInt(process.env.PROJECT_NUMBER, 10),
-                  owner: process.env.PROJECT_OWNER,
-                } : null,
-                milestone_number: process.env.MILESTONE_NUMBER ? parseInt(process.env.MILESTONE_NUMBER, 10) : 0,
-              }
-            },
-          };
-
     # Create a metadata file
     - if: steps.client1.outputs.changed_files != ''
       shell: bash
       run: echo "$EVENT" > "${ARTIFACT_NAME}.json"
       env:
         ARTIFACT_NAME: ${{ steps.client1.outputs.artifact_name }}
-        EVENT: ${{steps.metadata.outputs.result}}
+        EVENT: ${{steps.client1.outputs.metadata}}
 
     # Create a file where fixed file paths are listed
     - if: steps.client1.outputs.changed_files != ''

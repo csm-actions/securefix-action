@@ -101,6 +101,7 @@ const Metadata = z.object({
   inputs: Inputs,
   context: Context,
 });
+type Metadata = z.infer<typeof Metadata>;
 
 const readConfig = (config: string, configFile: string): Config => {
   if (!config && !configFile) {
@@ -139,6 +140,7 @@ export const main = async () => {
       core.notice("No changes");
       return;
     }
+    core.setOutput("metadata", getMetadata());
     const files = new Set(core.getInput("files", { required: false }).trim().split("\n").map(file => file.trim()).filter(file => file.length > 0));
     if (files.size === 0) {
       core.setOutput("changed_files_from_root_dir", [...fixedFiles].join("\n"));
@@ -315,4 +317,42 @@ const createLabel = async (inputs: githubAppToken.Inputs, labelName: string, des
     name: labelName,
     description: description,
   });
+};
+
+const getMetadata = (): any => {
+  let automergeMethod = core.getInput("automerge_method");
+  if (!['', 'merge', 'squash', 'rebase'].includes(automergeMethod)) {
+    throw new Error('automerge_method must be one of "", "merge", "squash", or "rebase"');
+  }
+  const value = {
+    context: github.context,
+    inputs: {
+      repository: core.getInput("repository"),
+      branch: core.getInput("branch"),
+      commit_message: core.getInput("commit_message"),
+      root_dir: core.getInput("root_dir"),
+      pull_request: {
+        title: core.getInput("pull_request_title"),
+        body: core.getInput("pull_request_body"),
+        base: core.getInput("pull_request_base_branch"),
+        labels: core.getInput("pull_request_labels").trim().split('\n').filter(label => label),
+        assignees: core.getInput("pull_request_assignees").trim().split('\n').filter(assignee => assignee),
+        reviewers: core.getInput("pull_request_reviewers").trim().split('\n').filter(reviewer => reviewer),
+        team_reviewers: core.getInput("pull_request_team_reviewers").trim().split('\n').filter(team_reviewer => team_reviewer),
+        draft: core.getInput("pull_request_draft") === 'true',
+        comment: core.getInput("pull_request_comment"),
+        automerge_method: automergeMethod,
+        project: core.getInput("project_number") ? {
+          number: parseInt(core.getInput("project_number"), 10),
+          owner: core.getInput("project_owner"),
+        } : null,
+        milestone_number: core.getInput("milestone_number") ? parseInt(core.getInput("milestone_number"), 10) : 0,
+      }
+    },
+  };
+  const pr = value.inputs.pull_request;
+  if (!pr.title && (pr.base || pr.body || pr.labels.length > 0 || pr.assignees.length > 0 || pr.reviewers.length > 0 || pr.team_reviewers.length > 0 || pr.draft || pr.comment)) {
+    throw new Error('pull_request_title is required to create a pull request');
+  }
+  return value;
 };
