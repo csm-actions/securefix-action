@@ -140,7 +140,7 @@ export const main = async () => {
       core.notice("No changes");
       return;
     }
-    core.setOutput("metadata", getMetadata());
+    createMetadataFile(artifactName);
     const files = new Set(core.getInput("files", { required: false }).trim().split("\n").map(file => file.trim()).filter(file => file.length > 0));
     if (files.size === 0) {
       core.setOutput("changed_files_from_root_dir", [...fixedFiles].join("\n"));
@@ -319,7 +319,7 @@ const createLabel = async (inputs: githubAppToken.Inputs, labelName: string, des
   });
 };
 
-const getMetadata = (): any => {
+const createMetadataFile = (labelName: string) => {
   let automergeMethod = core.getInput("automerge_method");
   if (!['', 'merge', 'squash', 'rebase'].includes(automergeMethod)) {
     throw new Error('automerge_method must be one of "", "merge", "squash", or "rebase"');
@@ -354,5 +354,8 @@ const getMetadata = (): any => {
   if (!pr.title && (pr.base || pr.body || pr.labels.length > 0 || pr.assignees.length > 0 || pr.reviewers.length > 0 || pr.team_reviewers.length > 0 || pr.draft || pr.comment)) {
     throw new Error('pull_request_title is required to create a pull request');
   }
-  return value;
+  fs.writeFileSync(
+    `${labelName}.json`,
+    JSON.stringify(value, null, 2) + "\n",
+  );
 };
