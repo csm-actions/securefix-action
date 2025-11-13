@@ -111,15 +111,6 @@ inputs:
     description: File path to the config file
     required: false
 
-  root_dir:
-    description: Root directory to be pushed
-    required: false
-
-  files:
-    description: |
-      Fixed files
-    required: false
-
   metadata_file:
     description: metadata file path
     required: false
