@@ -1,4 +1,4 @@
-import { Config } from "./run";
+import { Config } from "./config";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import * as fs from "fs";
 import * as path from "path";

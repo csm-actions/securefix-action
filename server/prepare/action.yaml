@@ -60,7 +60,7 @@ outputs:
   client_repository:
     description: |
       Repository Full Name
-    value: ${{steps.info.outputs.repo_full_name}}
+    value: ${{steps.js.outputs.repo_full_name}}
   push_repository:
     description: |
       Repository Full Name
@@ -76,7 +76,7 @@ outputs:
   workflow_run_id:
     description: |
       Workflow Run ID
-    value: ${{steps.info.outputs.run_id}}
+    value: ${{steps.js.outputs.run_id}}
   metadata:
     description: |
       Metadata
@@ -88,11 +88,11 @@ outputs:
   github_token:
     description: |
       GitHub App token
-    value: ${{steps.token.outputs.token}}
+    value: ${{steps.js.outputs.github_token}}
   github_token_for_push:
     description: |
       GitHub App token to push a commit to the other repository
-    value: ${{steps.token2.outputs.token}}
+    value: ${{steps.js.outputs.github_token_for_push}}
   root_dir:
     description: |
       Root directory for commit-action
@@ -112,111 +112,16 @@ outputs:
 runs:
   using: composite
   steps:
-    - id: info
-      shell: bash
-      env:
-        APP_ID: ${{inputs.app_id}}
-        APP_PRIVATE_KEY: ${{inputs.app_private_key}}
-        LABEL_NAME: ${{inputs.label_name}}
-        LABEL_DESCRIPTION: ${{github.event.label.description}}
-      run: |
-        if [ -z "$APP_ID" ]; then
-          echo "::error:: GitHub App ID is required"
-          exit 1
-        fi
-        if [ -z "$APP_PRIVATE_KEY" ]; then
-          echo "::error:: GitHub App Private Key is required"
-          exit 1
-        fi
-        if [ -z "$LABEL_NAME" ]; then
-          echo "::error:: Label name is required"
-          exit 1
-        fi
-        if [ -z "$LABEL_DESCRIPTION" ]; then
-          echo "::error:: Label description is required"
-          exit 1
-        fi
-        repo_full_name="${LABEL_DESCRIPTION%/*}"
-        repo="${repo_full_name#*/}"
-        run_id="${LABEL_DESCRIPTION##*/}"
-        if [ -z "$repo_full_name" ] || [ -z "$repo" ]; then
-          echo "::error:: Label description must be in the format <repository owner>/<repository name>/<workflow run ID>"
-          exit 1
-        fi
-        {
-          echo "repo_full_name=${repo_full_name}"
-          echo "repo=${repo_full_name#*/}"
-          echo "run_id=${LABEL_DESCRIPTION##*/}"
-        } >> "$GITHUB_OUTPUT"
-
-    # Delete a label
-    # github.token requires issues:write permission
-    - shell: bash
-      if: inputs.delete_label == 'true'
-      env:
-        GH_TOKEN: ${{ github.token }}
-        LABEL_NAME: ${{ inputs.label_name }}
-      run: |
-        gh label delete -R "$GITHUB_REPOSITORY" --yes "$LABEL_NAME" || :
-
-    # Create a GitHub App token
-    - uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
-      id: token
-      with:
-        app-id: ${{inputs.app_id}}
-        private-key: ${{inputs.app_private_key}}
-        owner: ${{github.repository_owner}}
-        repositories: ${{ steps.info.outputs.repo }}
-        permission-actions: read
-        permission-contents: write
-        permission-pull-requests: write
-        permission-workflows: ${{ inputs.allow_workflow_fix == 'true' && 'write' || '' }}
-
-    # Download a GitHub Actions Artifact
-    - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
-      with:
-        github-token: ${{steps.token.outputs.token}}
-        name: ${{github.event.label.name}}
-        repository: ${{steps.info.outputs.repo_full_name}}
-        run-id: ${{steps.info.outputs.run_id}}
-
     - uses: csm-actions/securefix-action/js@main
       id: js
       with:
-        action: validate-repository
-        metadata_file: ${{github.event.label.name}}.json
-        changed_files: ${{ github.event.label.name}}_files.txt
+        action: prepare
         config: ${{inputs.config}}
         config_file: ${{inputs.config_file}}
         workflow_name: ${{inputs.workflow_name}}
         allow_workflow_fix: ${{inputs.allow_workflow_fix}}
-        run_id: ${{steps.info.outputs.run_id}}
-        github_token: ${{steps.token.outputs.token}}
-
-    - if: steps.js.outputs.permission-issues || steps.js.outputs.permission-members || steps.js.outputs.permission-organization-projects || steps.js.outputs.repository_name != steps.info.outputs.repo
-      uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
-      id: push_token
-      with:
-        app-id: ${{inputs.app_id}}
-        private-key: ${{inputs.app_private_key}}
-        owner: ${{github.repository_owner}}
-        repositories: ${{ steps.js.outputs.repository_name }}
-        permission-contents: write
-        permission-workflows: ${{ steps.js.outputs.permission-workflows }}
-        permission-pull-requests: ${{ steps.js.outputs.permission-pull-requests }}
-        permission-issues: ${{ steps.js.outputs.permission-issues }}
-        permission-members: ${{ steps.js.outputs.permission-members }}
-        permission-organization-projects: ${{ steps.js.outputs.permission-organization-projects }}
-
-    - id: token2
-      shell: bash
-      env:
-        IS_PUSH_TOKEN: ${{ steps.push_token.outputs.token != '' }}
-        TOKEN: ${{steps.token.outputs.token}}
-        PUSH_TOKEN: ${{steps.push_token.outputs.token}}
-      run: |
-        if [ "$IS_PUSH_TOKEN" = "true" ]; then
-          echo "token=${PUSH_TOKEN}" >> "$GITHUB_OUTPUT"
-        else
-          echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
-        fi
+        app_id: ${{inputs.app_id}}
+        app_private_key: ${{inputs.app_private_key}}
+        label_name: ${{inputs.label_name}}
+        label_description: ${{inputs.label_description}}
+        delete_label: ${{inputs.delete_label}}
