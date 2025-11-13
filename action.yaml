@@ -128,18 +128,4 @@ runs:
         app_id: ${{inputs.app_id}}
         app_private_key: ${{inputs.app_private_key}}
         server_repository: ${{inputs.server_repository}}
-
-    # Fail if changes are detected
-    - if: steps.client1.outputs.changed_files != ''
-      shell: bash
-      env:
-        FILES: ${{ steps.client1.outputs.changed_files }}
-        FAILED: ${{inputs.fail_if_changes != '' && inputs.fail_if_changes || (inputs.repository == '' && inputs.branch == '')}}
-      run: |
-        if [ "$FAILED" = true ]; then
-          echo "::error:: Changes detected. A commit will be pushed"
-          echo "$FILES"
-          exit 1
-        fi
-        echo "::notice:: Changes detected. A commit will be pushed"
-        echo "$FILES"
+        fail_if_changes: ${{inputs.fail_if_changes}}
