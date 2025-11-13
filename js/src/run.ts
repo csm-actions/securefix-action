@@ -12,15 +12,6 @@ type Input = {
   metadataFile: string;
 };
 
-type Permissions = {
-  contents?: "read" | "write" | "none";
-  actions?: "read" | "write" | "none";
-  pull_requests?: "read" | "write" | "none";
-  issues?: "read" | "write" | "none";
-  members?: "read" | "write" | "none";
-  workflows?: "read" | "write" | "none";
-};
-
 const Client = z.object({
   repositories: z.array(z.string()),
   branches: z.array(z.string()),
