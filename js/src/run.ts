@@ -140,20 +140,23 @@ export const main = async () => {
       core.notice("No changes");
       return;
     }
+
+    const files = getFiles(fixedFiles, artifactName, rootDir);
+
     createMetadataFile(artifactName);
-    const files = new Set(core.getInput("files", { required: false }).trim().split("\n").map(file => file.trim()).filter(file => file.length > 0));
-    if (files.size === 0) {
-      core.setOutput("changed_files_from_root_dir", [...fixedFiles].join("\n"));
-      core.setOutput("changed_files", [...fixedFiles].map(file => path.join(rootDir, file)).join("\n"));
-      return;
+    if (files.changed_files_from_root_dir) {
+      core.setOutput("changed_files_from_root_dir", files.changed_files_from_root_dir.join("\n"));
     }
-    const filteredFiles = [...files].filter(file => fixedFiles.has(file));
-    if (filteredFiles.length === 0) {
-      core.notice("No changes");
-      return;
+    if (files.changed_files) {
+      core.setOutput("changed_files", files.changed_files.join("\n"));
+      if (files.changed_files_from_root_dir) {
+        fs.writeFileSync(
+          `${artifactName}_files.txt`,
+          files.changed_files_from_root_dir.join("\n") + "\n",
+        );
+      }
     }
-    core.setOutput("changed_files_from_root_dir", filteredFiles.join("\n"));
-    core.setOutput("changed_files", filteredFiles.map(file => path.join(rootDir, file)).join("\n"));
+
     return;
   }
   if (action === "create-label") {
@@ -306,6 +309,35 @@ export const main = async () => {
   if (metadata.inputs.pull_request?.project?.number) {
     core.setOutput("permission-organization-projects", "write");
   }
+};
+
+type Files = {
+  changed_files_from_root_dir?: string[];
+  changed_files?: string[];
+};
+
+const getFiles = (fixedFiles: Set<string>, artifactName: string, rootDir: string): Files => {
+    if (fixedFiles.size === 0) {
+      core.notice("No changes");
+      return {};
+    }
+    createMetadataFile(artifactName);
+    const files = new Set(core.getInput("files", { required: false }).trim().split("\n").map(file => file.trim()).filter(file => file.length > 0));
+    if (files.size === 0) {
+      return {
+        changed_files_from_root_dir: [...fixedFiles],
+        changed_files: [...fixedFiles].map(file => path.join(rootDir, file)),
+      }
+    }
+    const filteredFiles = [...files].filter(file => fixedFiles.has(file));
+    if (filteredFiles.length === 0) {
+      core.notice("No changes");
+      return {};
+    }
+    return {
+      changed_files_from_root_dir: filteredFiles,
+      changed_files: filteredFiles.map(file => path.join(rootDir, file)),
+    };
 };
 
 const createLabel = async (inputs: githubAppToken.Inputs, labelName: string, description: string) => {
