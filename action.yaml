@@ -30,6 +30,7 @@ inputs:
     description: |
       If true, the action fails if there are changes.
     required: false
+    default: "false"
   repository:
     description: |
       A repository full name where a commit will be pushed.
@@ -104,7 +105,6 @@ runs:
   using: composite
   steps:
     - uses: csm-actions/securefix-action/js@main
-      id: client1
       with:
         action: client1
         files: ${{inputs.files}}

@@ -196,7 +196,7 @@ export const main = async () => {
     }, artifactName,
     `${github.context.repo.owner}/${github.context.repo.repo}/${github.context.runId}`);
     if (files.changed_files && files.changed_files.length > 0) {
-      if (core.getBooleanInput("fail_if_changes")) {
+      if (core.getBooleanInput("fail_if_changes") || (!core.getInput("repository") && !core.getInput("branch"))) {
         core.setFailed("Changes detected. A commit will be pushed");
         core.info(files.changed_files.join("\n"));
         return;

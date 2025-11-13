@@ -26,6 +26,7 @@ inputs:
     description: |
       If true, the action fails if there are changes.
     required: false
+    default: "false"
   repository:
     description: |
       A repository full name where a commit will be pushed.
