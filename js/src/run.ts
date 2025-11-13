@@ -141,7 +141,7 @@ export const main = async () => {
   core.saveState("post", "true");
 
   const action = core.getInput("action", { required: true });
-  if (action === "client1") {
+  if (action === "client") {
     // Generate artifact name
     const n = nowS();
     const prefix = `securefix-${n}-`;

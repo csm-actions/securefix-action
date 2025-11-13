@@ -106,7 +106,7 @@ runs:
   steps:
     - uses: csm-actions/securefix-action/js@main
       with:
-        action: client1
+        action: client
         files: ${{inputs.files}}
         root_dir: ${{inputs.root_dir}}
         automerge_method: ${{inputs.automerge_method}}
