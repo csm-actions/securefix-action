@@ -109,6 +109,22 @@ runs:
         action: client1
         files: ${{inputs.files}}
         root_dir: ${{inputs.root_dir}}
+        automerge_method: ${{inputs.automerge_method}}
+        repository: ${{inputs.repository}}
+        branch: ${{inputs.branch}}
+        commit_message: ${{inputs.commit_message}}
+        pull_request_title: ${{inputs.pull_request_title}}
+        pull_request_base_branch: ${{inputs.pull_request_base_branch}}
+        pull_request_body: ${{inputs.pull_request_body}}
+        pull_request_labels: ${{inputs.pull_request_labels}}
+        pull_request_draft: ${{inputs.pull_request_draft}}
+        pull_request_reviewers: ${{inputs.pull_request_reviewers}}
+        pull_request_team_reviewers: ${{inputs.pull_request_team_reviewers}}
+        pull_request_assignees: ${{inputs.pull_request_assignees}}
+        pull_request_comment: ${{inputs.pull_request_comment}}
+        project_owner: ${{inputs.project_owner}}
+        project_number: ${{inputs.project_number}}
+        milestone_number: ${{inputs.milestone_number}}
 
     # Create a metadata file
     - if: steps.client1.outputs.changed_files != ''
