@@ -126,16 +126,6 @@ runs:
         project_number: ${{inputs.project_number}}
         milestone_number: ${{inputs.milestone_number}}
 
-    # Upload files to GitHub Actions Artifact
-    - if: steps.client1.outputs.changed_files != ''
-      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-      with:
-        name: ${{steps.client1.outputs.artifact_name}}
-        include-hidden-files: true
-        path: |
-          ${{ steps.client1.outputs.changed_files }}
-          ${{steps.client1.outputs.artifact_name}}.json
-          ${{steps.client1.outputs.artifact_name}}_files.txt
     # Delete metadata files
     - if: steps.client1.outputs.changed_files != ''
       shell: bash

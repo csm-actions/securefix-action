@@ -4,6 +4,7 @@
     "schema": "ncc build src/generate_schema.ts && node dist/index.js"
   },
   "dependencies": {
+    "@actions/artifact": "^4.0.0",
     "@actions/core": "1.11.1",
     "@actions/exec": "^1.1.1",
     "@actions/github": "6.0.1",

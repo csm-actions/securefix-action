@@ -6,6 +6,7 @@ import { minimatch } from 'minimatch';
 import * as core from "@actions/core";
 import * as exec from "@actions/exec";
 import * as github from "@actions/github";
+import {DefaultArtifactClient} from '@actions/artifact';
 import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
 import { newName } from "@csm-actions/label";
 
@@ -173,6 +174,15 @@ export const main = async () => {
       }
     }
 
+    if (files.changed_files && files.changed_files.length > 0) {
+      // upload artifact
+      const artifact = new DefaultArtifactClient();
+      await artifact.uploadArtifact(
+        artifactName,
+        (files.changed_files || []).concat(`${artifactName}.json`, `${artifactName}_files.txt`),
+        process.env.GITHUB_WORKSPACE || "",
+      );
+    }
     return;
   }
   if (action === "create-label") {
