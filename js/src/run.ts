@@ -124,22 +124,6 @@ const nowS = (): string => {
 };
 
 export const main = async () => {
-  if (core.getState("post")) {
-    const token = core.getState("token");
-    const expiresAt = core.getState("expires_at");
-    if (token) {
-      if (expiresAt && githubAppToken.hasExpired(expiresAt)) {
-        core.info("GitHub App token has already expired");
-        return;
-      }
-      // This is post-cleanup: revoke the token created during main execution
-      core.info("Revoking GitHub App token");
-      return githubAppToken.revoke(token);
-    }
-    return;
-  }
-  core.saveState("post", "true");
-
   const action = core.getInput("action", { required: true });
   if (action === "client") {
     // Generate artifact name
@@ -377,15 +361,23 @@ const getFiles = (fixedFiles: Set<string>, artifactName: string, rootDir: string
 
 const createLabel = async (inputs: githubAppToken.Inputs, labelName: string, description: string) => {
   const token = await githubAppToken.create(inputs);
-  core.saveState("token", token.token);
-  core.saveState("expires_at", token.expiresAt);
-  const octokit = github.getOctokit(token.token);
-  await octokit.rest.issues.createLabel({
-    owner: inputs.owner,
-    repo: inputs.repositories ? inputs.repositories[0] : "",
-    name: labelName,
-    description: description,
-  });
+  try {
+    const octokit = github.getOctokit(token.token);
+    await octokit.rest.issues.createLabel({
+      owner: inputs.owner,
+      repo: inputs.repositories ? inputs.repositories[0] : "",
+      name: labelName,
+      description: description,
+    });
+  } catch (error: any) {
+    if (githubAppToken.hasExpired(token.expiresAt)) {
+      core.info("GitHub App token has already expired");
+      return;
+    }
+    core.info("Revoking GitHub App token");
+    await githubAppToken.revoke(token.token);
+    throw error;
+  }
 };
 
 const createMetadataFile = (labelName: string) => {
