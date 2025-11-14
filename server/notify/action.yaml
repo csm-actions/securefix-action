@@ -15,18 +15,8 @@ runs:
   using: composite
   steps:
     # Create a pull request comment to report an error
-    - if: fromJson(inputs.outputs).pull_request_number != ''
-      shell: bash
-      env:
-        GH_TOKEN: ${{fromJson(inputs.outputs).github_token}}
-        REPO: ${{ fromJson(inputs.outputs).client_repository }}
-        PR_NUMBER: ${{ fromJson(inputs.outputs).pull_request_number }}
-        COMMENT: |
-          ${{ inputs.pull_request_comment }}
-          [Workflow](${{github.server_url}}/${{github.repository}}/actions/runs/${{github.run_id}})
-          The comment was created by [Securefix Action](https://github.com/csm-actions/securefix-action).
-      run: |
-        gh pr comment \
-          -R "$REPO" \
-          -b "${COMMENT}" \
-          "$PR_NUMBER"
+    - uses: csm-actions/securefix-action/js@main
+      with:
+        action: notify
+        outputs: ${{inputs.outputs}}
+        pull_request_comment: ${{inputs.pull_request_comment}}

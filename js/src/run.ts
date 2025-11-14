@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import { client } from "./client";
 import { prepare } from "./prepare";
+import { notify } from "./notify";
 import { readConfig } from "./config";
 
 export const main = async () => {
@@ -19,7 +20,8 @@ export const main = async () => {
     await prepare(configS, configFile);
     return;
   }
-  if (action !== "validate-repository") {
-    throw new Error(`Unknown action (${action}). action must be either validate-config or validate-repository`);
+  if (action === "notify") {
+    await notify();
+    return;
   }
 };

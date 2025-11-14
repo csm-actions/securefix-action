@@ -1,11 +1,11 @@
-import * as core from "@actions/core";
 import * as fs from "fs";
+import * as core from "@actions/core";
 import * as github from "@actions/github";
-import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
 import {DefaultArtifactClient} from '@actions/artifact';
 import { z } from "zod";
-import { readConfig } from "./config";
 import { minimatch } from 'minimatch';
+import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
+import { readConfig } from "./config";
 
 type Input = {
   config: string;
