@@ -229,13 +229,16 @@ const createMetadataFile = (labelName: string) => {
     draft: core.getInput("pull_request_draft") === "true",
     comment: core.getInput("pull_request_comment"),
     automerge_method: automergeMethod,
-    project: core.getInput("project_number") || core.getInput("project_id")
-      ? {
-          number: core.getInput("project_number") ? parseInt(core.getInput("project_number"), 10) : 0,
-          owner: core.getInput("project_owner"),
-          id: core.getInput("project_id"),
-        }
-      : null,
+    project:
+      core.getInput("project_number") || core.getInput("project_id")
+        ? {
+            number: core.getInput("project_number")
+              ? parseInt(core.getInput("project_number"), 10)
+              : 0,
+            owner: core.getInput("project_owner"),
+            id: core.getInput("project_id"),
+          }
+        : null,
     milestone_number: core.getInput("milestone_number")
       ? parseInt(core.getInput("milestone_number"), 10)
       : 0,

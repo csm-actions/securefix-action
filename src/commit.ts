@@ -145,12 +145,12 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
       let projectId = prParam.project?.id || "";
       if (!projectId) {
         if (!prParam.project?.number) {
-            return;
+          return;
         }
         projectId = await getProjectId(
-            octokit,
-            prParam.project.owner,
-            prParam.project.number,
+          octokit,
+          prParam.project.owner,
+          prParam.project.number,
         );
       }
       await addItemToProject(octokit, projectId, pr.data.node_id);
