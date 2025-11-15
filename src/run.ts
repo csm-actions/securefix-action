@@ -8,23 +8,23 @@ import { commitAction } from "./commit";
 import { readConfig } from "./config";
 
 const revoke = async (token: string, expiresAt: string) => {
-    if (!token) {
-      return;
-    }
-    if (expiresAt && githubAppToken.hasExpired(expiresAt)) {
-      core.info("GitHub App token has already expired");
-      return;
-    }
-    core.info("Revoking GitHub App token");
-    return githubAppToken.revoke(token);
+  if (!token) {
+    return;
+  }
+  if (expiresAt && githubAppToken.hasExpired(expiresAt)) {
+    core.info("GitHub App token has already expired");
+    return;
+  }
+  core.info("Revoking GitHub App token");
+  return githubAppToken.revoke(token);
 };
 
 const deleteLabel = async (token: string, labelName: string) => {
   const octokit = github.getOctokit(token);
   await octokit.rest.issues.deleteLabel({
-      owner: github.context.repo.owner,
-      repo: github.context.repo.repo,
-      name: labelName,
+    owner: github.context.repo.owner,
+    repo: github.context.repo.repo,
+    name: labelName,
   });
 };
 
@@ -35,10 +35,18 @@ export const main = async () => {
     }
     const promises = [
       revoke(core.getState("token"), core.getState("expires_at")),
-      revoke(core.getState("token_for_push"), core.getState("expires_at_for_push")),
+      revoke(
+        core.getState("token_for_push"),
+        core.getState("expires_at_for_push"),
+      ),
     ];
     if (core.getBooleanInput("delete_label")) {
-      promises.push(deleteLabel(core.getInput("github_token_to_delete_label", { required: true }), core.getInput("label_name", { required: true })));
+      promises.push(
+        deleteLabel(
+          core.getInput("github_token_to_delete_label", { required: true }),
+          core.getInput("label_name", { required: true }),
+        ),
+      );
     }
     return Promise.allSettled(promises);
   }
@@ -46,22 +54,22 @@ export const main = async () => {
 
   const action = core.getInput("action", { required: true });
   switch (action) {
-  case "client":
-    await client();
-    return;
-  case "validate-config":
-    readConfig();
-    return;
-  case "prepare":
-    await prepare();
-    return;
-  case "notify":
-    await notify();
-    return;
-  case "commit":
-    await commitAction();
-    return;
-  default:
-    throw new Error(`Unknown action: ${action}`);
+    case "client":
+      await client();
+      return;
+    case "validate-config":
+      readConfig();
+      return;
+    case "prepare":
+      await prepare();
+      return;
+    case "notify":
+      await notify();
+      return;
+    case "commit":
+      await commitAction();
+      return;
+    default:
+      throw new Error(`Unknown action: ${action}`);
   }
 };

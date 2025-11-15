@@ -196,7 +196,7 @@ bar.yaml:
 
 ```yaml
 names:
-- bar
+  - bar
 ```
 
 2. Create a pull request ([Example](https://github.com/securefix-action/demo-client/pull/8)):

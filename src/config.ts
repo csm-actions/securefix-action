@@ -34,5 +34,7 @@ export const readConfig = (): Config => {
   if (!config && !configFile) {
     throw new Error("Either config or config_file input is required");
   }
-  return Config.parse(load(config ? config : fs.readFileSync(configFile, "utf8")));
+  return Config.parse(
+    load(config ? config : fs.readFileSync(configFile, "utf8")),
+  );
 };

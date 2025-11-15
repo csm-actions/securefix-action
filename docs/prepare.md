@@ -135,8 +135,8 @@ Specific version:
     // github-script's context object
   },
   "inputs": {
-    "commit_message": "commit message",
-  },
+    "commit_message": "commit message"
+  }
 }
 ```
 

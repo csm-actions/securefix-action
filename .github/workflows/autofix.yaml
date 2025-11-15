@@ -27,6 +27,8 @@ jobs:
       - run: npm ci
       - name: Update JSONSchema
         run: npm run schema
+      - name: Format using prettier
+        run: npm run fmt
 
       - name: Fix newlines
         run: git ls-files | xargs nllint -f -s
