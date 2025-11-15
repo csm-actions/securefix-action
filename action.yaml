@@ -1,6 +1,9 @@
 name: JavaScript Action
 description: JavaScript Action
 inputs:
+  action:
+    description: config
+    required: true
   app_id:
     description: |
       GitHub App ID
@@ -102,9 +105,6 @@ inputs:
     description: |
       Label name
     required: false
-  action:
-    description: config
-    required: true
   config:
     description: config
     required: false
