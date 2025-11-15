@@ -78,83 +78,71 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
   const promises = [];
 
   if (prParam.comment) {
-    promises.push(async () => {
-      core.info(`Posting a pull request comment`);
-      await octokit.rest.issues.createComment({
+    core.info(`Posting a pull request comment`);
+    promises.push(
+      octokit.rest.issues.createComment({
         owner: owner,
         repo: repo,
         issue_number: pr.data.number,
         body: prParam.comment,
-      });
-    });
+      }),
+    );
   }
   if (prParam.labels.length > 0) {
-    promises.push(async () => {
-      core.info(`Adding labels: ${prParam.labels.join(", ")}`);
-      await octokit.rest.issues.addLabels({
+    core.info(`Adding labels: ${prParam.labels.join(", ")}`);
+    promises.push(
+      octokit.rest.issues.addLabels({
         owner: owner,
         repo: repo,
         issue_number: pr.data.number,
         labels: prParam.labels,
-      });
-    });
+      }),
+    );
   }
   if (prParam.assignees.length > 0) {
-    promises.push(async () => {
-      core.info(`Adding assignees: ${prParam.assignees.join(", ")}`);
-      await octokit.rest.issues.addAssignees({
+    core.info(`Adding assignees: ${prParam.assignees.join(", ")}`);
+    promises.push(
+      octokit.rest.issues.addAssignees({
         owner: owner,
         repo: repo,
         issue_number: pr.data.number,
         assignees: prParam.assignees,
-      });
-    });
+      }),
+    );
   }
   if (prParam.reviewers.length > 0 || prParam.team_reviewers.length > 0) {
-    promises.push(async () => {
-      core.info(
-        `Requesting reviewers: ${prParam.reviewers.join(", ")} team_reviewers: ${prParam.team_reviewers.join(", ")}`,
-      );
-      await octokit.rest.pulls.requestReviewers({
+    core.info(
+      `Requesting reviewers: ${prParam.reviewers.join(", ")} team_reviewers: ${prParam.team_reviewers.join(", ")}`,
+    );
+    promises.push(
+      octokit.rest.pulls.requestReviewers({
         owner: owner,
         repo: repo,
         pull_number: pr.data.number,
         reviewers: prParam.reviewers,
         team_reviewers: prParam.team_reviewers,
-      });
-    });
+      }),
+    );
   }
   if (prParam.milestone_number) {
-    promises.push(async () => {
-      core.info(`Updating the milestone: ${prParam.milestone_number}`);
-      await octokit.rest.issues.update({
+    core.info(`Updating the milestone: ${prParam.milestone_number}`);
+    promises.push(
+      octokit.rest.issues.update({
         owner: owner,
         repo: repo,
         issue_number: pr.data.number,
         milestone: prParam.milestone_number,
-      });
-    });
+      }),
+    );
   }
   if (prParam.automerge_method) {
-    promises.push(async () => {
-      await enableAutoMerge(octokit, pr.data.node_id, prParam.automerge_method);
-    });
+    promises.push(
+      enableAutoMerge(octokit, pr.data.node_id, prParam.automerge_method),
+    );
   }
-  if (prParam.project?.number || prParam.project?.id) {
-    promises.push(async () => {
-      let projectId = prParam.project?.id || "";
-      if (!projectId) {
-        if (!prParam.project?.number) {
-          return;
-        }
-        projectId = await getProjectId(
-          octokit,
-          prParam.project.owner,
-          prParam.project.number,
-        );
-      }
-      await addItemToProject(octokit, projectId, pr.data.node_id);
-    });
+  const project = prParam.project;
+  if (project?.number || project?.id) {
+    promises.push(addItemToProject(octokit, pr.data.node_id, project));
   }
   if (promises.length === 0) {
     return;
@@ -214,13 +202,23 @@ const getProjectId = async (
   return data.organization.projectV2.id;
 };
 
+type Project = {
+  owner: string;
+  number: number;
+  id: string;
+};
+
 const addItemToProject = async (
   octokit: commit.GitHub,
-  projectId: string,
   contentId: string,
+  project: Project,
 ) => {
+  if (!project.id) {
+    project.id = await getProjectId(octokit, project.owner, project.number);
+  }
+
   core.info(
-    `Adding item to project: projectId:${projectId} contentId:${contentId}`,
+    `Adding item to project: projectId:${project.id} contentId:${contentId}`,
   );
   await octokit.graphql(
     `
@@ -238,7 +236,7 @@ const addItemToProject = async (
         }
         `,
     {
-      projectId: projectId,
+      projectId: project.id,
       contentId: contentId,
     },
   );
