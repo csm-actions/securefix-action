@@ -1,9 +1,5 @@
-name: Fix Code securely
-description: Fix Code securely
-author: Shunsuke Suzuki
-branding:
-  icon: git-commit
-  color: green
+name: JavaScript Action
+description: JavaScript Action
 inputs:
   app_id:
     description: |
@@ -16,8 +12,8 @@ inputs:
   server_repository:
     description: |
       Server repository name
-    required: false
-    default: securefix
+    required: true
+
   commit_message:
     description: |
       Commit message
@@ -101,31 +97,45 @@ inputs:
       auto-merge method. One of "merge", "squash", or "rebase".
       By default, auto-merge is disabled.
     required: false
+
+  label:
+    description: |
+      Label name
+    required: false
+  action:
+    description: config
+    required: true
+  config:
+    description: config
+    required: false
+  config_file:
+    description: File path to the config file
+    required: false
+
+  metadata_file:
+    description: metadata file path
+    required: false
+  changed_files:
+    description: A file that changed files are listed in
+    required: false
+  github_token:
+    description: A GitHub access token
+    required: false
+  run_id:
+    description: A workflow run id
+    required: false
+  allow_workflow_fix:
+    description: |
+      Either true or false. If true, the action allows the workflow to fix the code.
+    required: false
+    default: "false"
+  workflow_name:
+    description: |
+      Client Workflow name. If this is empty, the action does not check the workflow name.
+    required: false
+    default: securefix
+outputs: {}
 runs:
-  using: composite
-  steps:
-    - uses: csm-actions/securefix-action/js@main
-      with:
-        action: client
-        files: ${{inputs.files}}
-        root_dir: ${{inputs.root_dir}}
-        automerge_method: ${{inputs.automerge_method}}
-        repository: ${{inputs.repository}}
-        branch: ${{inputs.branch}}
-        commit_message: ${{inputs.commit_message}}
-        pull_request_title: ${{inputs.pull_request_title}}
-        pull_request_base_branch: ${{inputs.pull_request_base_branch}}
-        pull_request_body: ${{inputs.pull_request_body}}
-        pull_request_labels: ${{inputs.pull_request_labels}}
-        pull_request_draft: ${{inputs.pull_request_draft}}
-        pull_request_reviewers: ${{inputs.pull_request_reviewers}}
-        pull_request_team_reviewers: ${{inputs.pull_request_team_reviewers}}
-        pull_request_assignees: ${{inputs.pull_request_assignees}}
-        pull_request_comment: ${{inputs.pull_request_comment}}
-        project_owner: ${{inputs.project_owner}}
-        project_number: ${{inputs.project_number}}
-        milestone_number: ${{inputs.milestone_number}}
-        app_id: ${{inputs.app_id}}
-        app_private_key: ${{inputs.app_private_key}}
-        server_repository: ${{inputs.server_repository}}
-        fail_if_changes: ${{inputs.fail_if_changes}}
+  using: node20
+  main: dist/index.js
+  post: dist/index.js

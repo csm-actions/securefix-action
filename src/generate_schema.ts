@@ -5,6 +5,6 @@ import * as path from "path";
 
 const configJSONSchema = zodToJsonSchema(Config, "config");
 fs.writeFileSync(
-  path.join("../json-schema", "config.json"),
+  path.join("json-schema", "config.json"),
   JSON.stringify(configJSONSchema, null, 2) + "\n",
 );
