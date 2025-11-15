@@ -46,7 +46,14 @@ export const main = async () => {
         ),
       );
     }
-    return Promise.allSettled(promises);
+    await Promise.allSettled(promises).then((results) => {
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          continue;
+        }
+        console.error(result.reason);
+      }
+    });
   }
   core.saveState("post", "true");
 

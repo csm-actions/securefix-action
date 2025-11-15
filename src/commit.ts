@@ -148,7 +148,14 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
     return;
   }
   core.info(`Updating the pull request`);
-  await Promise.allSettled(promises);
+  await Promise.allSettled(promises).then((results) => {
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        continue;
+      }
+      console.error(result.reason);
+    }
+  });
 };
 
 const enableAutoMerge = async (
