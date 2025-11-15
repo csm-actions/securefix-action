@@ -238,9 +238,6 @@ const validateRepository = async (
   if (metadata.inputs.pull_request?.title) {
     permissions.pull_requests = "write";
   }
-  if ((metadata.inputs.pull_request?.labels || []).length > 0) {
-    permissions.issues = "write";
-  }
   if ((metadata.inputs.pull_request?.team_reviewers || []).length > 0) {
     permissions.members = "read";
   }
@@ -317,8 +314,7 @@ export const prepare = async () => {
   const pushPermissions = await validateRepository(inputs, token.token, runId);
   if (
     pushPermissions &&
-    (pushPermissions.issues ||
-      pushPermissions.members ||
+    (pushPermissions.members ||
       pushPermissions.organization_projects ||
       repo !== github.context.repo.repo)
   ) {
