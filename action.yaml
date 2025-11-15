@@ -73,6 +73,7 @@ inputs:
   pull_request_labels:
     description: |
       Pull request labels.
+      Each label is separated by a newline.
       This requires the `issues:write` permission.
     required: false
   pull_request_draft:
@@ -82,15 +83,18 @@ inputs:
   pull_request_reviewers:
     description: |
       Pull request reviewers.
+      Each reviewer is separated by a newline.
     required: false
   pull_request_team_reviewers:
     description: |
       Pull request team reviewers.
       This requires the `members:read` permission.
+      Each reviewer is separated by a newline.
     required: false
   pull_request_assignees:
     description: |
       Pull request assignees.
+      Each assignee is separated by a newline.
     required: false
   project_owner:
     description: |
