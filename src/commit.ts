@@ -31,7 +31,7 @@ export const commitAction = async () => {
         return;
     }
 
-    const defaultCommitMessage = core.getInput("commit_message", { required: true });
+    const defaultCommitMessage = core.getInput("commit_message") || "Securefix";
     const metadata = Metadata.parse(JSON.parse(outputs.metadata));
     const commitMessage = metadata.inputs.commit_message || defaultCommitMessage;
     const elems = outputs.push_repository.split('/');

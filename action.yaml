@@ -1,25 +1,39 @@
 name: JavaScript Action
 description: JavaScript Action
 inputs:
+  # common
   action:
     description: config
-    required: true
+    required: false
   app_id:
     description: |
       GitHub App ID
-    required: true
+    required: false
   app_private_key:
     description: |
       GitHub App Private Key
-    required: true
-  server_repository:
-    description: |
-      Server repository name
-    required: true
+    required: false
 
+  outputs:
+    description: |
+      Prepare action's outputs
+    required: false
+  # client and commit
   commit_message:
     description: |
       Commit message
+    required: false
+  # client and notify
+  pull_request_comment:
+    description: |
+      Pull request comment.
+      If this is set, a pull request comment is posted after a pull request is created.
+    required: false
+
+  # client
+  server_repository:
+    description: |
+      Server repository name
     required: false
   files:
     description: |
@@ -78,11 +92,6 @@ inputs:
     description: |
       Pull request assignees.
     required: false
-  pull_request_comment:
-    description: |
-      Pull request comment.
-      If this is set, a pull request comment is posted after a pull request is created.
-    required: false
   project_owner:
     description: |
       Project owner where the pull request is added.
@@ -100,40 +109,43 @@ inputs:
       auto-merge method. One of "merge", "squash", or "rebase".
       By default, auto-merge is disabled.
     required: false
-
-  label:
-    description: |
-      Label name
-    required: false
-  config:
-    description: config
-    required: false
-  config_file:
-    description: File path to the config file
-    required: false
-
-  metadata_file:
-    description: metadata file path
-    required: false
-  changed_files:
-    description: A file that changed files are listed in
-    required: false
-  github_token:
-    description: A GitHub access token
-    required: false
-  run_id:
-    description: A workflow run id
-    required: false
-  allow_workflow_fix:
-    description: |
-      Either true or false. If true, the action allows the workflow to fix the code.
-    required: false
-    default: "false"
+  # prepare
   workflow_name:
     description: |
       Client Workflow name. If this is empty, the action does not check the workflow name.
     required: false
     default: securefix
+  allow_workflow_fix:
+    description: |
+      Either true or false. If true, the action allows the workflow to fix the code.
+    required: false
+    default: "false"
+  config:
+    description: |
+      YAML config to push other repositories and branches.
+    required: false
+  config_file:
+    description: |
+      A file path to YAML config.
+    required: false
+  label_name:
+    description: |
+      Label name to trigger the action.
+    required: false
+    default: ${{github.event.label.name}}
+  label_description:
+    description: |
+      Label description to trigger the action.
+      The format must be <repository owner>/<repository name>/<workflow run ID>.
+    required: false
+    default: ${{github.event.label.description}}
+  delete_label:
+    description: |
+      Either true or false. If true, the label is deleted.
+    required: false
+    default: "true"
+  # commit
+  # notify
 outputs: {}
 runs:
   using: node20
