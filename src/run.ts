@@ -21,11 +21,13 @@ const revoke = async (token: string, expiresAt: string) => {
 
 const deleteLabel = async (token: string, labelName: string) => {
   const octokit = github.getOctokit(token);
-  await octokit.rest.issues.deleteLabel({
+  const param = {
     owner: github.context.repo.owner,
     repo: github.context.repo.repo,
     name: labelName,
-  });
+  };
+  core.info(`Deleting a label ${labelName} of ${param.owner}/${param.repo}`);
+  await octokit.rest.issues.deleteLabel(param);
 };
 
 export const main = async () => {
@@ -35,10 +37,6 @@ export const main = async () => {
     }
     const promises = [
       revoke(core.getState("token"), core.getState("expires_at")),
-      revoke(
-        core.getState("token_for_push"),
-        core.getState("expires_at_for_push"),
-      ),
     ];
     if (core.getBooleanInput("delete_label")) {
       promises.push(
