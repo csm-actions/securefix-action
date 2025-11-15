@@ -35,6 +35,7 @@ export const PullRequest = z.object({
     z.object({
       number: z.number(),
       owner: z.string(),
+      id: z.string(),
     }),
   ),
   milestone_number: z.number(),
@@ -228,10 +229,11 @@ const createMetadataFile = (labelName: string) => {
     draft: core.getInput("pull_request_draft") === "true",
     comment: core.getInput("pull_request_comment"),
     automerge_method: automergeMethod,
-    project: core.getInput("project_number")
+    project: core.getInput("project_number") || core.getInput("project_id")
       ? {
-          number: parseInt(core.getInput("project_number"), 10),
+          number: core.getInput("project_number") ? parseInt(core.getInput("project_number"), 10) : 0,
           owner: core.getInput("project_owner"),
+          id: core.getInput("project_id"),
         }
       : null,
     milestone_number: core.getInput("milestone_number")

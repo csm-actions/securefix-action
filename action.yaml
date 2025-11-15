@@ -100,6 +100,10 @@ inputs:
     description: |
       Project number where the pull request is added.
     required: false
+  project_id:
+    description: |
+      Project id where the pull request is added.
+    required: false
   milestone_number:
     description: |
       Milestone number where the pull request is added.

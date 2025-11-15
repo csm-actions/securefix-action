@@ -140,16 +140,19 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
       await enableAutoMerge(octokit, pr.data.node_id, prParam.automerge_method);
     });
   }
-  if (prParam.project?.number) {
+  if (prParam.project?.number || prParam.project?.id) {
     promises.push(async () => {
-      if (!prParam.project?.number) {
-        return;
+      let projectId = prParam.project?.id || "";
+      if (!projectId) {
+        if (!prParam.project?.number) {
+            return;
+        }
+        projectId = await getProjectId(
+            octokit,
+            prParam.project.owner,
+            prParam.project.number,
+        );
       }
-      const projectId = await getProjectId(
-        octokit,
-        prParam.project.owner,
-        prParam.project.number,
-      );
       await addItemToProject(octokit, projectId, pr.data.node_id);
     });
   }

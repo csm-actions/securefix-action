@@ -38,6 +38,7 @@ const PullRequest = z.object({
       z.object({
         number: z.number(),
         owner: z.string(),
+        id: z.string(),
       }),
     ),
   ),
@@ -116,6 +117,10 @@ const validateRepository = async (
     core.setOutput(
       "project_number",
       metadata.inputs.pull_request.project?.number || 0,
+    );
+    core.setOutput(
+      "project_id",
+      metadata.inputs.pull_request.project?.id || "",
     );
   }
   core.setOutput("root_dir", metadata.inputs.root_dir || "");
