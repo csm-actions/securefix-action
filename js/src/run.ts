@@ -2,6 +2,7 @@ import * as core from "@actions/core";
 import { client } from "./client";
 import { prepare } from "./prepare";
 import { notify } from "./notify";
+import { commitAction } from "./commit";
 import { readConfig } from "./config";
 
 export const main = async () => {
@@ -12,16 +13,20 @@ export const main = async () => {
   }
   const configS = core.getInput("config", { required: false });
   const configFile = core.getInput("config_file", { required: false });
-  if (action === "validate-config") {
+  switch (action) {
+  case "validate-config":
     readConfig(configS, configFile);
     return;
-  }
-  if (action === "prepare") {
+  case "prepare":
     await prepare(configS, configFile);
     return;
-  }
-  if (action === "notify") {
+  case "notify":
     await notify();
     return;
+  case "commit":
+    await commitAction();
+    return;
+  default:
+    throw new Error(`Unknown action: ${action}`);
   }
 };

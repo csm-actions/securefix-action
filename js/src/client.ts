@@ -4,6 +4,7 @@ import * as core from "@actions/core";
 import * as exec from "@actions/exec";
 import * as github from "@actions/github";
 import {DefaultArtifactClient} from '@actions/artifact';
+import { z } from "zod";
 import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
 import { newName } from "@csm-actions/label";
 
@@ -18,6 +19,25 @@ const nowS = (): string => {
   const ss = pad(date.getSeconds());
   return `${yyyy}${mm}${dd}${hh}${min}${ss}`;
 };
+
+export const PullRequest = z.object({
+    title: z.string(),
+    body: z.string(),
+    base: z.string(),
+    labels: z.array(z.string()),
+    assignees: z.array(z.string()),
+    reviewers: z.array(z.string()),
+    team_reviewers: z.array(z.string()),
+    draft: z.boolean(),
+    comment: z.string(),
+    automerge_method: z.string(),
+    project: z.nullable(z.object({
+      number: z.number(),
+      owner: z.string(),
+    })),
+    milestone_number: z.number(),
+});
+export type PullRequest = z.infer<typeof PullRequest>;
 
 export const client = async () => {
     // Generate artifact name
@@ -141,6 +161,23 @@ const createMetadataFile = (labelName: string) => {
   if (!['', 'merge', 'squash', 'rebase'].includes(automergeMethod)) {
     throw new Error('automerge_method must be one of "", "merge", "squash", or "rebase"');
   }
+  const pr: PullRequest = {
+    title: core.getInput("pull_request_title"),
+    body: core.getInput("pull_request_body"),
+    base: core.getInput("pull_request_base_branch"),
+    labels: core.getInput("pull_request_labels").trim().split('\n').filter(label => label),
+    assignees: core.getInput("pull_request_assignees").trim().split('\n').filter(assignee => assignee),
+    reviewers: core.getInput("pull_request_reviewers").trim().split('\n').filter(reviewer => reviewer),
+    team_reviewers: core.getInput("pull_request_team_reviewers").trim().split('\n').filter(team_reviewer => team_reviewer),
+    draft: core.getInput("pull_request_draft") === 'true',
+    comment: core.getInput("pull_request_comment"),
+    automerge_method: automergeMethod,
+    project: core.getInput("project_number") ? {
+        number: parseInt(core.getInput("project_number"), 10),
+        owner: core.getInput("project_owner"),
+    } : null,
+    milestone_number: core.getInput("milestone_number") ? parseInt(core.getInput("milestone_number"), 10) : 0,
+  };
   const value = {
     context: github.context,
     inputs: {
@@ -148,26 +185,9 @@ const createMetadataFile = (labelName: string) => {
       branch: core.getInput("branch"),
       commit_message: core.getInput("commit_message"),
       root_dir: core.getInput("root_dir"),
-      pull_request: {
-        title: core.getInput("pull_request_title"),
-        body: core.getInput("pull_request_body"),
-        base: core.getInput("pull_request_base_branch"),
-        labels: core.getInput("pull_request_labels").trim().split('\n').filter(label => label),
-        assignees: core.getInput("pull_request_assignees").trim().split('\n').filter(assignee => assignee),
-        reviewers: core.getInput("pull_request_reviewers").trim().split('\n').filter(reviewer => reviewer),
-        team_reviewers: core.getInput("pull_request_team_reviewers").trim().split('\n').filter(team_reviewer => team_reviewer),
-        draft: core.getInput("pull_request_draft") === 'true',
-        comment: core.getInput("pull_request_comment"),
-        automerge_method: automergeMethod,
-        project: core.getInput("project_number") ? {
-          number: parseInt(core.getInput("project_number"), 10),
-          owner: core.getInput("project_owner"),
-        } : null,
-        milestone_number: core.getInput("milestone_number") ? parseInt(core.getInput("milestone_number"), 10) : 0,
-      }
+      pull_request: pr,
     },
   };
-  const pr = value.inputs.pull_request;
   if (!pr.title && (pr.base || pr.body || pr.labels.length > 0 || pr.assignees.length > 0 || pr.reviewers.length > 0 || pr.team_reviewers.length > 0 || pr.draft || pr.comment)) {
     throw new Error('pull_request_title is required to create a pull request');
   }
