@@ -156,12 +156,7 @@ const validateRepository = async (
 
   // Validate repository and branch
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
-    core.setOutput("repository", metadata.context.payload.repository.full_name);
-    core.setOutput(
-      "repository_owner",
-      metadata.context.payload.repository.owner.login,
-    );
-    core.setOutput("repository_name", metadata.context.payload.repository.name);
+    core.setOutput("push_repository", metadata.context.payload.repository.full_name);
     core.setOutput("branch", workflowRun.head_branch);
     return;
   }
