@@ -51,7 +51,7 @@ export const main = async () => {
         if (result.status === "fulfilled") {
           continue;
         }
-        console.error(result.reason);
+        core.error(result.reason);
       }
     });
   }

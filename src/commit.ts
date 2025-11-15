@@ -153,7 +153,7 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
       if (result.status === "fulfilled") {
         continue;
       }
-      console.error(result.reason);
+      core.error(result.reason);
     }
   });
 };
