@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
+import * as github from "@actions/github";
 import { client } from "./client";
 import { prepare } from "./prepare";
 import { notify } from "./notify";
@@ -18,31 +19,41 @@ const revoke = async (token: string, expiresAt: string) => {
     return githubAppToken.revoke(token);
 };
 
+const deleteLabel = async (token: string, labelName: string) => {
+  const octokit = github.getOctokit(token);
+  await octokit.rest.issues.deleteLabel({
+      owner: github.context.repo.owner,
+      repo: github.context.repo.repo,
+      name: labelName,
+  });
+};
+
 export const main = async () => {
   if (core.getState("post")) {
     if (core.getInput("action", { required: true }) !== "prepare") {
       return;
     }
-    return Promise.allSettled([
+    const promises = [
       revoke(core.getState("token"), core.getState("expires_at")),
       revoke(core.getState("token_for_push"), core.getState("expires_at_for_push")),
-    ]);
+    ];
+    if (core.getBooleanInput("delete_label")) {
+      promises.push(deleteLabel(core.getInput("github_token_to_delete_label", { required: true }), core.getInput("label_name", { required: true })));
+    }
+    return Promise.allSettled(promises);
   }
   core.saveState("post", "true");
 
   const action = core.getInput("action", { required: true });
-  if (action === "client") {
+  switch (action) {
+  case "client":
     await client();
     return;
-  }
-  const configS = core.getInput("config", { required: false });
-  const configFile = core.getInput("config_file", { required: false });
-  switch (action) {
   case "validate-config":
-    readConfig(configS, configFile);
+    readConfig();
     return;
   case "prepare":
-    await prepare(configS, configFile);
+    await prepare();
     return;
   case "notify":
     await notify();

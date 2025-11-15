@@ -1,5 +1,5 @@
-name: JavaScript Action
-description: JavaScript Action
+name: Securefix Action
+description: Securefix Action
 inputs:
   # common
   action:
@@ -144,6 +144,11 @@ inputs:
       Either true or false. If true, the label is deleted.
     required: false
     default: "true"
+  github_token_to_delete_label:
+    description: |
+      GitHub token to delete the label.
+    required: false
+    default: "${{github.token}}"
   # commit
   # notify
 outputs: {}

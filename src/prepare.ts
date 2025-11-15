@@ -7,10 +7,15 @@ import { minimatch } from 'minimatch';
 import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
 import { readConfig } from "./config";
 
-type Input = {
+type Inputs = {
+  appId: string;
+  appPrivateKey: string;
+  workflowName: string;
+  labelName: string;
+  labelDescription: string;
+  allowWorkflowFix: boolean;
   config: string;
   configFile: string;
-  metadataFile: string;
 };
 
 const User = z.object({
@@ -68,21 +73,14 @@ const Metadata = z.object({
 type Metadata = z.infer<typeof Metadata>;
 
 
-const validateRepository = async (configS: string, configFile: string): Promise<githubAppToken.Permissions> => {
-  const input: Input = {
-    metadataFile: core.getInput("metadata_file", { required: true }),
-    config: configS,
-    configFile: configFile,
-  };
-
+const validateRepository = async (inputs: Inputs, token: string, runId: string): Promise<githubAppToken.Permissions> => {
   // Read metadata 
-  const metadataS = fs.readFileSync(input.metadataFile, "utf8");
+  const metadataS = fs.readFileSync(`${inputs.labelName}.json`, "utf8");
   const metadata = Metadata.parse(JSON.parse(metadataS));
   core.setOutput("metadata", metadataS);
-  const fixedFiles = fs.readFileSync(core.getInput("changed_files", { required: true }), "utf8").trim();
+  const fixedFiles = fs.readFileSync(`${inputs.labelName}_files.txt`, "utf8").trim();
   core.setOutput("fixed_files", fixedFiles);
-
-  const octokit = github.getOctokit(core.getInput("github_token", { required: true }));
+  const octokit = github.getOctokit(token);
 
   if (metadata.inputs.pull_request?.title && !metadata.inputs.pull_request?.base) {
     // Get the default branch
@@ -112,11 +110,11 @@ const validateRepository = async (configS: string, configFile: string): Promise<
     core.setOutput("pull_request", pullRequest);
   }
   // Get GitHub Actions Workflow Run
-  const workflowName = core.getInput("workflow_name", { required: false });
+  const workflowName = inputs.workflowName;
   const { data: workflowRun } = await octokit.rest.actions.getWorkflowRun({
     owner: metadata.context.payload.repository.owner.login,
     repo: metadata.context.payload.repository.name,
-    run_id: parseInt(core.getInput("run_id", { required: true }), 10),
+    run_id: parseInt(runId, 10),
   });
 
   if (!workflowRun.head_branch) {
@@ -150,7 +148,7 @@ const validateRepository = async (configS: string, configFile: string): Promise<
   }
 
   // Read YAML config to push other repositories and branches
-  const config = readConfig(configS, configFile);
+  const config = readConfig();
   const destRepo = metadata.inputs.repository || metadata.context.payload.repository.full_name;
   const destBranch = metadata.inputs.branch || workflowRun.head_branch;
   (() => {
@@ -186,7 +184,7 @@ const validateRepository = async (configS: string, configFile: string): Promise<
     contents: "write",
   };
 
-  if (core.getBooleanInput("allow_workflow_fix", { required: true })) {
+  if (inputs.allowWorkflowFix) {
     permissions.workflows = "write";
   }
   if (metadata.inputs.pull_request?.title) {
@@ -204,79 +202,78 @@ const validateRepository = async (configS: string, configFile: string): Promise<
   return permissions;
 };
 
-export const prepare = async (configS: string, configFile: string) => {
-    const appId = core.getInput("app_id", { required: true });
-    const appPrivateKey = core.getInput("app_private_key", { required: true });
-    const labelName = core.getInput("label_name", { required: true });
-
-    const labelDescription = core.getInput("label_description", { required: true });
-    const elems = labelDescription.split("/");
-    if (elems.length !== 3) {
-        core.setFailed("Label description must be in the format <repository owner>/<repository name>/<workflow run ID>");
-        return;
-    }
-    const owner = elems[0];
-    const repo = elems[1];
-    const runId = elems[2];
-    core.setOutput("repo_full_name", `${owner}/${repo}`);
-    core.setOutput("run_id", runId);
-
-    const octokit = github.getOctokit(core.getInput("github_token", { required: true }));
-    await octokit.rest.issues.deleteLabel({
-        owner: owner,
-        repo: repo,
-        name: labelName,
-    });
-    // create github app token
-    const permissions: githubAppToken.Permissions = {
-        actions: "read",
-        contents: "write",
-        pull_requests: "write",
-    };
-    if (core.getBooleanInput("allow_workflow_fix", { required: true })) {
-        permissions.workflows = "write";
-    }
-    const token = await githubAppToken.create({
-      appId: appId,
-      privateKey: appPrivateKey,
-      owner: github.context.repo.owner,
-      repositories: [repo],
-      permissions: permissions,
-    });
-    core.saveState("token", token.token);
-    core.saveState("expires_at", token.expiresAt);
-    core.setOutput("github_token", token.token);
-    // Download a GitHub Actions Artifact
-    const artifact = new DefaultArtifactClient();
-    const {artifact: targetArtifact} = await artifact.getArtifact(
-      labelName,
-      {
-        findBy: {
-            token: token.token,
-            repositoryOwner: owner,
-            repositoryName: repo,
-            workflowRunId: parseInt(runId, 10),
-        },
-      },
-    );
-    if (!targetArtifact) {
-      core.setFailed(`Artifact '${labelName}' not found`);
+export const prepare = async () => {
+  const inputs: Inputs = {
+    appId: core.getInput("app_id", { required: true }),
+    appPrivateKey: core.getInput("app_private_key", { required: true }),
+    labelName: core.getInput("label_name", { required: true }),
+    labelDescription: core.getInput("label_description", { required: true }),
+    allowWorkflowFix: core.getBooleanInput("allow_workflow_fix"),
+    config: core.getInput("config"),
+    configFile: core.getInput("config_file"),
+    workflowName: core.getInput("workflow_name"),
+  };
+  const elems = inputs.labelDescription.split("/");
+  if (elems.length !== 3) {
+      core.setFailed("Label description must be in the format <repository owner>/<repository name>/<workflow run ID>");
       return;
-    }
-    await artifact.downloadArtifact(targetArtifact.id);
-    const pushPermissions = await validateRepository(configS, configFile);
-    if (pushPermissions && (pushPermissions.issues || pushPermissions.members || pushPermissions.organization_projects || repo !== github.context.repo.repo)) {
-        const pushToken = await githubAppToken.create({
-            appId: appId,
-            privateKey: appPrivateKey,
-            owner: github.context.repo.owner,
-            repositories: [repo],
-            permissions: pushPermissions,
-        });
-        core.saveState("token_for_push", token.token);
-        core.saveState("expires_at_for_push", token.expiresAt);
-        core.setOutput("github_token_for_push", pushToken.token);
-    } else {
-        core.setOutput("github_token_for_push", token.token);
-    }
+  }
+  const owner = elems[0];
+  const repo = elems[1];
+  const runId = elems[2];
+  core.setOutput("repo_full_name", `${owner}/${repo}`);
+  core.setOutput("run_id", runId);
+
+  // create github app token
+  const permissions: githubAppToken.Permissions = {
+      actions: "read",
+      contents: "write",
+      pull_requests: "write",
+  };
+  if (core.getBooleanInput("allow_workflow_fix", { required: true })) {
+      permissions.workflows = "write";
+  }
+  const token = await githubAppToken.create({
+    appId: inputs.appId,
+    privateKey: inputs.appPrivateKey,
+    owner: github.context.repo.owner,
+    repositories: [repo],
+    permissions: permissions,
+  });
+  core.saveState("token", token.token);
+  core.saveState("expires_at", token.expiresAt);
+  core.setOutput("github_token", token.token);
+  // Download a GitHub Actions Artifact
+  const artifact = new DefaultArtifactClient();
+  const {artifact: targetArtifact} = await artifact.getArtifact(
+    inputs.labelName,
+    {
+      findBy: {
+          token: token.token,
+          repositoryOwner: owner,
+          repositoryName: repo,
+          workflowRunId: parseInt(runId, 10),
+      },
+    },
+  );
+  if (!targetArtifact) {
+    core.setFailed(`Artifact '${inputs.labelName}' not found`);
+    return;
+  }
+  await artifact.downloadArtifact(targetArtifact.id);
+  const pushPermissions = await validateRepository(inputs, token.token, runId);
+  if (pushPermissions && (pushPermissions.issues || pushPermissions.members || pushPermissions.organization_projects || repo !== github.context.repo.repo)) {
+      const pushToken = await githubAppToken.create({
+          appId: inputs.appId,
+          privateKey: inputs.appPrivateKey,
+          owner: github.context.repo.owner,
+          repositories: [repo],
+          permissions: pushPermissions,
+      });
+      core.saveState("token_for_push", token.token);
+      core.saveState("expires_at_for_push", token.expiresAt);
+      core.setOutput("github_token_for_push", pushToken.token);
+  } else {
+      core.setOutput("github_token_for_push", token.token);
+  }
 };
