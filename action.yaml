@@ -128,6 +128,17 @@ inputs:
       Either true or false. If true, the action allows the workflow to fix the code.
     required: false
     default: "false"
+  allow_members_read:
+    description: |
+      Either true or false. If true, the members:read permission is granted.
+    required: false
+    default: "false"
+  allow_organization_projects_write:
+    description: |
+      Either true or false. If true, the organization-projects:write permission is granted.
+    required: false
+    default: "false"
+
   config:
     description: |
       YAML config to push other repositories and branches.

@@ -6,7 +6,7 @@ import { PullRequest } from "./client";
 
 const Outputs = z.object({
   metadata: z.string(),
-  github_token_for_push: z.string(),
+  github_token: z.string(),
   push_repository: z.string(),
   branch: z.string(),
   fixed_files: z.string(),
@@ -43,7 +43,7 @@ export const commitAction = async () => {
   }
   const [owner, repo] = elems;
 
-  const octokit = github.getOctokit(outputs.github_token_for_push);
+  const octokit = github.getOctokit(outputs.github_token);
   core.info(`Creating a commit on ${owner}/${repo} ${outputs.branch}`);
   await commit.createCommit(octokit, {
     owner: owner,

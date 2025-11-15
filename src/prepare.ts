@@ -16,6 +16,8 @@ type Inputs = {
   allowWorkflowFix: boolean;
   config: string;
   configFile: string;
+  allowMembersRead: boolean;
+  allowOrganizationProjectsWrite: boolean;
 };
 
 const User = z.object({
@@ -81,7 +83,7 @@ const validateRepository = async (
   inputs: Inputs,
   token: string,
   runId: string,
-): Promise<githubAppToken.Permissions> => {
+): Promise<void> => {
   // Read metadata
   const metadataS = fs.readFileSync(`${inputs.labelName}.json`, "utf8");
   const metadata = Metadata.parse(JSON.parse(metadataS));
@@ -227,24 +229,6 @@ const validateRepository = async (
       "No matching entry found in the config for the given repository and branch.",
     );
   })();
-
-  const permissions: githubAppToken.Permissions = {
-    contents: "write",
-  };
-
-  if (inputs.allowWorkflowFix) {
-    permissions.workflows = "write";
-  }
-  if (metadata.inputs.pull_request?.title) {
-    permissions.pull_requests = "write";
-  }
-  if ((metadata.inputs.pull_request?.team_reviewers || []).length > 0) {
-    permissions.members = "read";
-  }
-  if (metadata.inputs.pull_request?.project?.number) {
-    permissions.organization_projects = "write";
-  }
-  return permissions;
 };
 
 export const prepare = async () => {
@@ -257,6 +241,10 @@ export const prepare = async () => {
     config: core.getInput("config"),
     configFile: core.getInput("config_file"),
     workflowName: core.getInput("workflow_name"),
+    allowMembersRead: core.getBooleanInput("allow_members_read"),
+    allowOrganizationProjectsWrite: core.getBooleanInput(
+      "allow_organization_projects_write",
+    ),
   };
   const elems = inputs.labelDescription.split("/");
   if (elems.length !== 3) {
@@ -276,8 +264,14 @@ export const prepare = async () => {
     contents: "write",
     pull_requests: "write",
   };
-  if (core.getBooleanInput("allow_workflow_fix", { required: true })) {
+  if (inputs.allowWorkflowFix) {
     permissions.workflows = "write";
+  }
+  if (inputs.allowMembersRead) {
+    permissions.members = "read";
+  }
+  if (inputs.allowOrganizationProjectsWrite) {
+    permissions.organization_projects = "write";
   }
   core.info(`Creating a github token: ${owner}/${repo}`);
   const token = await githubAppToken.create({
@@ -311,25 +305,5 @@ export const prepare = async () => {
   }
   core.info(`Downloading an artifact: ${owner}/${repo} ${runId}`);
   await artifact.downloadArtifact(targetArtifact.id, artifactOpts);
-  const pushPermissions = await validateRepository(inputs, token.token, runId);
-  if (
-    pushPermissions &&
-    (pushPermissions.members ||
-      pushPermissions.organization_projects ||
-      repo !== github.context.repo.repo)
-  ) {
-    core.info(`Creating a push token: ${owner}/${repo}`);
-    const pushToken = await githubAppToken.create({
-      appId: inputs.appId,
-      privateKey: inputs.appPrivateKey,
-      owner: owner,
-      repositories: [repo],
-      permissions: pushPermissions,
-    });
-    core.saveState("token_for_push", token.token);
-    core.saveState("expires_at_for_push", token.expiresAt);
-    core.setOutput("github_token_for_push", pushToken.token);
-  } else {
-    core.setOutput("github_token_for_push", token.token);
-  }
+  await validateRepository(inputs, token.token, runId);
 };
