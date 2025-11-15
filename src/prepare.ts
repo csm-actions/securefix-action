@@ -191,7 +191,7 @@ const validateRepository = async (
         entry.push.repositories.some((repo) => minimatch(destRepo, repo)) &&
         entry.push.branches.some((branch) => minimatch(destBranch, branch))
       ) {
-        core.setOutput("repository", destRepo);
+        core.setOutput("push_repository", destRepo);
         core.setOutput("repository_owner", destRepo.split("/")[0]);
         core.setOutput("repository_name", destRepo.split("/")[1]);
         core.setOutput("branch", destBranch);
@@ -268,6 +268,7 @@ export const prepare = async () => {
   const owner = elems[0];
   const repo = elems[1];
   const runId = elems[2];
+  core.setOutput("client_repository", `${owner}/${repo}`);
 
   // create github app token
   const permissions: githubAppToken.Permissions = {
