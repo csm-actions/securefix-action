@@ -41,7 +41,8 @@ export const commitAction = async () => {
     const [owner, repo] = elems;
 
     const octokit = github.getOctokit(outputs.github_token_for_push);
-    const result = await commit.createCommit(octokit, {
+    core.info(`Creating a commit on ${owner}/${repo} ${outputs.branch}`);
+    await commit.createCommit(octokit, {
         owner: owner,
         repo: repo,
         branch: outputs.branch,
@@ -51,7 +52,7 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
         rootDir: outputs.root_dir,
         deleteIfNotExist: true,
         logger: {
-        info: core.info,
+            info: core.info,
         },
     });
     if (!outputs.create_pull_request) {
@@ -59,6 +60,7 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
     }
 
     const prParam = PullRequest.parse(JSON.parse(outputs.create_pull_request));
+    core.info(`Creating a pull request on ${owner}/${repo} ${outputs.branch}`);
     const pr = await octokit.rest.pulls.create({
       owner: owner,
       repo: repo,
@@ -74,6 +76,7 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
 
     if (prParam.comment) {
         promises.push(async () => {
+            core.info(`Posting a pull request comment`);
             await octokit.rest.issues.createComment({
                 owner: owner,
                 repo: repo,
@@ -84,6 +87,7 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
     }
     if (prParam.labels.length > 0) {
         promises.push(async () => {
+            core.info(`Adding labels: ${prParam.labels.join(', ')}`);
             await octokit.rest.issues.addLabels({
                 owner: owner,
                 repo: repo,
@@ -94,6 +98,7 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
     }
     if (prParam.assignees.length > 0) {
         promises.push(async () => {
+            core.info(`Adding assignees: ${prParam.assignees.join(', ')}`);
             await octokit.rest.issues.addAssignees({
                 owner: owner,
                 repo: repo,
@@ -104,6 +109,7 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
     }
     if (prParam.reviewers.length > 0 || prParam.team_reviewers.length > 0) {
         promises.push(async () => {
+            core.info(`Requesting reviewers: ${prParam.reviewers.join(', ')} team_reviewers: ${prParam.team_reviewers.join(', ')}`);
             await octokit.rest.pulls.requestReviewers({
                 owner: owner,
                 repo: repo,
@@ -115,6 +121,7 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
     }
     if (prParam.milestone_number) {
         promises.push(async () => {
+            core.info(`Updating the milestone: ${prParam.milestone_number}`);
             await octokit.rest.issues.update({
                 owner: owner,
                 repo: repo,
@@ -137,30 +144,36 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
             await addItemToProject(octokit, projectId, pr.data.node_id);
         });
     }
+    if (promises.length === 0) {
+        return;
+    }
+    core.info(`Updating the pull request`);
     await Promise.allSettled(promises);
 };
 
 const enableAutoMerge = async (octokit: commit.GitHub, prId: string, method: string) => {
-        await octokit.graphql(`
-            mutation ($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
-                enablePullRequestAutoMerge(
-                input: {
-                    pullRequestId: $pullRequestId
-                    mergeMethod: $mergeMethod
-                }
-                ) {
-                pullRequest {
-                    number
-                }
-                }
-            }`,
-            {
-                pullRequestId: prId,
-                mergeMethod: method.toUpperCase(),
-            });
+    core.info(`Enabling auto merge with method: ${method}`);
+    await octokit.graphql(`
+        mutation ($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+            enablePullRequestAutoMerge(
+            input: {
+                pullRequestId: $pullRequestId
+                mergeMethod: $mergeMethod
+            }
+            ) {
+            pullRequest {
+                number
+            }
+            }
+        }`,
+        {
+            pullRequestId: prId,
+            mergeMethod: method.toUpperCase(),
+        });
 };
 
 const getProjectId = async (octokit: commit.GitHub, owner: string, projectNumber: number): Promise<string> => {
+    core.info(`Getting project ID for project number: owner:${owner} project_number:${projectNumber}`);
     const data = await octokit.graphql<any>(
         `query ($owner: String!, $number: Int!) {
             organization(login: $owner) {
@@ -178,6 +191,7 @@ const getProjectId = async (octokit: commit.GitHub, owner: string, projectNumber
 };
 
 const addItemToProject = async (octokit: commit.GitHub, projectId: string, contentId: string) => {
+    core.info(`Adding item to project: projectId:${projectId} contentId:${contentId}`);
     await octokit.graphql(`
         mutation ($projectId: ID!, $contentId: ID!) {
             addProjectV2ItemById(

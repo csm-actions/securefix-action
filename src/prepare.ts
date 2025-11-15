@@ -221,8 +221,6 @@ export const prepare = async () => {
   const owner = elems[0];
   const repo = elems[1];
   const runId = elems[2];
-  core.setOutput("repo_full_name", `${owner}/${repo}`);
-  core.setOutput("run_id", runId);
 
   // create github app token
   const permissions: githubAppToken.Permissions = {
@@ -233,10 +231,11 @@ export const prepare = async () => {
   if (core.getBooleanInput("allow_workflow_fix", { required: true })) {
       permissions.workflows = "write";
   }
+  core.info(`Creating a github token: ${owner}/${repo}`);
   const token = await githubAppToken.create({
     appId: inputs.appId,
     privateKey: inputs.appPrivateKey,
-    owner: github.context.repo.owner,
+    owner: owner,
     repositories: [repo],
     permissions: permissions,
   });
@@ -245,28 +244,29 @@ export const prepare = async () => {
   core.setOutput("github_token", token.token);
   // Download a GitHub Actions Artifact
   const artifact = new DefaultArtifactClient();
-  const {artifact: targetArtifact} = await artifact.getArtifact(
-    inputs.labelName,
-    {
+  core.info(`Getting an artifact: ${owner}/${repo} ${runId}`);
+  const artifactOpts = {
       findBy: {
           token: token.token,
           repositoryOwner: owner,
           repositoryName: repo,
           workflowRunId: parseInt(runId, 10),
       },
-    },
-  );
+  };
+  const {artifact: targetArtifact} = await artifact.getArtifact(inputs.labelName, artifactOpts);
   if (!targetArtifact) {
     core.setFailed(`Artifact '${inputs.labelName}' not found`);
     return;
   }
-  await artifact.downloadArtifact(targetArtifact.id);
+  core.info(`Downloading an artifact: ${owner}/${repo} ${runId}`);
+  await artifact.downloadArtifact(targetArtifact.id, artifactOpts);
   const pushPermissions = await validateRepository(inputs, token.token, runId);
   if (pushPermissions && (pushPermissions.issues || pushPermissions.members || pushPermissions.organization_projects || repo !== github.context.repo.repo)) {
+      core.info(`Creating a push token: ${owner}/${repo}`);
       const pushToken = await githubAppToken.create({
           appId: inputs.appId,
           privateKey: inputs.appPrivateKey,
-          owner: github.context.repo.owner,
+          owner: owner,
           repositories: [repo],
           permissions: pushPermissions,
       });

@@ -23,6 +23,7 @@ export const notify = async () => {
     }
     const [owner, repo] = elems;
     const octokit = github.getOctokit(outputs.github_token);
+    core.info(`Creating a pull request comment on ${owner}/${repo} PR#${outputs.pull_request_number}`);
     octokit.rest.issues.createComment({
         owner: owner,
         repo: repo,
