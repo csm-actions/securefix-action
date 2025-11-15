@@ -243,6 +243,8 @@ export const prepare = async (configS: string, configFile: string) => {
       repositories: [repo],
       permissions: permissions,
     });
+    core.saveState("token", token.token);
+    core.saveState("expires_at", token.expiresAt);
     core.setOutput("github_token", token.token);
     // Download a GitHub Actions Artifact
     const artifact = new DefaultArtifactClient();
@@ -271,6 +273,8 @@ export const prepare = async (configS: string, configFile: string) => {
             repositories: [repo],
             permissions: pushPermissions,
         });
+        core.saveState("token_for_push", token.token);
+        core.saveState("expires_at_for_push", token.expiresAt);
         core.setOutput("github_token_for_push", pushToken.token);
     } else {
         core.setOutput("github_token_for_push", token.token);
