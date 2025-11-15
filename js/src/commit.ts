@@ -69,54 +69,75 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
       draft: prParam.draft,
     });
     core.notice(`Created a pull request: ${pr.data.html_url}`);
+
+    const promises = [];
+
     if (prParam.comment) {
-      await octokit.rest.issues.createComment({
-        owner: owner,
-        repo: repo,
-        issue_number: pr.data.number,
-        body: prParam.comment,
-      });
+        promises.push(async () => {
+            await octokit.rest.issues.createComment({
+                owner: owner,
+                repo: repo,
+                issue_number: pr.data.number,
+                body: prParam.comment,
+            });
+        });
     }
     if (prParam.labels.length > 0) {
-      await octokit.rest.issues.addLabels({
-        owner: owner,
-        repo: repo,
-        issue_number: pr.data.number,
-        labels: prParam.labels,
-      });
+        promises.push(async () => {
+            await octokit.rest.issues.addLabels({
+                owner: owner,
+                repo: repo,
+                issue_number: pr.data.number,
+                labels: prParam.labels,
+            });
+        });
     }
     if (prParam.assignees.length > 0) {
-      await octokit.rest.issues.addAssignees({
-        owner: owner,
-        repo: repo,
-        issue_number: pr.data.number,
-        assignees: prParam.assignees,
-      });
+        promises.push(async () => {
+            await octokit.rest.issues.addAssignees({
+                owner: owner,
+                repo: repo,
+                issue_number: pr.data.number,
+                assignees: prParam.assignees,
+            });
+        });
     }
     if (prParam.reviewers.length > 0 || prParam.team_reviewers.length > 0) {
-      await octokit.rest.pulls.requestReviewers({
-        owner: owner,
-        repo: repo,
-        pull_number: pr.data.number,
-        reviewers: prParam.reviewers,
-        team_reviewers: prParam.team_reviewers,
-      });
+        promises.push(async () => {
+            await octokit.rest.pulls.requestReviewers({
+                owner: owner,
+                repo: repo,
+                pull_number: pr.data.number,
+                reviewers: prParam.reviewers,
+                team_reviewers: prParam.team_reviewers,
+            });
+        });
     }
     if (prParam.milestone_number) {
-      await octokit.rest.issues.update({
-        owner: owner,
-        repo: repo,
-        issue_number: pr.data.number,
-        milestone: prParam.milestone_number,
-      });
+        promises.push(async () => {
+            await octokit.rest.issues.update({
+                owner: owner,
+                repo: repo,
+                issue_number: pr.data.number,
+                milestone: prParam.milestone_number,
+            });
+        });
     }
     if (prParam.automerge_method) {
-        await enableAutoMerge(octokit, pr.data.node_id, prParam.automerge_method);
+        promises.push(async () => {
+            await enableAutoMerge(octokit, pr.data.node_id, prParam.automerge_method);
+        });
     }
     if (prParam.project?.number) {
-        const projectId = await getProjectId(octokit, prParam.project.owner, prParam.project.number);
-        await addItemToProject(octokit, projectId, pr.data.node_id);
+        promises.push(async () => {
+            if (!prParam.project?.number) {
+                return;
+            }
+            const projectId = await getProjectId(octokit, prParam.project.owner, prParam.project.number);
+            await addItemToProject(octokit, projectId, pr.data.node_id);
+        });
     }
+    await Promise.allSettled(promises);
 };
 
 const enableAutoMerge = async (octokit: commit.GitHub, prId: string, method: string) => {
