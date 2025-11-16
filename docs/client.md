@@ -1,8 +1,8 @@
-# Client Action
+# `action: client`
 
 [action.yaml](../action.yaml)
 
-Client Action uploads fixed files and metadata to GitHub Actions Artifacts and creates and deletes a GitHub Issue label to request fixing code to a server workflow.
+`action: client` uploads fixed files and metadata to GitHub Actions Artifacts and creates and deletes a GitHub Issue label to request fixing code to a server workflow.
 
 ## Example
 
@@ -29,6 +29,7 @@ jobs:
       # Send a request to a server workflow
       - uses: csm-actions/securefix-action@latest
         with:
+          action: client
           app_id: ${{vars.DEMO_CLIENT_APP_ID}}
           app_private_key: ${{secrets.DEMO_CLIENT_PRIVATE_KEY}}
           server_repository: demo-server
@@ -39,6 +40,7 @@ jobs:
 ```yaml
 - uses: csm-actions/securefix-action@latest
   with:
+    action: client
     app_id: ${{vars.DEMO_CLIENT_APP_ID}}
     app_private_key: ${{secrets.DEMO_CLIENT_PRIVATE_KEY}}
     server_repository: demo-server
@@ -52,6 +54,7 @@ jobs:
 ```yaml
 - uses: csm-actions/securefix-action@latest
   with:
+    action: client
     app_id: ${{vars.DEMO_CLIENT_APP_ID}}
     app_private_key: ${{secrets.DEMO_CLIENT_PRIVATE_KEY}}
     server_repository: demo-server
@@ -67,6 +70,7 @@ You can also configure pull request body, labels, reviewers, assignees, mileston
 ```yaml
 - uses: csm-actions/securefix-action@latest
   with:
+    action: client
     app_id: ${{vars.AUTOFIX_TRIGGER_APP_ID}}
     app_private_key: ${{secrets.AUTOFIX_TRIGGER_APP_PRIVATE_KEY}}
     server_repository: securefix-demo-server
@@ -88,46 +92,72 @@ You can also configure pull request body, labels, reviewers, assignees, mileston
     pull_request_comment: Hello, @suzuki-shunsuke
     milestone: 1
     automerge_method: squash
+    project_owner: szksh-lab
+    # project_number: 1
+    project_id: PVT_kwDOCabuec4AlJMy
 ```
 
 ## Inputs
 
 ### Required Inputs
 
+- `action`: This must be `client`
 - `app_id`: A GitHub App ID
 - `app_private_key`: A GitHub App Private Key
 - `server_repository`: A GitHub Repository name where a server workflow works
 
 ### Optional Inputs
 
+Some inputs like `pull_request_labels` accept multiple values separated by a newline.
+
+```yaml
+pull_request_labels: |
+  enhancement
+  yo
+```
+
 - `commit_message` ([v0.1.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.1.0)): A commit message
 - `fail_if_changes` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): If true, the action fails if there are changes
 - `repository` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A repository full name where a commit will be pushed. The Server GitHub App must be installed into this repository
 - `branch` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A branch where a commit will be pushed
 - `root_dir` ([v0.2.2](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.2)): A root directory of fixed files
-- `files` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A fixed files. By default, `git ls-files --modified --others --exclude-standard`. If `root_dir` is given, `files` must be relative paths from `root_dir`
+- `files` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A fixed files. By default, `git ls-files --modified --others --exclude-standard`. If `root_dir` is given, `files` must be relative paths from `root_dir`. Each file is separated by a newline.
 - `pull_request_title` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A pull request title
 - `pull_request_base_branch` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A pull request base branch. From v0.3.4, `pull_request_base_branch` becomes optional. By default the default branch is used
 - `pull_request_body` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A pull request description
-- `pull_request_labels` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request labels
-
-> [!WARNING]
-> `pull_request_labels` requires `issues:write` permission
-
+- `pull_request_labels` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request labels. Each label is separated by a newline. The action doesn't create labels, so labels must exist.
 - `pull_request_draft` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): If true, create a pull request as draft
-- `pull_request_reviewers` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request reviewers
-- `pull_request_team_reviewers` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request team reviewers
+- `pull_request_reviewers` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request reviewers. Each reviewer is separated by a newline.
+- `pull_request_team_reviewers` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request team reviewers. Each reviewer is separated by a newline.
 
 > [!WARNING]
 > `pull_request_team_reviewers` requires the `members:read` permission
 
-- `pull_request_assignees` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request assignees
+- `pull_request_assignees` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request assignees. Each assignee is separated by a newline.
 - `pull_request_comment` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): Pull request comment
 - `project_owner` ([v0.3.2](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.2)): GitHub Project Owner
 - `project_number` ([v0.3.2](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.2)): GitHub Project Number
+- `project_id` ([v0.4.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.4.0)): GitHub Project ID. `project_id` is better than `project_number` because `project_number` requires a GitHub API call to retrieve the project id everytime.
+
+[You can retrieve the project id from project number using GitHub CLI:](https://cli.github.com/manual/gh_project_view)
+
+```sh
+# e.g. gh project view --owner szksh-lab 1 --format json --jq ".id"
+gh project view --owner "<Project Owner>" "<Project Number>" --format json --jq ".id"
+```
 
 > [!WARNING]
-> `project_owner` and `project_number` require Organization's `projects:write` permission
+> Adding pull requests to GitHub Projects requires Organization's `projects:write` permission. Also `allow_organization_projects_write` must be `true` in the server side.
+
+```yaml
+- uses: csm-actions/securefix-action@latest
+  id: prepare
+  with:
+    action: prepare
+    app_id: ${{ vars.AUTOFIX_APP_ID }}
+    app_private_key: ${{ secrets.AUTOFIX_APP_PRIVATE_KEY }}
+    allow_organization_projects_write: true # Required
+```
 
 - `milestone_number` ([v0.3.3](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.3)): Milestone Number
 - `automerge_method` ([v0.3.5](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.5)): auto-merge method. One of `merge`, `squash`, and `rebase`. By default, auto-merge is disabled.
@@ -147,6 +177,7 @@ e.g.
 ```yaml
 - uses: csm-actions/securefix-action@latest
   with:
+    action: client
     app_id: ${{ vars.APP_ID }}
     app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
     server_repository: demo-server

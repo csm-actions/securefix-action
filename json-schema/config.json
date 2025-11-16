@@ -25,10 +25,7 @@
                     }
                   }
                 },
-                "required": [
-                  "repositories",
-                  "branches"
-                ],
+                "required": ["repositories", "branches"],
                 "additionalProperties": false
               },
               "push": {
@@ -47,10 +44,7 @@
                     }
                   }
                 },
-                "required": [
-                  "repositories",
-                  "branches"
-                ],
+                "required": ["repositories", "branches"],
                 "additionalProperties": false
               },
               "pull_request": {
@@ -63,23 +57,16 @@
                     }
                   }
                 },
-                "required": [
-                  "base_branches"
-                ],
+                "required": ["base_branches"],
                 "additionalProperties": false
               }
             },
-            "required": [
-              "client",
-              "push"
-            ],
+            "required": ["client", "push"],
             "additionalProperties": false
           }
         }
       },
-      "required": [
-        "entries"
-      ],
+      "required": ["entries"],
       "additionalProperties": false
     }
   },

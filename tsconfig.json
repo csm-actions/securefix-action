@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "target": "ES2023",
+    "outDir": "./lib",
+    "rootDir": "./src",
+    "strict": true,
+    "noImplicitAny": true,
+    "esModuleInterop": true
+  },
+  "exclude": ["node_modules", "**/*.test.ts"]
+  // "ts-node": {
+  //   "esm": true,
+  //   "experimentalSpecifierResolution": "node",
+  // }
+}

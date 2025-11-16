@@ -43,14 +43,12 @@ jobs:
 
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version-file: js/.node-version
-          cache-dependency-path: js/package-lock.json
+          node-version-file: .node-version
+          cache-dependency-path: package-lock.json
           cache: npm
       - run: npm ci
-        working-directory: js
 
       - run: npm run build
-        working-directory: js
 
       - uses: suzuki-shunsuke/release-js-action@7586139c29abe68e2bc84395ac4300f20112b764 # v0.1.8
         with:
