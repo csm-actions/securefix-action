@@ -233,14 +233,14 @@ Allowing to push any repository and branch without any restriction is dangerous,
 You can push a commit from only allowed repositories and branches to only allowed repositories and branches.
 From Securefix Action v0.3.0, the source branch must be protected.
 
-1. [Configure the server side](server/prepare/README.md#config-config_file)
+1. [Configure the server side](docs/prepare.md#config-config_file)
 2. [Configure the client side](docs/client.md#push-a-commit-to-the-other-repository-and-branch)
 
 ### Create pull requests
 
 When pushing a commit to the other repository and branch, you can also create a pull request.
 
-1. [Configure the server side](server/prepare/README.md#config-config_file)
+1. [Configure the server side](docs/prepare.md#config-config_file)
 2. [Configure the client side](docs/client.md#create-a-pull-request)
 
 ## Actions
@@ -286,8 +286,8 @@ There are several ideas:
 
 ### Custom Validation
 
-You can insert custom validation between `server/prepare` action and `server/commit` action.
-You can use [`server/prepare` action's outputs](server/prepare#outputs).
+You can insert custom validation between `prepare` action and `commit` action.
+You can use [`prepare` action's outputs](docs/prepare.md#outputs).
 
 ```yaml
 - uses: csm-actions/securefix-action@latest
@@ -316,14 +316,14 @@ You can use [`server/prepare` action's outputs](server/prepare#outputs).
 ### Client Workflow Name
 
 By default, the client workflow name must be `securefix` for security.
-Otherwise, the server/prepare action fails.
-[You can change the workflow name or remove the restriction using server/prepare action's `workflow_name` input.](server/prepare#optional-inputs)
+Otherwise, the prepare action fails.
+[You can change the workflow name or remove the restriction using prepare action's `workflow_name` input.](docs/prepare.md#optional-inputs)
 
 ### How To Fix Workflow Files
 
 By default, Serverfix Action doesn't allow you to fix workflow files for security.
 By default, the server action fails if fixed files include workflow files.
-[You can allow it by setting server/prepare action's `allow_workflow_fix` to `true`.](server/prepare#optional-inputs)
+[You can allow it by setting prepare action's `allow_workflow_fix` to `true`.](docs/prepare.md#optional-inputs)
 
 ### GitHub API Rate Limiting
 
