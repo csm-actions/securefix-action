@@ -92,7 +92,79 @@ export const Outputs = z.object({
 });
 export type Outputs = z.infer<typeof Outputs>;
 
-export const validateRepository = async (data: Data): Promise<Outputs> => {
+class Output {
+  isOutput: boolean;
+  outputs: Outputs;
+  constructor(isOutput: boolean) {
+    this.isOutput = isOutput;
+    this.outputs = {
+      branch: "",
+      client_repository: "",
+      create_pull_request: undefined,
+      fixed_files: "",
+      github_token: "",
+      metadata: "",
+      push_repository: "",
+      workflow_run: "",
+    };
+  }
+  setBranch(branch: string) {
+    if (this.isOutput) {
+      core.setOutput("branch", branch);
+    }
+    this.outputs.branch = branch;
+  }
+  setClientRepository(clientRepository: string) {
+    if (this.isOutput) {
+      core.setOutput("client_repository", clientRepository);
+    }
+    this.outputs.client_repository = clientRepository;
+  }
+  setCreatePullRequest(createPullRequest: string) {
+    if (this.isOutput) {
+      core.setOutput("create_pull_request", createPullRequest);
+    }
+    this.outputs.create_pull_request = createPullRequest;
+  }
+  setPullRequest(pr: string) {
+    if (this.isOutput) {
+      core.setOutput("pull_request", pr);
+    }
+    this.outputs.pull_request = pr;
+  }
+  setFixedFiles(fixedFiles: string) {
+    if (this.isOutput) {
+      core.setOutput("fixed_files", fixedFiles);
+    }
+    this.outputs.fixed_files = fixedFiles;
+  }
+  setGitHubToken(githubToken: string) {
+    if (this.isOutput) {
+      core.setOutput("github_token", githubToken);
+    }
+    this.outputs.github_token = githubToken;
+  }
+  setMetadata(metadata: string) {
+    if (this.isOutput) {
+      core.setOutput("metadata", metadata);
+    }
+    this.outputs.metadata = metadata;
+  }
+  setPushRepository(pushRepository: string) {
+    if (this.isOutput) {
+      core.setOutput("push_repository", pushRepository);
+    }
+    this.outputs.push_repository = pushRepository;
+  }
+  setWorkflowRun(workflowRun: string) {
+    if (this.isOutput) {
+      core.setOutput("workflow_run", workflowRun);
+    }
+    this.outputs.workflow_run = workflowRun;
+  }
+}
+
+export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
   const token = data.token;
   const runId = data.runId;
@@ -102,7 +174,7 @@ export const validateRepository = async (data: Data): Promise<Outputs> => {
   const fixedFiles = fs
     .readFileSync(`${inputs.labelName}_files.txt`, "utf8")
     .trim();
-  outputs.fixed_files = fixedFiles;
+  outputs.setFixedFiles(fixedFiles);
   const octokit = github.getOctokit(token);
 
   if (
@@ -118,7 +190,7 @@ export const validateRepository = async (data: Data): Promise<Outputs> => {
   }
 
   if (metadata.inputs.pull_request?.title && fixedFiles) {
-    outputs.create_pull_request = JSON.stringify(metadata.inputs.pull_request);
+    outputs.setCreatePullRequest(JSON.stringify(metadata.inputs.pull_request));
   }
 
   // Get a pull request
@@ -128,7 +200,7 @@ export const validateRepository = async (data: Data): Promise<Outputs> => {
       repo: metadata.context.payload.repository.name,
       pull_number: metadata.context.payload.pull_request.number,
     });
-    outputs.pull_request = JSON.stringify(pullRequest);
+    outputs.setPullRequest(JSON.stringify(pullRequest));
   }
   // Get GitHub Actions Workflow Run
   const workflowName = inputs.workflowName;
@@ -143,7 +215,7 @@ export const validateRepository = async (data: Data): Promise<Outputs> => {
   }
   const headBranch = workflowRun.head_branch;
 
-  outputs.workflow_run = JSON.stringify(workflowRun);
+  outputs.setWorkflowRun(JSON.stringify(workflowRun));
   // Validate workflow name
   if (workflowName && workflowRun.name !== workflowName) {
     throw new Error(
@@ -153,8 +225,8 @@ export const validateRepository = async (data: Data): Promise<Outputs> => {
 
   // Validate repository and branch
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
-    outputs.push_repository = metadata.context.payload.repository.full_name;
-    outputs.branch = workflowRun.head_branch;
+    outputs.setPushRepository(metadata.context.payload.repository.full_name);
+    outputs.setBranch(workflowRun.head_branch);
     return outputs;
   }
 
@@ -183,8 +255,8 @@ export const validateRepository = async (data: Data): Promise<Outputs> => {
         entry.push.repositories.some((repo) => minimatch(destRepo, repo)) &&
         entry.push.branches.some((branch) => minimatch(destBranch, branch))
       ) {
-        outputs.push_repository = destRepo;
-        outputs.branch = destBranch;
+        outputs.setPushRepository(destRepo);
+        outputs.setBranch(destBranch);
         if (metadata.inputs.pull_request?.title) {
           if (!metadata.inputs.pull_request.base) {
             throw new Error(
@@ -205,7 +277,7 @@ export const validateRepository = async (data: Data): Promise<Outputs> => {
               "The given pull request branch isn't allowed for this entry",
             );
           }
-          outputs.pull_request = JSON.stringify(metadata.inputs.pull_request);
+          outputs.setPullRequest(JSON.stringify(metadata.inputs.pull_request));
         }
         return;
       }
@@ -236,7 +308,7 @@ export const readInputs = (): Inputs => {
 
 export const action = async () => {
   const inputs = readInputs();
-  const outputs = await main(inputs);
+  const outputs = await main(inputs, true);
   for (const [key, value] of Object.entries(outputs)) {
     if (value === undefined) {
       continue;
@@ -332,23 +404,17 @@ type Data = {
   workflowRun: WorkflowRun;
   token: string;
   runId: number;
-  outputs: Outputs;
+  outputs: Output;
   metadata: Metadata;
 };
 
-export const prepare = async (inputs: Inputs): Promise<Data> => {
-  const outputs: Outputs = {
-    branch: "",
-    client_repository: "",
-    create_pull_request: undefined,
-    fixed_files: "",
-    github_token: "",
-    metadata: "",
-    push_repository: "",
-    workflow_run: "",
-  };
+export const prepare = async (
+  inputs: Inputs,
+  isOutput: boolean,
+): Promise<Data> => {
+  const outputs = new Output(isOutput);
   const workflowRun = parseLabelDescription(inputs.labelDescription);
-  outputs.client_repository = `${workflowRun.owner}/${workflowRun.repo}`;
+  outputs.setClientRepository(`${workflowRun.owner}/${workflowRun.repo}`);
 
   // create github app token
   const token = await createToken(inputs, {
@@ -357,12 +423,12 @@ export const prepare = async (inputs: Inputs): Promise<Data> => {
   });
   core.saveState("token", token.token);
   core.saveState("expires_at", token.expiresAt);
-  outputs.github_token = token.token;
+  outputs.setGitHubToken(token.token);
   await downloadArtifact(token.token, workflowRun, inputs.labelName);
 
   const metadataS = fs.readFileSync(`${inputs.labelName}.json`, "utf8");
   const metadata = Metadata.parse(JSON.parse(metadataS));
-  outputs.metadata = metadataS;
+  outputs.setMetadata(metadataS);
 
   return {
     inputs,
@@ -374,7 +440,10 @@ export const prepare = async (inputs: Inputs): Promise<Data> => {
   };
 };
 
-export const main = async (inputs: Inputs): Promise<Outputs> => {
-  const data = await prepare(inputs);
+export const main = async (
+  inputs: Inputs,
+  isOutput: boolean,
+): Promise<Output> => {
+  const data = await prepare(inputs, isOutput);
   return await validateRepository(data);
 };

@@ -21,13 +21,13 @@ const getErrorMessage = (error: unknown): string => {
 export const action = async () => {
   core.startGroup("prepare");
   const prepareInputs = prepare.readInputs();
-  const data = await prepare.prepare(prepareInputs);
+  const data = await prepare.prepare(prepareInputs, false);
   try {
     const outputs = await prepare.validateRepository(data);
     core.endGroup();
     core.startGroup("commit");
     await commit.create({
-      outputs,
+      outputs: outputs.outputs,
       defaultCommitMessage: commit.readDefaultCommitMessage(),
     });
     core.endGroup();
