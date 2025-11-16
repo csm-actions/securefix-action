@@ -33,20 +33,10 @@ export const action = async () => {
   const [owner, repo] = elems;
   const msgs = [inputs.comment];
   if (inputs.outputs.error) {
-    msgs.push(
-        "\n## Prepare Error",
-        "\n```",
-        inputs.outputs.error,
-        "```\n",
-    );
+    msgs.push("\n## Prepare Error", "\n```", inputs.outputs.error, "```\n");
   }
   if (inputs.commitError) {
-    msgs.push(
-        "\n## Commit Error",
-        "\n```",
-        inputs.commitError,
-        "```\n",
-    );
+    msgs.push("\n## Commit Error", "\n```", inputs.commitError, "```\n");
   }
   await notify({
     owner: owner,
