@@ -56,6 +56,7 @@ export const main = async () => {
         core.error(result.reason);
       }
     });
+    return;
   }
   core.saveState("post", "true");
 
