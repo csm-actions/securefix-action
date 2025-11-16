@@ -1,11 +1,11 @@
 import * as core from "@actions/core";
 import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
 import * as github from "@actions/github";
-import { client } from "./client";
-import { prepare } from "./prepare";
-import { notify } from "./notify";
-import { commitAction } from "./commit";
-import { readConfig } from "./config";
+import * as client from "./client";
+import * as prepare from "./prepare";
+import * as notify from "./notify";
+import * as commit from "./commit";
+import * as config from "./config";
 
 const revoke = async (token: string, expiresAt: string) => {
   if (!token) {
@@ -31,8 +31,9 @@ const deleteLabel = async (token: string, labelName: string) => {
 };
 
 export const main = async () => {
+  const action = core.getInput("action", { required: true });
   if (core.getState("post")) {
-    if (core.getInput("action", { required: true }) !== "prepare") {
+    if (action !== "prepare" && action !== "server") {
       return;
     }
     const promises = [
@@ -57,22 +58,24 @@ export const main = async () => {
   }
   core.saveState("post", "true");
 
-  const action = core.getInput("action", { required: true });
   switch (action) {
     case "client":
-      await client();
+      await client.action();
       return;
     case "validate-config":
-      readConfig();
+      config.readConfig();
       return;
     case "prepare":
-      await prepare();
+      await prepare.action();
       return;
     case "notify":
-      await notify();
+      await notify.action();
       return;
     case "commit":
-      await commitAction();
+      await commit.action();
+      return;
+    case "server":
+      await commit.action();
       return;
     default:
       throw new Error(`Unknown action: ${action}`);

@@ -3,16 +3,7 @@ import * as github from "@actions/github";
 import { z } from "zod";
 import * as commit from "@suzuki-shunsuke/commit-ts";
 import { PullRequest } from "./client";
-
-const Outputs = z.object({
-  metadata: z.string(),
-  github_token: z.string(),
-  push_repository: z.string(),
-  branch: z.string(),
-  fixed_files: z.string(),
-  create_pull_request: z.optional(z.string()),
-});
-type Outputs = z.infer<typeof Outputs>;
+import { Outputs } from "./prepare";
 
 const Metadata = z.object({
   inputs: z.object({
@@ -21,8 +12,24 @@ const Metadata = z.object({
 });
 type Metadata = z.infer<typeof Metadata>;
 
-export const commitAction = async () => {
-  const outputs = Outputs.parse(JSON.parse(core.getInput("outputs")));
+type Inputs = {
+  outputs: Outputs;
+  defaultCommitMessage?: string;
+};
+
+export const readDefaultCommitMessage = (): string => {
+  return core.getInput("commit_message") || "Securefix";
+};
+
+export const action = async () => {
+  await create({
+    outputs: Outputs.parse(JSON.parse(core.getInput("outputs"))),
+    defaultCommitMessage: readDefaultCommitMessage(),
+  });
+};
+
+export const create = async (inputs: Inputs) => {
+  const outputs = inputs.outputs;
 
   const fixedFiles = outputs.fixed_files
     .split("\n")
@@ -33,7 +40,7 @@ export const commitAction = async () => {
     return;
   }
 
-  const defaultCommitMessage = core.getInput("commit_message") || "Securefix";
+  const defaultCommitMessage = inputs.defaultCommitMessage || "Securefix";
   const metadata = Metadata.parse(JSON.parse(outputs.metadata));
   const commitMessage = metadata.inputs.commit_message || defaultCommitMessage;
   const elems = outputs.push_repository.split("/");

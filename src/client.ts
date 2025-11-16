@@ -42,7 +42,7 @@ export const PullRequest = z.object({
 });
 export type PullRequest = z.infer<typeof PullRequest>;
 
-export const client = async () => {
+export const action = async () => {
   // Generate artifact name
   const n = nowS();
   const prefix = `securefix-${n}-`;
