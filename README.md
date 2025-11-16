@@ -290,21 +290,24 @@ You can insert custom validation between `server/prepare` action and `server/com
 You can use [`server/prepare` action's outputs](server/prepare#outputs).
 
 ```yaml
-- uses: csm-actions/securefix-action/server/prepare@4f3e711a06d7d5a3f5527cc622f6c75362fec74b # v0.3.6
+- uses: csm-actions/securefix-action@latest
   id: prepare
   with:
+    action: prepare
     app_id: ${{ vars.DEMO_SERVER_APP_ID }}
     app_private_key: ${{ secrets.DEMO_SERVER_PRIVATE_KEY }}
 # Custom Validation
 - if: fromJson(steps.prepare.outputs.pull_request).user.login != 'suzuki-shunsuke'
   run: |
     exit 1
-- uses: csm-actions/securefix-action/server/commit@4f3e711a06d7d5a3f5527cc622f6c75362fec74b # v0.3.6
+- uses: csm-actions/securefix-action@latest
   with:
+    action: commit
     outputs: ${{ toJson(steps.prepare.outputs) }}
-- uses: csm-actions/securefix-action/server/notify@4f3e711a06d7d5a3f5527cc622f6c75362fec74b # v0.3.6
+- uses: csm-actions/securefix-action@latest
   failure()
   with:
+    action: notify
     outputs: ${{ toJson(steps.prepare.outputs) }}
 ```
 
