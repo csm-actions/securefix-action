@@ -1,8 +1,8 @@
-# Server Prepare Action
+# `action: prepare`
 
-[action.yaml](action.yaml) | [Workflow](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
+[action.yaml](../action.yaml) | [Workflow](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
 
-Server Prepare Action prepares for creating a commit.
+`action: prepare` prepares for creating a commit.
 
 1. Download fixed files and metadata from GitHub Actions Artifacts
 1. Get data about associated Workflow Run, Pull Request, and Branch by GitHub API
@@ -13,6 +13,7 @@ Server Prepare Action prepares for creating a commit.
 
 ### Required Inputs
 
+- `action`: Must be `prepare`
 - `app_id`: A GitHub App ID
 - `app_private_key`: A GitHub App Private Key
 
@@ -30,10 +31,17 @@ Server Prepare Action prepares for creating a commit.
 If a branch or repository is set, they are validated by config.
 If there is no entry matching with source repository and branch and destination repository and branch.
 
+[About the configuration file, please see config.md.](config.md)
+
+:bulb: To improve the maintainability, we recommend `config_file` rather than `config`.
+
+`config`:
+
 ```yaml
-- uses: csm-actions/securefix-action/server/prepare@latest
+- uses: csm-actions/securefix-action@latest
   id: prepare
   with:
+    action: prepare
     app_id: ${{ vars.APP_ID }}
     app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
     config: |
@@ -50,41 +58,7 @@ If there is no entry matching with source repository and branch and destination 
               - gh-pages
 ```
 
-:bulb: To improve the maintainability, we recommend `config_file` rather than `config`.
-
-e.g. config.yaml
-
-```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/csm-actions/securefix-action/main/json-schema/config.json
-entries:
-  - client:
-      repositories:
-        - suzuki-shunsuke/tfaction-example
-      branches:
-        - main
-    push:
-      repositories:
-        - suzuki-shunsuke/tfaction-example
-      branches:
-        - "scaffold-working-directory-*" # Glob
-        - "follow-up-*" # Glob
-    # Allow to create pull requests
-    pull_request:
-      # base_branches is required.
-      # The pull request base branch must be included in base_branches.
-      base_branches:
-        - main
-  - client:
-      repositories:
-        - suzuki-shunsuke/tfaction
-      branches:
-        - main
-    push:
-      repositories:
-        - suzuki-shunsuke/tfaction-docs
-      branches:
-        - gh-pages
-```
+`config_file`:
 
 ```yaml
 - uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e # v6-beta
@@ -93,40 +67,22 @@ entries:
     sparse-checkout: |
       config.yaml
     sparse-checkout-cone-mode: false
-- uses: csm-actions/securefix-action/server/prepare@latest
+- uses: csm-actions/securefix-action@latest
   id: prepare
   with:
+    action: prepare
     app_id: ${{ vars.AUTOFIX_APP_ID }}
     app_private_key: ${{ secrets.AUTOFIX_APP_PRIVATE_KEY }}
     config_file: config.yaml
 ```
 
-##### JSON Schema
-
-You can validate the configuration file using JSON Schema.
-
-main:
-
-```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/csm-actions/securefix-action/main/json-schema/config.json
-```
-
-Specific version:
-
-```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/csm-actions/securefix-action/v0.1.1/json-schema/config.json
-```
-
 ## Outputs
 
-- `pull_request`: A Pull Request Payload ([ref](https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request))
-- `pull_request_number`: A Pull Request Number
-- `workflow_run`: A Workflow Run Payload ([ref](https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#get-a-workflow-run))
+- `branch`: A branch where a commit is pushed
 - `client_repository`: A client repository's full name
-- `destination_repository`: A destination repository's full name
-- `branch`: A destination branch
-- `repository_name`: A client repository's name
-- `workflow_run_id`: A client workflow run id
+- `create_pull_request`: Parameters to create a pull request
+- `fixed_files`: Fixed file paths. Paths are separated with newlines
+- `github_token`: A GitHub App installation access token to create a commit and a pull request
 - `metadata`: A request's metadata. It's a JSON string.
 
 ```json
@@ -142,16 +98,6 @@ Specific version:
 
 `context` is a [github-script](https://github.com/actions/github-script)'s context object.
 
-- `fixed_files`: Fixed file paths. Paths are separated with newlines
-- `pull_request_comment`: A pull request comment template.
-
-## Validate `config_file`
-
-You can also validate the configuration file by GitHub Actions:
-
-```yaml
-- uses: csm-actions/securefix-action/js@latest
-  with:
-    action: validate-config
-    config_file: config.yaml
-```
+- `pull_request`: [A pull request payload](https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request) triggering a client workflow run
+- `push_repository`: A repository full name where a commit is pushed
+- `workflow_run`: [A client Workflow Run Payload](https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#get-a-workflow-run)

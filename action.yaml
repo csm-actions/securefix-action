@@ -74,7 +74,8 @@ inputs:
     description: |
       Pull request labels.
       Each label is separated by a newline.
-      This requires the `issues:write` permission.
+      Note that labels must exist in the repository.
+      This action doesn't create labels.
     required: false
   pull_request_draft:
     description: |

@@ -1,14 +1,14 @@
-# Server Commit Action
+# `action: commit`
 
-[action.yaml](action.yaml) | [Example](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
+[action.yaml](../action.yaml) | [Example](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
 
-Server Commit Action creates a commit.
+`action: commit` creates a commit and a pull request.
 
 ## Inputs
 
 ### Required Inputs
 
-- `outputs`: Server Prepare Action's outputs
+- [`outputs`: `action: prepare`'s outputs](prepare.md#outputs)
 
 ```yaml
 outputs: ${{ toJson(steps.prepare.outputs) }}

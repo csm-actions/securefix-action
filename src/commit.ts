@@ -10,7 +10,6 @@ const Outputs = z.object({
   push_repository: z.string(),
   branch: z.string(),
   fixed_files: z.string(),
-  root_dir: z.string(),
   create_pull_request: z.optional(z.string()),
 });
 type Outputs = z.infer<typeof Outputs>;
@@ -52,7 +51,6 @@ export const commitAction = async () => {
     message: `${commitMessage}
 ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/actions/runs/${github.context.runId}`,
     files: fixedFiles,
-    rootDir: outputs.root_dir,
     deleteIfNotExist: true,
     logger: {
       info: core.info,

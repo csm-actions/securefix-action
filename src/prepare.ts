@@ -60,7 +60,6 @@ const PayloadPullRequest = z.object({
 const Inputs = z.object({
   repository: z.optional(z.string()),
   branch: z.optional(z.string()),
-  root_dir: z.optional(z.string()),
   pull_request: z.optional(PullRequest),
 });
 
@@ -108,31 +107,10 @@ const validateRepository = async (
 
   if (metadata.inputs.pull_request?.title && fixedFiles) {
     core.setOutput("create_pull_request", metadata.inputs.pull_request);
-    core.setOutput(
-      "automerge_method",
-      metadata.inputs.pull_request.automerge_method || "",
-    );
-    core.setOutput(
-      "project_owner",
-      metadata.inputs.pull_request.project?.owner || "",
-    );
-    core.setOutput(
-      "project_number",
-      metadata.inputs.pull_request.project?.number || 0,
-    );
-    core.setOutput(
-      "project_id",
-      metadata.inputs.pull_request.project?.id || "",
-    );
   }
-  core.setOutput("root_dir", metadata.inputs.root_dir || "");
 
   // Get a pull request
   if (metadata.context.payload.pull_request) {
-    core.setOutput(
-      "pull_request_number",
-      metadata.context.payload.pull_request.number,
-    );
     const { data: pullRequest } = await octokit.rest.pulls.get({
       owner: metadata.context.payload.repository.owner.login,
       repo: metadata.context.payload.repository.name,
@@ -197,8 +175,6 @@ const validateRepository = async (
         entry.push.branches.some((branch) => minimatch(destBranch, branch))
       ) {
         core.setOutput("push_repository", destRepo);
-        core.setOutput("repository_owner", destRepo.split("/")[0]);
-        core.setOutput("repository_name", destRepo.split("/")[1]);
         core.setOutput("branch", destBranch);
         if (metadata.inputs.pull_request?.title) {
           if (!metadata.inputs.pull_request.base) {

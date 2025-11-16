@@ -37,7 +37,6 @@ See also [Release Notes](https://github.com/csm-actions/securefix-action/release
 - 😊 Easy to use
   - You can create a commit by one action on the client side
   - You don't need to host a server application
-- 😉 [OSS (MIT License)](LICENSE)
 
 ## Overview
 
@@ -85,7 +84,7 @@ You don't need to host a server application.
 
 ## Architecture
 
-Securefix Action adopts [the Client/Server Model](https://github.com/securefix-action/client-server-model-docs).
+Securefix Action adopts [the Client/Server Model](https://github.com/csm-actions/docs).
 It uses following GitHub Apps, repositories, and workflows:
 
 - two GitHub Apps
@@ -142,7 +141,6 @@ Permissions:
 - `actions:read`: To download GitHub Actions Artifacts to fix code
 - `pull_requests:write`: To notify problems on the server side to pull requests
 - `workflows:write`: Optional. This is required if you want to fix GitHub Actions workflows
-- `issues:write`: Optional. This is required if you want to add labels to pull requests
 - `members:read`: Optional. This is required if you want to request reviews to teams
 - Organization's `projects:write`: Optional. This is required if you want to add pull requests to GitHub Organization Projects
 
@@ -247,12 +245,14 @@ When pushing a commit to the other repository and branch, you can also create a 
 
 ## Actions
 
-Securefix Action composes of four actions:
+Securefix Action is a single JavaScript Action.
+It has an input `action`, which accepts the following values:
 
-- [csm-actions/securefix-action](docs/client.md) ([action.yaml](action.yaml)): Client action
-- [csm-actions/securefix-action/server/prepare](server/prepare) ([action.yaml](server/prepare/action.yaml)): Server action to prepare for creating commits
-- [csm-actions/securefix-action/server/commit](server/commit) ([action.yaml](server/commit/action.yaml)): Server action to create commits
-- [csm-actions/securefix-action/server/notify](server/notify) ([action.yaml](server/notify/action.yaml)): Server action to notify the server failure
+- [`client`: Client Action](docs/client.md)
+- [`validate-config`: Validate the configuration file of the server side](docs/validate-config.md)
+- [`prepare`: Prepare for creating commits](docs/prepare.md)
+- [`commit`: Create commits](docs/commit.md)
+- [`notify`: Notify the failure to the client side](docs/notify.md)
 
 ## Actions' Available Versions
 
