@@ -109,30 +109,35 @@ class Output {
     };
   }
   setBranch(branch: string) {
+    core.debug(`output branch=${branch}`);
     if (this.isOutput) {
       core.setOutput("branch", branch);
     }
     this.outputs.branch = branch;
   }
   setClientRepository(clientRepository: string) {
+    core.debug(`output client_repository=${clientRepository}`);
     if (this.isOutput) {
       core.setOutput("client_repository", clientRepository);
     }
     this.outputs.client_repository = clientRepository;
   }
   setCreatePullRequest(createPullRequest: string) {
+    core.debug(`output create_pull_request=${createPullRequest}`);
     if (this.isOutput) {
       core.setOutput("create_pull_request", createPullRequest);
     }
     this.outputs.create_pull_request = createPullRequest;
   }
   setPullRequest(pr: string) {
+    core.debug(`output pull_request=${pr}`);
     if (this.isOutput) {
       core.setOutput("pull_request", pr);
     }
     this.outputs.pull_request = pr;
   }
   setFixedFiles(fixedFiles: string) {
+    core.debug(`output fixed_files=${fixedFiles}`);
     if (this.isOutput) {
       core.setOutput("fixed_files", fixedFiles);
     }
@@ -145,18 +150,21 @@ class Output {
     this.outputs.github_token = githubToken;
   }
   setMetadata(metadata: string) {
+    core.debug(`output metadata=${metadata}`);
     if (this.isOutput) {
       core.setOutput("metadata", metadata);
     }
     this.outputs.metadata = metadata;
   }
   setPushRepository(pushRepository: string) {
+    core.debug(`output push_repository=${pushRepository}`);
     if (this.isOutput) {
       core.setOutput("push_repository", pushRepository);
     }
     this.outputs.push_repository = pushRepository;
   }
   setWorkflowRun(workflowRun: string) {
+    core.debug(`output workflow_run=${workflowRun}`);
     if (this.isOutput) {
       core.setOutput("workflow_run", workflowRun);
     }
@@ -308,14 +316,7 @@ export const readInputs = (): Inputs => {
 
 export const action = async () => {
   const inputs = readInputs();
-  const outputs = await main(inputs, true);
-  for (const [key, value] of Object.entries(outputs)) {
-    if (value === undefined) {
-      continue;
-    }
-    core.debug(`Output: ${key}=${value}`);
-    core.setOutput(key, value);
-  }
+  await main(inputs, true);
 };
 
 type WorkflowRun = {
