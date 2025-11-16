@@ -40,9 +40,11 @@ export const action = async () => {
       pr_number: data.metadata.context.payload.pull_request?.number ?? 0,
       githubToken: data.token,
       comment: [
-        "## Error",
-        "\n```" + getErrorMessage(e) + "```\n",
         notify.readComment(),
+        "\n## Error",
+        "\n```",
+        getErrorMessage(e),
+        "```\n",
       ].join("\n"),
     });
     core.endGroup();
