@@ -243,6 +243,7 @@ export const action = async () => {
     if (value === undefined) {
       continue;
     }
+    core.debug(`Output: ${key}=${value}`);
     core.setOutput(key, value);
   }
 };
