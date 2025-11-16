@@ -81,6 +81,7 @@ inputs:
     description: |
       Create a pull request as draft.
     required: false
+    default: "false"
   pull_request_reviewers:
     description: |
       Pull request reviewers.
