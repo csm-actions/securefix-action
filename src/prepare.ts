@@ -91,16 +91,15 @@ export const Outputs = z.object({
 });
 export type Outputs = z.infer<typeof Outputs>;
 
-const validateRepository = async (
-  inputs: Inputs,
-  token: string,
-  runId: number,
-  outputs: Outputs,
+export const validateRepository = async (
+  data: Data,
 ): Promise<Outputs> => {
+  const inputs = data.inputs;
+  const token = data.token;
+  const runId = data.runId;
+  const outputs = data.outputs;
+  const metadata = data.metadata;
   // Read metadata
-  const metadataS = fs.readFileSync(`${inputs.labelName}.json`, "utf8");
-  const metadata = Metadata.parse(JSON.parse(metadataS));
-  outputs.metadata = metadataS;
   const fixedFiles = fs
     .readFileSync(`${inputs.labelName}_files.txt`, "utf8")
     .trim();
@@ -238,7 +237,7 @@ export const readInputs = (): Inputs => {
 
 export const action = async () => {
   const inputs = readInputs();
-  const outputs = await prepare(inputs);
+  const outputs = await main(inputs);
   for (const [key, value] of Object.entries(outputs)) {
     if (value === undefined) {
       continue;
@@ -329,7 +328,16 @@ const downloadArtifact = async (
   await artifact.downloadArtifact(targetArtifact.id, artifactOpts);
 };
 
-export const prepare = async (inputs: Inputs): Promise<Outputs> => {
+type Data = {
+  inputs: Inputs;
+  workflowRun: WorkflowRun;
+  token: string;
+  runId: number;
+  outputs: Outputs;
+  metadata: Metadata;
+};
+
+export const prepare = async (inputs: Inputs): Promise<Data> => {
   const outputs: Outputs = {
     branch: "",
     client_repository: "",
@@ -352,10 +360,22 @@ export const prepare = async (inputs: Inputs): Promise<Outputs> => {
   core.saveState("expires_at", token.expiresAt);
   outputs.github_token = token.token;
   await downloadArtifact(token.token, workflowRun, inputs.labelName);
-  return await validateRepository(
+
+  const metadataS = fs.readFileSync(`${inputs.labelName}.json`, "utf8");
+  const metadata = Metadata.parse(JSON.parse(metadataS));
+  outputs.metadata = metadataS;
+
+  return {
     inputs,
-    token.token,
-    workflowRun.runId,
+    workflowRun,
+    token: token.token,
+    runId: workflowRun.runId,
     outputs,
-  );
+    metadata,
+  };
+};
+
+export const main = async (inputs: Inputs): Promise<Outputs> => {
+  const data = await prepare(inputs);
+  return await validateRepository(data);
 };

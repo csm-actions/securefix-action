@@ -11,7 +11,7 @@ type Outputs = z.infer<typeof Outputs>;
 
 const defaultComment = `## :x: Securefix Action failed.`;
 
-type Inputs = {
+type RawInputs = {
   outputs: Outputs;
   comment: string;
 };
@@ -21,13 +21,10 @@ export const readComment = (): string => {
 };
 
 export const action = async () => {
-  await notify({
+  const inputs = {
     outputs: Outputs.parse(JSON.parse(core.getInput("outputs"))),
     comment: readComment(),
-  });
-};
-
-export const notify = async (inputs: Inputs) => {
+  };
   const outputs = inputs.outputs;
   if (!outputs.pull_request_number) {
     return;
@@ -37,14 +34,35 @@ export const notify = async (inputs: Inputs) => {
     throw new Error(`Invalid client_repository: ${outputs.client_repository}`);
   }
   const [owner, repo] = elems;
-  const octokit = github.getOctokit(outputs.github_token);
-  core.info(
-    `Creating a pull request comment on ${owner}/${repo} PR#${outputs.pull_request_number}`,
-  );
-  octokit.rest.issues.createComment({
+  await notify({
     owner: owner,
     repo: repo,
-    issue_number: parseInt(outputs.pull_request_number, 10),
+    pr_number: parseInt(outputs.pull_request_number, 10),
+    comment: inputs.comment,
+    githubToken: outputs.github_token,
+  });
+};
+
+type Inputs = {
+  owner: string;
+  repo: string;
+  pr_number: number;
+  comment: string;
+  githubToken: string;
+};
+
+export const notify = async (inputs: Inputs) => {
+  if (!inputs.pr_number) {
+    return;
+  }
+  const octokit = github.getOctokit(inputs.githubToken);
+  core.info(
+    `Creating a pull request comment on ${inputs.owner}/${inputs.repo} PR#${inputs.pr_number}`,
+  );
+  octokit.rest.issues.createComment({
+    owner: inputs.owner,
+    repo: inputs.repo,
+    issue_number: inputs.pr_number,
     body: `${inputs.comment}
 [Workflow](${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/actions/runs/${github.context.runId})
 The comment was created by [Securefix Action](https://github.com/csm-actions/securefix-action).`,

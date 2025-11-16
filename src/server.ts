@@ -6,9 +6,10 @@ import * as notify from "./notify";
 export const action = async () => {
   core.startGroup("prepare");
   const prepareInputs = prepare.readInputs();
-  const outputs = await prepare.prepare(prepareInputs);
-  core.endGroup();
+  const data = await prepare.prepare(prepareInputs);
   try {
+    const outputs = await prepare.validateRepository(data);
+    core.endGroup();
     core.startGroup("commit");
     await commit.create({
       outputs,
@@ -18,7 +19,10 @@ export const action = async () => {
   } catch (e) {
     core.startGroup("notify");
     await notify.notify({
-      outputs,
+      owner: data.workflowRun.owner,
+      repo: data.workflowRun.repo,
+      pr_number: data.metadata.context.payload.pull_request?.number ?? 0,
+      githubToken: data.token,
       comment: notify.readComment(),
     });
     core.endGroup();
