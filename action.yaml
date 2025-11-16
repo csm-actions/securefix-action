@@ -140,6 +140,11 @@ inputs:
     required: false
     default: "false"
 
+  commit_error:
+    description: |
+      The output error of the commit action.
+    required: false
+
   config:
     description: |
       YAML config to push other repositories and branches.

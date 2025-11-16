@@ -88,6 +88,7 @@ export const Outputs = z.object({
   push_repository: z.string(),
   pull_request: z.optional(z.string()),
   workflow_run: z.string(),
+  error: z.optional(z.string()),
 });
 export type Outputs = z.infer<typeof Outputs>;
 

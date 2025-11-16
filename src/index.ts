@@ -4,7 +4,7 @@ import { main } from "./run";
 try {
   main();
 } catch (error) {
-  core.setFailed(
-    error instanceof Error ? error.message : JSON.stringify(error),
-  );
+  const msg = error instanceof Error ? error.message : JSON.stringify(error);
+  core.setOutput("error", msg);
+  core.setFailed(msg);
 }

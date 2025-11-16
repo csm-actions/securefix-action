@@ -6,15 +6,11 @@ const Outputs = z.object({
   pull_request_number: z.optional(z.string()),
   github_token: z.string(),
   client_repository: z.string(),
+  error: z.optional(z.string()),
 });
 type Outputs = z.infer<typeof Outputs>;
 
 const defaultComment = `## :x: Securefix Action failed.`;
-
-type RawInputs = {
-  outputs: Outputs;
-  comment: string;
-};
 
 export const readComment = (): string => {
   return core.getInput("pull_request_comment") || defaultComment;
@@ -24,6 +20,7 @@ export const action = async () => {
   const inputs = {
     outputs: Outputs.parse(JSON.parse(core.getInput("outputs"))),
     comment: readComment(),
+    commitError: core.getInput("commit_error"),
   };
   const outputs = inputs.outputs;
   if (!outputs.pull_request_number) {
@@ -34,11 +31,28 @@ export const action = async () => {
     throw new Error(`Invalid client_repository: ${outputs.client_repository}`);
   }
   const [owner, repo] = elems;
+  const msgs = [inputs.comment];
+  if (inputs.outputs.error) {
+    msgs.push(
+        "\n## Prepare Error",
+        "\n```",
+        inputs.outputs.error,
+        "```\n",
+    );
+  }
+  if (inputs.commitError) {
+    msgs.push(
+        "\n## Commit Error",
+        "\n```",
+        inputs.commitError,
+        "```\n",
+    );
+  }
   await notify({
     owner: owner,
     repo: repo,
     pr_number: parseInt(outputs.pull_request_number, 10),
-    comment: inputs.comment,
+    comment: msgs.join("\n"),
     githubToken: outputs.github_token,
   });
 };
