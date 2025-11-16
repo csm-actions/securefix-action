@@ -91,9 +91,7 @@ export const Outputs = z.object({
 });
 export type Outputs = z.infer<typeof Outputs>;
 
-export const validateRepository = async (
-  data: Data,
-): Promise<Outputs> => {
+export const validateRepository = async (data: Data): Promise<Outputs> => {
   const inputs = data.inputs;
   const token = data.token;
   const runId = data.runId;
