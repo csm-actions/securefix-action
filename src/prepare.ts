@@ -94,7 +94,7 @@ export type Outputs = z.infer<typeof Outputs>;
 const validateRepository = async (
   inputs: Inputs,
   token: string,
-  runId: string,
+  runId: number,
   outputs: Outputs,
 ): Promise<Outputs> => {
   // Read metadata
@@ -137,7 +137,7 @@ const validateRepository = async (
   const { data: workflowRun } = await octokit.rest.actions.getWorkflowRun({
     owner: metadata.context.payload.repository.owner.login,
     repo: metadata.context.payload.repository.name,
-    run_id: parseInt(runId, 10),
+    run_id: runId,
   });
 
   if (!workflowRun.head_branch) {
@@ -248,30 +248,35 @@ export const action = async () => {
   }
 };
 
-export const prepare = async (inputs: Inputs): Promise<Outputs> => {
-  let outputs: Outputs = {
-    branch: "",
-    client_repository: "",
-    create_pull_request: undefined,
-    fixed_files: "",
-    github_token: "",
-    metadata: "",
-    push_repository: "",
-    workflow_run: "",
-  };
-  const elems = inputs.labelDescription.split("/");
+type WorkflowRun = {
+  owner: string;
+  repo: string;
+  runId: number;
+};
+
+const parseLabelDescription = (labelDescription: string): WorkflowRun => {
+  const elems = labelDescription.split("/");
   if (elems.length !== 3) {
-    core.setFailed(
+    throw new Error(
       "Label description must be in the format <repository owner>/<repository name>/<workflow run ID>",
     );
-    return outputs;
   }
-  const owner = elems[0];
-  const repo = elems[1];
-  const runId = elems[2];
-  outputs.client_repository = `${owner}/${repo}`;
+  return {
+    owner: elems[0],
+    repo: elems[1],
+    runId: parseInt(elems[2], 10),
+  };
+};
 
-  // create github app token
+type Repository = {
+  owner: string;
+  repo: string;
+};
+
+const createToken = async (
+  inputs: Inputs,
+  repo: Repository,
+): Promise<githubAppToken.Token> => {
   const permissions: githubAppToken.Permissions = {
     actions: "read",
     contents: "write",
@@ -286,39 +291,71 @@ export const prepare = async (inputs: Inputs): Promise<Outputs> => {
   if (inputs.allowOrganizationProjectsWrite) {
     permissions.organization_projects = "write";
   }
-  core.info(`Creating a github token: ${owner}/${repo}`);
-  const token = await githubAppToken.create({
+  core.info(`Creating a github token`);
+  return await githubAppToken.create({
     appId: inputs.appId,
     privateKey: inputs.appPrivateKey,
-    owner: owner,
-    repositories: [repo],
+    owner: repo.owner,
+    repositories: [repo.repo],
     permissions: permissions,
+  });
+};
+
+const downloadArtifact = async (
+  token: string,
+  workflowRun: WorkflowRun,
+  labelName: string,
+): Promise<void> => {
+  // Download a GitHub Actions Artifact
+  const artifact = new DefaultArtifactClient();
+  core.info(`Getting an artifact`);
+  const artifactOpts = {
+    findBy: {
+      token: token,
+      repositoryOwner: workflowRun.owner,
+      repositoryName: workflowRun.repo,
+      workflowRunId: workflowRun.runId,
+    },
+  };
+  const { artifact: targetArtifact } = await artifact.getArtifact(
+    labelName,
+    artifactOpts,
+  );
+  if (!targetArtifact) {
+    core.setFailed(`Artifact '${labelName}' not found`);
+    return;
+  }
+  core.info(`Downloading an artifact`);
+  await artifact.downloadArtifact(targetArtifact.id, artifactOpts);
+};
+
+export const prepare = async (inputs: Inputs): Promise<Outputs> => {
+  const outputs: Outputs = {
+    branch: "",
+    client_repository: "",
+    create_pull_request: undefined,
+    fixed_files: "",
+    github_token: "",
+    metadata: "",
+    push_repository: "",
+    workflow_run: "",
+  };
+  const workflowRun = parseLabelDescription(inputs.labelDescription);
+  outputs.client_repository = `${workflowRun.owner}/${workflowRun.repo}`;
+
+  // create github app token
+  const token = await createToken(inputs, {
+    owner: workflowRun.owner,
+    repo: workflowRun.repo,
   });
   core.saveState("token", token.token);
   core.saveState("expires_at", token.expiresAt);
   outputs.github_token = token.token;
-  // Download a GitHub Actions Artifact
-  const artifact = new DefaultArtifactClient();
-  core.info(`Getting an artifact: ${owner}/${repo} ${runId}`);
-  const artifactOpts = {
-    findBy: {
-      token: token.token,
-      repositoryOwner: owner,
-      repositoryName: repo,
-      workflowRunId: parseInt(runId, 10),
-    },
-  };
-  const { artifact: targetArtifact } = await artifact.getArtifact(
-    inputs.labelName,
-    artifactOpts,
+  await downloadArtifact(token.token, workflowRun, inputs.labelName);
+  return await validateRepository(
+    inputs,
+    token.token,
+    workflowRun.runId,
+    outputs,
   );
-  if (!targetArtifact) {
-    core.setFailed(`Artifact '${inputs.labelName}' not found`);
-    return outputs;
-  }
-  core.info(`Downloading an artifact: ${owner}/${repo} ${runId}`);
-  await artifact.downloadArtifact(targetArtifact.id, artifactOpts);
-  outputs = await validateRepository(inputs, token.token, runId, outputs);
-
-  return outputs;
 };

@@ -1,4 +1,3 @@
-import client from "@actions/artifact";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { z } from "zod";
