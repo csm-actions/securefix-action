@@ -3,7 +3,7 @@ import * as github from "@actions/github";
 import { z } from "zod";
 
 const Outputs = z.object({
-  pull_request_number: z.optional(z.string()),
+  pull_request: z.optional(z.string()),
   github_token: z.string(),
   client_repository: z.string(),
   error: z.optional(z.string()),
@@ -22,8 +22,12 @@ export const action = async () => {
     comment: readComment(),
     commitError: core.getInput("commit_error"),
   };
+  const pr = inputs.outputs.pull_request
+    ? JSON.parse(inputs.outputs.pull_request)
+    : undefined;
   const outputs = inputs.outputs;
-  if (!outputs.pull_request_number) {
+  if (!pr?.number) {
+    core.info("No pull request to comment on");
     return;
   }
   const elems = outputs.client_repository.split("/");
@@ -41,7 +45,7 @@ export const action = async () => {
   await notify({
     owner: owner,
     repo: repo,
-    pr_number: parseInt(outputs.pull_request_number, 10),
+    pr_number: pr.number,
     comment: msgs.join("\n"),
     githubToken: outputs.github_token,
   });
