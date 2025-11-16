@@ -5,6 +5,7 @@ import * as client from "./client";
 import * as prepare from "./prepare";
 import * as notify from "./notify";
 import * as commit from "./commit";
+import * as server from "./server";
 import * as config from "./config";
 
 const revoke = async (token: string, expiresAt: string) => {
@@ -75,7 +76,7 @@ export const main = async () => {
       await commit.action();
       return;
     case "server":
-      await commit.action();
+      await server.action();
       return;
     default:
       throw new Error(`Unknown action: ${action}`);

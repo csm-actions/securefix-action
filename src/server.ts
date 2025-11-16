@@ -3,7 +3,7 @@ import * as prepare from "./prepare";
 import * as commit from "./commit";
 import * as notify from "./notify";
 
-export const server = async () => {
+export const action = async () => {
   core.startGroup("prepare");
   const prepareInputs = prepare.readInputs();
   const outputs = await prepare.prepare(prepareInputs);
