@@ -42,19 +42,92 @@ export const PullRequest = z.object({
 });
 export type PullRequest = z.infer<typeof PullRequest>;
 
+type Inputs = {
+  appId: string;
+  privateKey: string;
+  rootDir: string;
+  serverRepository: string;
+  repo: string;
+  branch: string;
+  failIfChanges: boolean;
+  files: Set<string>;
+  pr: PullRequest;
+  commitMessage: string;
+};
+
 export const action = async () => {
+  const inputs: Inputs = {
+    appId: core.getInput("app_id", { required: true }),
+    privateKey: core.getInput("app_private_key", { required: true }),
+    serverRepository: core.getInput("server_repository", { required: true }),
+    rootDir: core.getInput("root_dir"),
+    commitMessage: core.getInput("commit_message"),
+    repo: core.getInput("repository"),
+    branch: core.getInput("branch"),
+    failIfChanges: core.getBooleanInput("fail_if_changes"),
+    files: new Set(
+      core
+        .getInput("files")
+        .trim()
+        .split("\n")
+        .map((file) => file.trim())
+        .filter((file) => file.length > 0),
+    ),
+    pr: {
+      title: core.getInput("pull_request_title"),
+      body: core.getInput("pull_request_body"),
+      base: core.getInput("pull_request_base_branch"),
+      labels: core
+        .getInput("pull_request_labels")
+        .trim()
+        .split("\n")
+        .filter((label) => label),
+      assignees: core
+        .getInput("pull_request_assignees")
+        .trim()
+        .split("\n")
+        .filter((assignee) => assignee),
+      reviewers: core
+        .getInput("pull_request_reviewers")
+        .trim()
+        .split("\n")
+        .filter((reviewer) => reviewer),
+      team_reviewers: core
+        .getInput("pull_request_team_reviewers")
+        .trim()
+        .split("\n")
+        .filter((team_reviewer) => team_reviewer),
+      draft: core.getBooleanInput("pull_request_draft"),
+      comment: core.getInput("pull_request_comment"),
+      automerge_method: core.getInput("automerge_method"),
+      project:
+        core.getInput("project_number") || core.getInput("project_id")
+          ? {
+              number: core.getInput("project_number")
+                ? parseInt(core.getInput("project_number"), 10)
+                : 0,
+              owner: core.getInput("project_owner"),
+              id: core.getInput("project_id"),
+            }
+          : null,
+      milestone_number: core.getInput("milestone_number")
+        ? parseInt(core.getInput("milestone_number"), 10)
+        : 0,
+    },
+  };
+  validateAutomergeMethod(inputs.pr.automerge_method);
+  validatePR(inputs.pr);
   // Generate artifact name
   const n = nowS();
   const prefix = `securefix-${n}-`;
   const artifactName = newName(prefix);
   core.setOutput("artifact_name", artifactName);
   // List fixed files
-  const rootDir = core.getInput("root_dir", { required: false }) || "";
   const result = await exec.getExecOutput(
     "git",
     ["ls-files", "--modified", "--others", "--exclude-standard"],
     {
-      cwd: rootDir || undefined,
+      cwd: inputs.rootDir || undefined,
     },
   );
   const fixedFiles = new Set(
@@ -68,9 +141,9 @@ export const action = async () => {
     return;
   }
 
-  const files = getFiles(fixedFiles, artifactName, rootDir);
+  const files = getFiles(fixedFiles, artifactName, inputs.rootDir, inputs);
 
-  createMetadataFile(artifactName);
+  createMetadataFile(artifactName, inputs);
   if (files.changed_files_from_root_dir) {
     core.setOutput(
       "changed_files_from_root_dir",
@@ -98,15 +171,15 @@ export const action = async () => {
       ),
       process.env.GITHUB_WORKSPACE || "",
     );
-    await fs.rmSync(`${artifactName}_files.txt`);
+    fs.rmSync(`${artifactName}_files.txt`);
   }
-  await fs.rmSync(`${artifactName}.json`);
+  fs.rmSync(`${artifactName}.json`);
   await createLabel(
     {
-      appId: core.getInput("app_id"),
-      privateKey: core.getInput("app_private_key"),
+      appId: inputs.appId,
+      privateKey: inputs.privateKey,
       owner: github.context.repo.owner,
-      repositories: [core.getInput("server_repository")],
+      repositories: [inputs.serverRepository],
       permissions: {
         issues: "write",
       },
@@ -115,10 +188,7 @@ export const action = async () => {
     `${github.context.repo.owner}/${github.context.repo.repo}/${github.context.runId}`,
   );
   if (files.changed_files && files.changed_files.length > 0) {
-    if (
-      core.getBooleanInput("fail_if_changes") ||
-      (!core.getInput("repository") && !core.getInput("branch"))
-    ) {
+    if (inputs.failIfChanges || (!inputs.repo && !inputs.branch)) {
       core.setFailed("Changes detected. A commit will be pushed");
       core.info(files.changed_files.join("\n"));
       return;
@@ -139,27 +209,22 @@ const getFiles = (
   fixedFiles: Set<string>,
   artifactName: string,
   rootDir: string,
+  inputs: Inputs,
 ): Files => {
   if (fixedFiles.size === 0) {
     core.notice("No changes");
     return {};
   }
-  createMetadataFile(artifactName);
-  const files = new Set(
-    core
-      .getInput("files", { required: false })
-      .trim()
-      .split("\n")
-      .map((file) => file.trim())
-      .filter((file) => file.length > 0),
-  );
-  if (files.size === 0) {
+  createMetadataFile(artifactName, inputs);
+  if (inputs.files.size === 0) {
     return {
       changed_files_from_root_dir: [...fixedFiles],
       changed_files: [...fixedFiles].map((file) => path.join(rootDir, file)),
     };
   }
-  const filteredFiles = [...files].filter((file) => fixedFiles.has(file));
+  const filteredFiles = [...inputs.files].filter((file) =>
+    fixedFiles.has(file),
+  );
   if (filteredFiles.length === 0) {
     core.notice("No changes");
     return {};
@@ -195,76 +260,45 @@ const createLabel = async (
   }
 };
 
-const createMetadataFile = (labelName: string) => {
-  let automergeMethod = core.getInput("automerge_method");
-  if (!["", "merge", "squash", "rebase"].includes(automergeMethod)) {
+const validateAutomergeMethod = (method: string) => {
+  if (!["", "merge", "squash", "rebase"].includes(method)) {
     throw new Error(
       'automerge_method must be one of "", "merge", "squash", or "rebase"',
     );
   }
-  const pr: PullRequest = {
-    title: core.getInput("pull_request_title"),
-    body: core.getInput("pull_request_body"),
-    base: core.getInput("pull_request_base_branch"),
-    labels: core
-      .getInput("pull_request_labels")
-      .trim()
-      .split("\n")
-      .filter((label) => label),
-    assignees: core
-      .getInput("pull_request_assignees")
-      .trim()
-      .split("\n")
-      .filter((assignee) => assignee),
-    reviewers: core
-      .getInput("pull_request_reviewers")
-      .trim()
-      .split("\n")
-      .filter((reviewer) => reviewer),
-    team_reviewers: core
-      .getInput("pull_request_team_reviewers")
-      .trim()
-      .split("\n")
-      .filter((team_reviewer) => team_reviewer),
-    draft: core.getInput("pull_request_draft") === "true",
-    comment: core.getInput("pull_request_comment"),
-    automerge_method: automergeMethod,
-    project:
-      core.getInput("project_number") || core.getInput("project_id")
-        ? {
-            number: core.getInput("project_number")
-              ? parseInt(core.getInput("project_number"), 10)
-              : 0,
-            owner: core.getInput("project_owner"),
-            id: core.getInput("project_id"),
-          }
-        : null,
-    milestone_number: core.getInput("milestone_number")
-      ? parseInt(core.getInput("milestone_number"), 10)
-      : 0,
-  };
-  const value = {
-    context: github.context,
-    inputs: {
-      repository: core.getInput("repository"),
-      branch: core.getInput("branch"),
-      commit_message: core.getInput("commit_message"),
-      root_dir: core.getInput("root_dir"),
-      pull_request: pr,
-    },
-  };
+};
+
+const validatePR = (pr: PullRequest) => {
+  if (pr.title !== "") {
+    return;
+  }
   if (
-    !pr.title &&
-    (pr.base ||
-      pr.body ||
-      pr.labels.length > 0 ||
-      pr.assignees.length > 0 ||
-      pr.reviewers.length > 0 ||
-      pr.team_reviewers.length > 0 ||
-      pr.draft ||
-      pr.comment)
+    pr.base ||
+    pr.body ||
+    pr.labels.length > 0 ||
+    pr.assignees.length > 0 ||
+    pr.reviewers.length > 0 ||
+    pr.team_reviewers.length > 0 ||
+    pr.draft ||
+    pr.comment ||
+    pr.milestone_number > 0 ||
+    pr.project ||
+    pr.automerge_method
   ) {
     throw new Error("pull_request_title is required to create a pull request");
   }
+};
+
+const createMetadataFile = (labelName: string, inputs: Inputs) => {
+  const value = {
+    context: github.context,
+    inputs: {
+      repository: inputs.repo,
+      branch: inputs.branch,
+      commit_message: inputs.commitMessage,
+      root_dir: inputs.rootDir,
+      pull_request: inputs.pr,
+    },
+  };
   fs.writeFileSync(`${labelName}.json`, JSON.stringify(value, null, 2) + "\n");
 };

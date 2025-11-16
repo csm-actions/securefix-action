@@ -313,6 +313,8 @@ You can use [`prepare` action's outputs](docs/prepare.md#outputs).
 
 ## Troubleshooting
 
+- [Error: No matching entry found in the config for the given repository and branch.](docs/codes/001.md)
+
 ### Client Workflow Name
 
 By default, the client workflow name must be `securefix` for security.
