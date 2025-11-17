@@ -217,7 +217,7 @@ const getProjectId = async (
 type Project = {
   owner: string;
   number: number;
-  id: string;
+  id?: string;
 };
 
 const addItemToProject = async (

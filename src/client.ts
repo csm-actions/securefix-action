@@ -35,7 +35,7 @@ export const PullRequest = z.object({
     z.object({
       number: z.number(),
       owner: z.string(),
-      id: z.string(),
+      id: z.optional(z.string()),
     }),
   ),
   milestone_number: z.number(),
