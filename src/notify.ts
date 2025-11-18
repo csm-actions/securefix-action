@@ -75,10 +75,10 @@ export const notify = async (inputs: Inputs) => {
     return;
   }
   const octokit = github.getOctokit(inputs.githubToken);
-  core.notice(
+  core.info(
     `Creating a pull request comment on ${inputs.owner}/${inputs.repo} PR#${inputs.pr_number}`,
   );
-  octokit.rest.issues.createComment({
+  const comment = await octokit.rest.issues.createComment({
     owner: inputs.owner,
     repo: inputs.repo,
     issue_number: inputs.pr_number,
@@ -88,4 +88,5 @@ The comment was created by [Securefix Action](https://github.com/csm-actions/sec
 
 <!-- github-comment: {"SHA1":"${inputs.sha}","TemplateKey":"securefix-action"} -->`,
   });
+  core.notice(`Created a pull request comment: ${comment.data.html_url}`);
 };
