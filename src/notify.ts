@@ -86,7 +86,7 @@ export const notify = async (inputs: Inputs) => {
 [Workflow](${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/actions/runs/${github.context.runId})
 The comment was created by [Securefix Action](https://github.com/csm-actions/securefix-action).
 
-<!-- github-comment: {"SHA1":"${inputs.sha}","TemplateKey":"securefix-action"} -->`,
+<!-- github-comment: {"SHA1":"${inputs.sha}","Program":"securefix-action","TemplateKey":"notify"} -->`,
   });
   core.notice(`Created a pull request comment: ${comment.data.html_url}`);
 };
