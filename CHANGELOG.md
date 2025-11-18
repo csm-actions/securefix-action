@@ -110,7 +110,7 @@ Before:
   with:
     action: notify
     outputs: ${{ toJson(steps.prepare.outputs) }}
-      - uses: csm-actions/securefix-action@pr/339
+      - uses: csm-actions/securefix-action@latest
         with:
           action: server
           app_id: ${{ vars.AUTOFIX_APP_ID }}
