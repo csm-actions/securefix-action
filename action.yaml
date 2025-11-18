@@ -1,4 +1,4 @@
-name: Securefix Action
+name: Fix Code securely
 description: Securefix Action
 inputs:
   # common
