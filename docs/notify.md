@@ -1,6 +1,6 @@
 # `action: notify`
 
-[action.yaml](../action.yaml) | [Example](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
+[action.yaml](../action.yaml)
 
 `action: notify` notifies the failure.
 

@@ -257,10 +257,17 @@ Securefix Action is a single JavaScript Action.
 It has an input `action`, which accepts the following values:
 
 - [`client`: Client Action](docs/client.md)
+- [`server`: Server Action](docs/server.md)
+  - [`prepare`: Prepare for creating commits](docs/prepare.md)
+  - [`commit`: Create commits](docs/commit.md)
+  - [`notify`: Notify the failure to the client side](docs/notify.md)
 - [`validate-config`: Validate the configuration file of the server side](docs/validate-config.md)
-- [`prepare`: Prepare for creating commits](docs/prepare.md)
-- [`commit`: Create commits](docs/commit.md)
-- [`notify`: Notify the failure to the client side](docs/notify.md)
+
+The `server` action is a single action that consolidates the `prepare`, `commit`, and `notify` actions.
+In most cases, you can simply use the `server` action.
+
+If you need more flexibility, you can use the individual `prepare`, `commit`, and `notify` actions instead.
+For example, you can insert your own validation logic between `prepare` and `commit`, or implement custom notification handling instead of using the default `notify` action.
 
 ## Actions' Available Versions
 
