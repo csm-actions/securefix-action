@@ -1,1 +1,5 @@
 blank_issues_enabled: false
+contact_links:
+  - name: NotebookLM
+    url: https://notebooklm.google.com/notebook/558f0a54-6ff2-4d3d-887d-427b3e0d2b13
+    about: NotebokLM for Securefix Action
