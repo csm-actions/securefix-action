@@ -7,8 +7,14 @@ const Outputs = z.object({
   github_token: z.string(),
   client_repository: z.string(),
   error: z.optional(z.string()),
+  workflow_run: z.string(),
 });
 type Outputs = z.infer<typeof Outputs>;
+
+export const WorkflowRun = z.object({
+  head_sha: z.string(),
+});
+type WorkflowRun = z.infer<typeof WorkflowRun>;
 
 const defaultComment = `## :x: Securefix Action failed.`;
 
@@ -22,6 +28,9 @@ export const action = async () => {
     comment: readComment(),
     commitError: core.getInput("commit_error"),
   };
+  const workflowRun = WorkflowRun.parse(
+    JSON.parse(inputs.outputs.workflow_run),
+  );
   const pr = inputs.outputs.pull_request
     ? JSON.parse(inputs.outputs.pull_request)
     : undefined;
@@ -48,6 +57,7 @@ export const action = async () => {
     pr_number: pr.number,
     comment: msgs.join("\n"),
     githubToken: outputs.github_token,
+    sha: workflowRun.head_sha,
   });
 };
 
@@ -57,6 +67,7 @@ type Inputs = {
   pr_number: number;
   comment: string;
   githubToken: string;
+  sha: string;
 };
 
 export const notify = async (inputs: Inputs) => {
@@ -73,6 +84,8 @@ export const notify = async (inputs: Inputs) => {
     issue_number: inputs.pr_number,
     body: `${inputs.comment}
 [Workflow](${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/actions/runs/${github.context.runId})
-The comment was created by [Securefix Action](https://github.com/csm-actions/securefix-action).`,
+The comment was created by [Securefix Action](https://github.com/csm-actions/securefix-action).
+
+<!-- github-comment: {"SHA1":"${inputs.sha}","TemplateKey":"securefix-action"} -->`,
   });
 };

@@ -51,7 +51,7 @@ export const create = async (inputs: Inputs) => {
 
   const octokit = github.getOctokit(outputs.github_token);
   core.info(`Creating a commit on ${owner}/${repo} ${outputs.branch}`);
-  await commit.createCommit(octokit, {
+  const createdCommit = await commit.createCommit(octokit, {
     owner: owner,
     repo: repo,
     branch: outputs.branch,
@@ -63,6 +63,11 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
       info: core.info,
     },
   });
+  if (createdCommit?.commit?.sha) {
+    core.notice(
+      `Created a commit branch=${outputs.branch} ${github.context.serverUrl}/${owner}/${repo}/commit/${createdCommit.commit.sha}`,
+    );
+  }
   if (!outputs.create_pull_request) {
     return;
   }

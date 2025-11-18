@@ -174,8 +174,6 @@ class Output {
 
 export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
-  const token = data.token;
-  const runId = data.runId;
   const outputs = data.outputs;
   const metadata = data.metadata;
   // Read metadata
@@ -183,7 +181,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     .readFileSync(`${inputs.labelName}_files.txt`, "utf8")
     .trim();
   outputs.setFixedFiles(fixedFiles);
-  const octokit = github.getOctokit(token);
+  const octokit = github.getOctokit(data.token);
 
   if (
     metadata.inputs.pull_request?.title &&
@@ -210,56 +208,49 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     });
     outputs.setPullRequest(JSON.stringify(pullRequest));
   }
-  // Get GitHub Actions Workflow Run
-  const workflowName = inputs.workflowName;
-  const { data: workflowRun } = await octokit.rest.actions.getWorkflowRun({
-    owner: metadata.context.payload.repository.owner.login,
-    repo: metadata.context.payload.repository.name,
-    run_id: runId,
-  });
 
-  if (!workflowRun.head_branch) {
+  if (!data.branch) {
     throw new Error("workflowRun.head_branch is not set");
   }
-  const headBranch = workflowRun.head_branch;
 
-  outputs.setWorkflowRun(JSON.stringify(workflowRun));
   // Validate workflow name
-  if (workflowName && workflowRun.name !== workflowName) {
+  if (inputs.workflowName && data.workflowName !== inputs.workflowName) {
     throw new Error(
-      `The client workflow name must be ${workflowName}, but got ${workflowRun.name}`,
+      `The client workflow name must be ${inputs.workflowName}, but got ${data.workflowName}`,
     );
   }
 
-  // Validate repository and branch
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
+    // By default, push to the same repository and branch as the workflow run.
     outputs.setPushRepository(metadata.context.payload.repository.full_name);
-    outputs.setBranch(workflowRun.head_branch);
+    outputs.setBranch(data.branch);
     return outputs;
   }
 
-  // check if head branch is protected
+  // If pushed repository and branch are specified, the workflow run branch must be protected.
   const { data: branch } = await octokit.rest.repos.getBranch({
     owner: metadata.context.payload.repository.owner.login,
     repo: metadata.context.payload.repository.name,
-    branch: headBranch,
+    branch: data.branch,
   });
   if (!branch.protected) {
     throw new Error("the workflow run head branch must be protected");
   }
 
-  // Read YAML config to push other repositories and branches
+  // Read YAML config to push a commit to other repositories and branches
   const config = readConfig();
   const destRepo =
     metadata.inputs.repository || metadata.context.payload.repository.full_name;
-  const destBranch = metadata.inputs.branch || workflowRun.head_branch;
+  const destBranch = metadata.inputs.branch || data.branch;
   (() => {
     for (const entry of config.entries) {
       if (
         entry.client.repositories.some((repo) =>
           minimatch(metadata.context.payload.repository.full_name, repo),
         ) &&
-        entry.client.branches.some((branch) => minimatch(headBranch, branch)) &&
+        entry.client.branches.some((branch) =>
+          minimatch(data.branch ?? "", branch),
+        ) &&
         entry.push.repositories.some((repo) => minimatch(destRepo, repo)) &&
         entry.push.branches.some((branch) => minimatch(destBranch, branch))
       ) {
@@ -404,6 +395,9 @@ type Data = {
   inputs: Inputs;
   workflowRun: WorkflowRun;
   token: string;
+  sha: string;
+  branch: string;
+  workflowName: string;
   runId: number;
   outputs: Output;
   metadata: Metadata;
@@ -415,6 +409,9 @@ export const prepare = async (
 ): Promise<Data> => {
   const outputs = new Output(isOutput);
   const workflowRun = parseLabelDescription(inputs.labelDescription);
+  core.notice(
+    `client workflow run: ${github.context.serverUrl}/${workflowRun.owner}/${workflowRun.repo}/actions/runs/${workflowRun.runId}`,
+  );
   outputs.setClientRepository(`${workflowRun.owner}/${workflowRun.repo}`);
 
   // create github app token
@@ -431,14 +428,46 @@ export const prepare = async (
   const metadata = Metadata.parse(JSON.parse(metadataS));
   outputs.setMetadata(metadataS);
 
-  return {
-    inputs,
-    workflowRun,
-    token: token.token,
-    runId: workflowRun.runId,
-    outputs,
-    metadata,
-  };
+  if (metadata.context.payload.pull_request?.number) {
+    core.notice(
+      `client pr: ${github.context.serverUrl}/${metadata.context.payload.repository.owner.login}/${metadata.context.payload.repository.name}/pull/${metadata.context.payload.pull_request.number}`,
+    );
+  }
+
+  try {
+    const octokit = github.getOctokit(token.token);
+    const { data: wr } = await octokit.rest.actions.getWorkflowRun({
+      owner: metadata.context.payload.repository.owner.login,
+      repo: metadata.context.payload.repository.name,
+      run_id: workflowRun.runId,
+    });
+    outputs.setWorkflowRun(JSON.stringify(wr));
+    return {
+      inputs,
+      workflowRun,
+      token: token.token,
+      runId: workflowRun.runId,
+      sha: wr.head_sha,
+      branch: wr.head_branch ?? "",
+      workflowName: wr.name ?? "",
+      outputs,
+      metadata,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : JSON.stringify(e);
+    core.error(`Failed to get the workflow run: ${msg}`);
+    return {
+      inputs,
+      workflowRun,
+      token: token.token,
+      runId: workflowRun.runId,
+      sha: "",
+      branch: "",
+      workflowName: "",
+      outputs,
+      metadata,
+    };
+  }
 };
 
 export const main = async (

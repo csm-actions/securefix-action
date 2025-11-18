@@ -39,6 +39,7 @@ export const action = async () => {
       repo: data.workflowRun.repo,
       pr_number: data.metadata.context.payload.pull_request?.number ?? 0,
       githubToken: data.token,
+      sha: data.sha,
       comment: [
         notify.readComment(),
         "\n## Error",
