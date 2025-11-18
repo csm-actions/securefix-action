@@ -2,7 +2,6 @@ import * as core from "@actions/core";
 import * as prepare from "./prepare";
 import * as commit from "./commit";
 import * as notify from "./notify";
-import { get } from "http";
 
 const isObject = (value: unknown): value is object => {
   return typeof value === "object" && value !== null;

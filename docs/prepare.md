@@ -1,6 +1,6 @@
 # `action: prepare`
 
-[action.yaml](../action.yaml) | [Workflow](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
+[action.yaml](../action.yaml)
 
 `action: prepare` prepares for creating a commit.
 
