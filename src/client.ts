@@ -30,7 +30,7 @@ export const PullRequest = z.object({
   team_reviewers: z.array(z.string()),
   draft: z.boolean(),
   comment: z.string(),
-  automerge_method: z.string(),
+  automerge_method: z.optional(z.string()),
   project: z.nullable(
     z.object({
       number: z.number(),
@@ -38,7 +38,7 @@ export const PullRequest = z.object({
       id: z.optional(z.string()),
     }),
   ),
-  milestone_number: z.number(),
+  milestone_number: z.optional(z.number()),
 });
 export type PullRequest = z.infer<typeof PullRequest>;
 
@@ -115,7 +115,7 @@ export const action = async () => {
         : 0,
     },
   };
-  validateAutomergeMethod(inputs.pr.automerge_method);
+  validateAutomergeMethod(inputs.pr.automerge_method ?? "");
   validatePR(inputs.pr);
   // Generate artifact name
   const n = nowS();
@@ -281,7 +281,7 @@ const validatePR = (pr: PullRequest) => {
     pr.team_reviewers.length > 0 ||
     pr.draft ||
     pr.comment ||
-    pr.milestone_number > 0 ||
+    pr.milestone_number ||
     pr.project ||
     pr.automerge_method
   ) {
