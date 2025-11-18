@@ -22,6 +22,16 @@ export const readComment = (): string => {
   return core.getInput("pull_request_comment") || defaultComment;
 };
 
+export const isIgnoredErrorMessage = (msg: string): boolean => {
+  const ignoredErrorMessages = ["Update is not a fast forward"];
+  for (const ignoredErrorMessage of ignoredErrorMessages) {
+    if (msg.includes(ignoredErrorMessage)) {
+      return true;
+    }
+  }
+  return false;
+};
+
 export const action = async () => {
   const inputs = {
     outputs: Outputs.parse(JSON.parse(core.getInput("outputs"))),
@@ -49,7 +59,14 @@ export const action = async () => {
     msgs.push("\n## Prepare Error", "\n```", outputs.error, "```\n");
   }
   if (inputs.commitError) {
-    msgs.push("\n## Commit Error", "\n```", inputs.commitError, "```\n");
+    if (isIgnoredErrorMessage(inputs.commitError)) {
+      core.info("Ignoring commit error message");
+    } else {
+      msgs.push("\n## Commit Error", "\n```", inputs.commitError, "```\n");
+    }
+  }
+  if (msgs.length === 0) {
+    return;
   }
   await notify({
     owner: owner,

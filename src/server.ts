@@ -2,6 +2,7 @@ import * as core from "@actions/core";
 import * as prepare from "./prepare";
 import * as commit from "./commit";
 import * as notify from "./notify";
+import { get } from "http";
 
 const isObject = (value: unknown): value is object => {
   return typeof value === "object" && value !== null;
@@ -34,19 +35,21 @@ export const action = async () => {
   } catch (e) {
     const err = isObject(e);
     core.startGroup("notify");
+    const msg = getErrorMessage(e);
+    if (notify.isIgnoredErrorMessage(msg)) {
+      core.info("Ignoring error message");
+      core.endGroup();
+      throw e;
+    }
     await notify.notify({
       owner: data.workflowRun.owner,
       repo: data.workflowRun.repo,
       pr_number: data.metadata.context.payload.pull_request?.number ?? 0,
       githubToken: data.token,
       sha: data.sha,
-      comment: [
-        notify.readComment(),
-        "\n## Error",
-        "\n```",
-        getErrorMessage(e),
-        "```\n",
-      ].join("\n"),
+      comment: [notify.readComment(), "\n## Error", "\n```", msg, "```\n"].join(
+        "\n",
+      ),
     });
     core.endGroup();
     throw e;
