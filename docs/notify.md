@@ -1,8 +1,8 @@
-# Server Notify Action
+# `action: notify`
 
-[action.yaml](action.yaml) | [Example](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
+[action.yaml](../action.yaml) | [Example](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
 
-Server Notify Action notifies the failure.
+`action: notify` notifies the failure.
 
 ![image](https://github.com/user-attachments/assets/3a06184f-2566-4863-9b2f-20548b8bc990)
 
@@ -10,7 +10,7 @@ Server Notify Action notifies the failure.
 
 ### Required Inputs
 
-- `outputs`: Server Prepare Action's outputs
+- [`outputs`: `action: prepare`'s outputs](prepare.md#outputs)
 
 ```yaml
 outputs: ${{ toJson(steps.prepare.outputs) }}

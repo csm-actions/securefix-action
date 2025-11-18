@@ -1,26 +1,39 @@
-name: Fix Code securely
-description: Fix Code securely
-author: Shunsuke Suzuki
-branding:
-  icon: git-commit
-  color: green
+name: Securefix Action
+description: Securefix Action
 inputs:
+  # common
+  action:
+    description: config
+    required: false
   app_id:
     description: |
       GitHub App ID
-    required: true
+    required: false
   app_private_key:
     description: |
       GitHub App Private Key
-    required: true
-  server_repository:
-    description: |
-      Server repository name
     required: false
-    default: securefix
+
+  outputs:
+    description: |
+      Prepare action's outputs
+    required: false
+  # client and commit
   commit_message:
     description: |
       Commit message
+    required: false
+  # client and notify
+  pull_request_comment:
+    description: |
+      Pull request comment.
+      If this is set, a pull request comment is posted after a pull request is created.
+    required: false
+
+  # client
+  server_repository:
+    description: |
+      Server repository name
     required: false
   files:
     description: |
@@ -30,6 +43,7 @@ inputs:
     description: |
       If true, the action fails if there are changes.
     required: false
+    default: "false"
   repository:
     description: |
       A repository full name where a commit will be pushed.
@@ -59,29 +73,30 @@ inputs:
   pull_request_labels:
     description: |
       Pull request labels.
-      This requires the `issues:write` permission.
+      Each label is separated by a newline.
+      Note that labels must exist in the repository.
+      This action doesn't create labels.
     required: false
   pull_request_draft:
     description: |
       Create a pull request as draft.
     required: false
+    default: "false"
   pull_request_reviewers:
     description: |
       Pull request reviewers.
+      Each reviewer is separated by a newline.
     required: false
   pull_request_team_reviewers:
     description: |
       Pull request team reviewers.
       This requires the `members:read` permission.
+      Each reviewer is separated by a newline.
     required: false
   pull_request_assignees:
     description: |
       Pull request assignees.
-    required: false
-  pull_request_comment:
-    description: |
-      Pull request comment.
-      If this is set, a pull request comment is posted after a pull request is created.
+      Each assignee is separated by a newline.
     required: false
   project_owner:
     description: |
@@ -90,6 +105,10 @@ inputs:
   project_number:
     description: |
       Project number where the pull request is added.
+    required: false
+  project_id:
+    description: |
+      Project id where the pull request is added.
     required: false
   milestone_number:
     description: |
@@ -100,139 +119,66 @@ inputs:
       auto-merge method. One of "merge", "squash", or "rebase".
       By default, auto-merge is disabled.
     required: false
+  # prepare
+  workflow_name:
+    description: |
+      Client Workflow name. If this is empty, the action does not check the workflow name.
+    required: false
+    default: securefix
+  allow_workflow_fix:
+    description: |
+      Either true or false. If true, the action allows the workflow to fix the code.
+    required: false
+    default: "false"
+  allow_members_read:
+    description: |
+      Either true or false. If true, the members:read permission is granted.
+    required: false
+    default: "false"
+  allow_organization_projects_write:
+    description: |
+      Either true or false. If true, the organization-projects:write permission is granted.
+    required: false
+    default: "false"
+
+  commit_error:
+    description: |
+      The output error of the commit action.
+    required: false
+
+  config:
+    description: |
+      YAML config to push other repositories and branches.
+    required: false
+  config_file:
+    description: |
+      A file path to YAML config.
+    required: false
+  label_name:
+    description: |
+      Label name to trigger the action.
+    required: false
+    default: ${{github.event.label.name}}
+  label_description:
+    description: |
+      Label description to trigger the action.
+      The format must be <repository owner>/<repository name>/<workflow run ID>.
+    required: false
+    default: ${{github.event.label.description}}
+  delete_label:
+    description: |
+      Either true or false. If true, the label is deleted.
+    required: false
+    default: "true"
+  github_token_to_delete_label:
+    description: |
+      GitHub token to delete the label.
+    required: false
+    default: "${{github.token}}"
+  # commit
+  # notify
+outputs: {}
 runs:
-  using: composite
-  steps:
-    - uses: csm-actions/securefix-action/js@main
-      id: client1
-      with:
-        action: client1
-        files: ${{inputs.files}}
-        root_dir: ${{inputs.root_dir}}
-
-    # Create a GitHub App token to create and delete a label
-    - uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
-      if: steps.client1.outputs.changed_files != ''
-      id: token
-      with:
-        app-id: ${{inputs.app_id}}
-        private-key: ${{inputs.app_private_key}}
-        owner: ${{github.repository_owner}}
-        repositories: ${{inputs.server_repository}}
-        permission-issues: write
-
-    # Create metadata
-    - if: steps.client1.outputs.changed_files != ''
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
-      id: metadata
-      env:
-        COMMIT_MESSAGE: ${{inputs.commit_message}}
-        REPO: ${{inputs.repository}}
-        BRANCH: ${{inputs.branch}}
-        ROOT_DIR: ${{inputs.root_dir}}
-        PR_TITLE: ${{inputs.pull_request_title}}
-        PR_BASE_BRANCH: ${{inputs.pull_request_base_branch}}
-        PR_BODY: ${{inputs.pull_request_body}}
-        PR_LABELS: ${{inputs.pull_request_labels}}
-        PR_ASSIGNEES: ${{inputs.pull_request_assignees}}
-        PR_REVIEWERS: ${{inputs.pull_request_reviewers}}
-        PR_TEAM_REVIEWERS: ${{inputs.pull_request_team_reviewers}}
-        PR_DRAFT: ${{inputs.pull_request_draft}}
-        PR_COMMENT: ${{inputs.pull_request_comment}}
-        PROJECT_OWNER: ${{inputs.project_owner}}
-        PROJECT_NUMBER: ${{inputs.project_number}}
-        MILESTONE_NUMBER: ${{inputs.milestone_number}}
-        AUTOMERGE_METHOD: ${{inputs.automerge_method}}
-      with:
-        script: |
-          if (!process.env.PR_TITLE && (process.env.PR_BASE_BRANCH || process.env.PR_BODY || process.env.PR_LABELS || process.env.PR_ASSIGNEES || process.env.PR_REVIEWERS || process.env.PR_TEAM_REVIEWERS || process.env.PR_DRAFT || process.env.PR_COMMENT)) {
-            throw new Error('pull_request_title is required to create a pull request');
-          }
-          let automergeMethod = process.env.AUTOMERGE_METHOD || '';
-          if (!['', 'merge', 'squash', 'rebase'].includes(automergeMethod)) {
-            throw new Error('automerge_method must be one of "", "merge", "squash", or "rebase"');
-          }
-          return {
-            context: context,
-            inputs: {
-              repository: process.env.REPO || '',
-              branch: process.env.BRANCH || '',
-              commit_message: process.env.COMMIT_MESSAGE || '',
-              root_dir: process.env.ROOT_DIR || '',
-              pull_request: {
-                title: process.env.PR_TITLE || '',
-                body: process.env.PR_BODY || '',
-                base: process.env.PR_BASE_BRANCH || '',
-                labels: process.env.PR_LABELS ? process.env.PR_LABELS.trim().split('\n') : [],
-                assignees: process.env.PR_ASSIGNEES ? process.env.PR_ASSIGNEES.trim().split('\n') : [],
-                reviewers: process.env.PR_REVIEWERS ? process.env.PR_REVIEWERS.trim().split('\n') : [],
-                team_reviewers: process.env.PR_TEAM_REVIEWERS ? process.env.PR_TEAM_REVIEWERS.trim().split('\n') : [],
-                draft: process.env.PR_DRAFT === 'true',
-                comment: process.env.PR_COMMENT || '',
-                automerge_method: automergeMethod,
-                project: process.env.PROJECT_NUMBER ? {
-                  number: parseInt(process.env.PROJECT_NUMBER, 10),
-                  owner: process.env.PROJECT_OWNER,
-                } : null,
-                milestone_number: process.env.MILESTONE_NUMBER ? parseInt(process.env.MILESTONE_NUMBER, 10) : 0,
-              }
-            },
-          };
-
-    # Create a metadata file
-    - if: steps.client1.outputs.changed_files != ''
-      shell: bash
-      run: echo "$EVENT" > "${ARTIFACT_NAME}.json"
-      env:
-        ARTIFACT_NAME: ${{ steps.client1.outputs.artifact_name }}
-        EVENT: ${{steps.metadata.outputs.result}}
-
-    # Create a file where fixed file paths are listed
-    - if: steps.client1.outputs.changed_files != ''
-      shell: bash
-      run: echo "$FILES" > "${ARTIFACT_NAME}_files.txt"
-      env:
-        ARTIFACT_NAME: ${{ steps.client1.outputs.artifact_name }}
-        FILES: ${{ steps.client1.outputs.changed_files_from_root_dir }}
-    # Upload files to GitHub Actions Artifact
-    - if: steps.client1.outputs.changed_files != ''
-      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-      with:
-        name: ${{steps.client1.outputs.artifact_name}}
-        include-hidden-files: true
-        path: |
-          ${{ steps.client1.outputs.changed_files }}
-          ${{steps.client1.outputs.artifact_name}}.json
-          ${{steps.client1.outputs.artifact_name}}_files.txt
-    # Delete metadata files
-    - if: steps.client1.outputs.changed_files != ''
-      shell: bash
-      run: rm "${ARTIFACT_NAME}.json" "${ARTIFACT_NAME}_files.txt"
-      env:
-        ARTIFACT_NAME: ${{ steps.client1.outputs.artifact_name }}
-    # Create a label
-    - if: steps.client1.outputs.changed_files != ''
-      shell: bash
-      env:
-        GH_TOKEN: ${{ steps.token.outputs.token }}
-        ARTIFACT_NAME: ${{ steps.client1.outputs.artifact_name }}
-        REPO: ${{inputs.server_repository}}
-      run: |
-        gh label create \
-          -R "${GITHUB_REPOSITORY_OWNER}/${REPO}" \
-          "$ARTIFACT_NAME" \
-          --description "$GITHUB_REPOSITORY/${GITHUB_RUN_ID}"
-    # Fail if changes are detected
-    - if: steps.client1.outputs.changed_files != ''
-      shell: bash
-      env:
-        FILES: ${{ steps.client1.outputs.changed_files }}
-        FAILED: ${{inputs.fail_if_changes != '' && inputs.fail_if_changes || (inputs.repository == '' && inputs.branch == '')}}
-      run: |
-        if [ "$FAILED" = true ]; then
-          echo "::error:: Changes detected. A commit will be pushed"
-          echo "$FILES"
-          exit 1
-        fi
-        echo "::notice:: Changes detected. A commit will be pushed"
-        echo "$FILES"
+  using: node20
+  main: dist/index.js
+  post: dist/index.js

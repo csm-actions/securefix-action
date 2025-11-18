@@ -86,6 +86,31 @@
       "algorithm": "sha256"
     },
     {
+      "id": "http/nodejs.org/dist/v20.19.5/node-v20.19.5-darwin-arm64.tar.gz",
+      "checksum": "CFED7503D8D99FBCF2F52E408EC52F616058EB0867B34DBC3437259993EF5CBA",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "http/nodejs.org/dist/v20.19.5/node-v20.19.5-darwin-x64.tar.gz",
+      "checksum": "F9CFF058F2766D4D0631DC69B5F7F27664B3A42FF186E25AC7E1AC269AF7E696",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "http/nodejs.org/dist/v20.19.5/node-v20.19.5-linux-arm64.tar.gz",
+      "checksum": "A08B513DE673853CA16395EC461A104A99BF0E941EBB7BAEDB98B30CD221D8CC",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "http/nodejs.org/dist/v20.19.5/node-v20.19.5-linux-x64.tar.gz",
+      "checksum": "4EBA5FBE1FB10753BC06E42F001A91C5CEC16798B7764A3E9257ADC59AF47FE1",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "http/nodejs.org/dist/v20.19.5/node-v20.19.5-win-x64.zip",
+      "checksum": "C48159529572A5A947EEF2D55D6485DFDC4CE8E67216402E2F6DE52AD5D95695",
+      "algorithm": "sha256"
+    },
+    {
       "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.436.0/registry.yaml",
       "checksum": "D10A9E3D8F3D28C8A75E536FD30C8B1C2E91C92637DF4BC97B61E375E133DDF271E277F9F7F628DBC8A1CA2C5F03CD4CAADB338EEB549B3C00C4BA9F5E444BEB",
       "algorithm": "sha512"

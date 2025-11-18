@@ -8,21 +8,9 @@ jobs:
     runs-on: ubuntu-24.04
     permissions: {}
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          persist-credentials: false
       - uses: ./
         with:
-          app_id: "dummy"
-          app_private_key: "dummy"
-      - uses: ./server/prepare
-        id: prepare
-        with:
-          app_id: "dummy"
-          app_private_key: "dummy"
-      - uses: ./server/commit
-        with:
-          outputs: ${{ toJson(steps.prepare.outputs) }}
-      - uses: ./server/notify
-        with:
-          outputs: ${{ toJson(steps.prepare.outputs) }}
+          app_id: dummy
+          app_private_key: dummy
+          action: client
+          server_repository: dummy

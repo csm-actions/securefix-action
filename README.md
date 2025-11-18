@@ -37,7 +37,6 @@ See also [Release Notes](https://github.com/csm-actions/securefix-action/release
 - 😊 Easy to use
   - You can create a commit by one action on the client side
   - You don't need to host a server application
-- 😉 [OSS (MIT License)](LICENSE)
 
 ## Overview
 
@@ -85,7 +84,7 @@ You don't need to host a server application.
 
 ## Architecture
 
-Securefix Action adopts [the Client/Server Model](https://github.com/securefix-action/client-server-model-docs).
+Securefix Action adopts [the Client/Server Model](https://github.com/csm-actions/docs).
 It uses following GitHub Apps, repositories, and workflows:
 
 - two GitHub Apps
@@ -142,7 +141,6 @@ Permissions:
 - `actions:read`: To download GitHub Actions Artifacts to fix code
 - `pull_requests:write`: To notify problems on the server side to pull requests
 - `workflows:write`: Optional. This is required if you want to fix GitHub Actions workflows
-- `issues:write`: Optional. This is required if you want to add labels to pull requests
 - `members:read`: Optional. This is required if you want to request reviews to teams
 - Organization's `projects:write`: Optional. This is required if you want to add pull requests to GitHub Organization Projects
 
@@ -196,7 +194,7 @@ bar.yaml:
 
 ```yaml
 names:
-- bar
+  - bar
 ```
 
 2. Create a pull request ([Example](https://github.com/securefix-action/demo-client/pull/8)):
@@ -235,24 +233,26 @@ Allowing to push any repository and branch without any restriction is dangerous,
 You can push a commit from only allowed repositories and branches to only allowed repositories and branches.
 From Securefix Action v0.3.0, the source branch must be protected.
 
-1. [Configure the server side](server/prepare/README.md#config-config_file)
+1. [Configure the server side](docs/prepare.md#config-config_file)
 2. [Configure the client side](docs/client.md#push-a-commit-to-the-other-repository-and-branch)
 
 ### Create pull requests
 
 When pushing a commit to the other repository and branch, you can also create a pull request.
 
-1. [Configure the server side](server/prepare/README.md#config-config_file)
+1. [Configure the server side](docs/prepare.md#config-config_file)
 2. [Configure the client side](docs/client.md#create-a-pull-request)
 
 ## Actions
 
-Securefix Action composes of four actions:
+Securefix Action is a single JavaScript Action.
+It has an input `action`, which accepts the following values:
 
-- [csm-actions/securefix-action](docs/client.md) ([action.yaml](action.yaml)): Client action
-- [csm-actions/securefix-action/server/prepare](server/prepare) ([action.yaml](server/prepare/action.yaml)): Server action to prepare for creating commits
-- [csm-actions/securefix-action/server/commit](server/commit) ([action.yaml](server/commit/action.yaml)): Server action to create commits
-- [csm-actions/securefix-action/server/notify](server/notify) ([action.yaml](server/notify/action.yaml)): Server action to notify the server failure
+- [`client`: Client Action](docs/client.md)
+- [`validate-config`: Validate the configuration file of the server side](docs/validate-config.md)
+- [`prepare`: Prepare for creating commits](docs/prepare.md)
+- [`commit`: Create commits](docs/commit.md)
+- [`notify`: Notify the failure to the client side](docs/notify.md)
 
 ## Actions' Available Versions
 
@@ -286,41 +286,46 @@ There are several ideas:
 
 ### Custom Validation
 
-You can insert custom validation between `server/prepare` action and `server/commit` action.
-You can use [`server/prepare` action's outputs](server/prepare#outputs).
+You can insert custom validation between `prepare` action and `commit` action.
+You can use [`prepare` action's outputs](docs/prepare.md#outputs).
 
 ```yaml
-- uses: csm-actions/securefix-action/server/prepare@4f3e711a06d7d5a3f5527cc622f6c75362fec74b # v0.3.6
+- uses: csm-actions/securefix-action@latest
   id: prepare
   with:
+    action: prepare
     app_id: ${{ vars.DEMO_SERVER_APP_ID }}
     app_private_key: ${{ secrets.DEMO_SERVER_PRIVATE_KEY }}
 # Custom Validation
 - if: fromJson(steps.prepare.outputs.pull_request).user.login != 'suzuki-shunsuke'
   run: |
     exit 1
-- uses: csm-actions/securefix-action/server/commit@4f3e711a06d7d5a3f5527cc622f6c75362fec74b # v0.3.6
+- uses: csm-actions/securefix-action@latest
   with:
+    action: commit
     outputs: ${{ toJson(steps.prepare.outputs) }}
-- uses: csm-actions/securefix-action/server/notify@4f3e711a06d7d5a3f5527cc622f6c75362fec74b # v0.3.6
+- uses: csm-actions/securefix-action@latest
   failure()
   with:
+    action: notify
     outputs: ${{ toJson(steps.prepare.outputs) }}
 ```
 
 ## Troubleshooting
 
+- [Error: No matching entry found in the config for the given repository and branch.](docs/codes/001.md)
+
 ### Client Workflow Name
 
 By default, the client workflow name must be `securefix` for security.
-Otherwise, the server/prepare action fails.
-[You can change the workflow name or remove the restriction using server/prepare action's `workflow_name` input.](server/prepare#optional-inputs)
+Otherwise, the prepare action fails.
+[You can change the workflow name or remove the restriction using prepare action's `workflow_name` input.](docs/prepare.md#optional-inputs)
 
 ### How To Fix Workflow Files
 
 By default, Serverfix Action doesn't allow you to fix workflow files for security.
 By default, the server action fails if fixed files include workflow files.
-[You can allow it by setting server/prepare action's `allow_workflow_fix` to `true`.](server/prepare#optional-inputs)
+[You can allow it by setting prepare action's `allow_workflow_fix` to `true`.](docs/prepare.md#optional-inputs)
 
 ### GitHub API Rate Limiting
 
