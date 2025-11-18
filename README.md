@@ -1,6 +1,6 @@
 # Securefix Action
 
-[![License](http://img.shields.io/badge/license-mit-blue.svg?style=flat-square)](https://raw.githubusercontent.com/csm-actions/securefix-action/main/LICENSE) | [Versioning Policy](https://github.com/suzuki-shunsuke/versioning-policy/blob/main/POLICY.md)
+[![License](http://img.shields.io/badge/license-mit-blue.svg?style=flat-square)](https://raw.githubusercontent.com/csm-actions/securefix-action/main/LICENSE) | [Versioning Policy](https://github.com/suzuki-shunsuke/versioning-policy/blob/main/POLICY.md) | [NotebookLM](https://notebooklm.google.com/notebook/558f0a54-6ff2-4d3d-887d-427b3e0d2b13)
 
 Securefix Action is GitHub Actions to fix code securely.
 
@@ -16,8 +16,16 @@ Furthermore, it's easy to use.
 You don't need to host a server application.
 It achieves a server/client architecture using GitHub Actions by unique approach.
 
+## :bulb: NotebookLM
+
+[You can ask questions about Securefix Action to Google NotebookLM's notebook.](https://notebooklm.google.com/notebook/558f0a54-6ff2-4d3d-887d-427b3e0d2b13)
+
 ## :rocket: Recent Important Updates
 
+- [v0.4.1 (2025-11)](https://github.com/csm-actions/securefix-action/releases/tag/v0.4.1)
+  - The performance was drastically improved
+- [v0.3.0 (2025-10)](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.0)
+  - :warning: If the repository or branch is changed, the source branch must be protected for security.
 - [v0.2.0 (2025-07)](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)
   - [You can now push commits to the other repository and branch securely](#push-to-other-repository-and-branch)
   - [You can now create pull requests](#create-pull-requests)
