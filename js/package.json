@@ -9,7 +9,7 @@
     "@octokit/core": "^7.0.0",
     "@octokit/plugin-paginate-graphql": "^6.0.0",
     "@types/json-diff": "^1.0.3",
-    "glob": "11.0.3",
+    "glob": "11.1.0",
     "js-yaml": "4.1.1",
     "tmp": "^0.2.3",
     "zod": "^3.22.4"
