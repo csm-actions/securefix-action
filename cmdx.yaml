@@ -25,3 +25,9 @@ tasks:
         required: false
         script_envs:
           - REF
+
+  - name: notebook
+    description: Create a notebook
+    usage: Create a notebook
+    script: |
+      git ls-files | grep -E "\.md$" | grep -v .github | xargs cat - > securefix-action.md
