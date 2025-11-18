@@ -55,7 +55,7 @@ This improves the performance of both client and server drastically.
 1. Speeding up Action download time
 2. Rewriting shell scripts in Node.js
 3. Converting composite actions into a single JavaScript Action to eliminate step-to-step overhead
-5. Various smaller performance improvements such as deferring label removal, reducing the number of generated access tokens from two to one, and parallelizing API calls
+4. Various smaller performance improvements such as deferring label removal, reducing the number of generated access tokens from two to one, and parallelizing API calls
 
 Among these improvements, the most impactful is the reduction of **Action download time**.
 A GitHub Actions job first runs the `Set up job` step, during which it downloads all actions referenced in the job.
@@ -170,6 +170,7 @@ You can post the error of commit action by passing the error to notify action vi
 <img width="916" height="353" alt="image" src="https://github.com/user-attachments/assets/205376f3-a5fb-4d3f-964b-3a08356f5530" />
 
 6. Skip a pr comment when `Update is not a fast forward`.
+
 ## v0.3.6
 
 [Issues](https://github.com/csm-actions/securefix-action/issues?q=is%3Aissue+is%3Aclosed+milestone%3Av0.3.6) | [Pull Requests](https://github.com/csm-actions/securefix-action/pulls?q=is%3Apr+is%3Aclosed+milestone%3Av0.3.6) | https://github.com/csm-actions/securefix-action/compare/v0.3.5...v0.3.6 | [Base revision](https://github.com/csm-actions/securefix-action/tree/f9cf7410433db80d5111f58b4f858c16e885f11e)
@@ -177,6 +178,7 @@ You can post the error of commit action by passing the error to notify action vi
 ## 🐛 Bug Fixes
 
 #337 Fix invalid template errors by fromJSON
+
 ## v0.3.5
 
 [Issues](https://github.com/csm-actions/securefix-action/issues?q=is%3Aissue+is%3Aclosed+milestone%3Av0.3.5) | [Pull Requests](https://github.com/csm-actions/securefix-action/pulls?q=is%3Apr+is%3Aclosed+milestone%3Av0.3.5) | https://github.com/csm-actions/securefix-action/compare/v0.3.4...v0.3.5 | [Base revision](https://github.com/csm-actions/securefix-action/tree/2a811220ee23a47fdcd8787456a40bd013b46dfd)
@@ -191,16 +193,17 @@ To use this feature, you need to set the input `automerge_method` of the client 
 e.g.
 
 ```yaml
-      - uses: csm-actions/securefix-action@latest
-        with:
-          app_id: ${{vars.APP_ID}}
-          app_private_key: ${{secrets.APP_PRIVATE_KEY}}
-          server_repository: securefix-demo-server
-          branch: test-4
-          pull_request_title: Title
-          pull_request_base_branch: develop
-          automerge_method: "squash" # Enable auto-merge. The merge method is `squash`
+- uses: csm-actions/securefix-action@latest
+  with:
+    app_id: ${{vars.APP_ID}}
+    app_private_key: ${{secrets.APP_PRIVATE_KEY}}
+    server_repository: securefix-demo-server
+    branch: test-4
+    pull_request_title: Title
+    pull_request_base_branch: develop
+    automerge_method: "squash" # Enable auto-merge. The merge method is `squash`
 ```
+
 ## v0.3.4
 
 [Issues](https://github.com/csm-actions/securefix-action/issues?q=is%3Aissue+is%3Aclosed+milestone%3Av0.3.4) | [Pull Requests](https://github.com/csm-actions/securefix-action/pulls?q=is%3Apr+is%3Aclosed+milestone%3Av0.3.4) | https://github.com/csm-actions/securefix-action/compare/v0.3.3...v0.3.4 | [Base revision](https://github.com/csm-actions/securefix-action/tree/3f37d71b39c10d9e23d6cdc63ac8ef1a841d1451)
@@ -208,6 +211,7 @@ e.g.
 ## Features
 
 #309 Use the default branch as the default value of `pull_request_base_branch`
+
 ## v0.3.3
 
 [Issues](https://github.com/csm-actions/securefix-action/issues?q=is%3Aissue+is%3Aclosed+milestone%3Av0.3.3) | [Pull Requests](https://github.com/csm-actions/securefix-action/pulls?q=is%3Apr+is%3Aclosed+milestone%3Av0.3.3) | https://github.com/csm-actions/securefix-action/compare/v0.3.2...v0.3.3 | [Base revision](https://github.com/csm-actions/securefix-action/tree/0888bf6a5ab198d450120005fcbf6078af4caf5b)
@@ -219,16 +223,17 @@ e.g.
 e.g.
 
 ```yaml
-      - uses: csm-actions/securefix-action@latest
-        with:
-          app_id: ${{vars.APP_ID}}
-          app_private_key: ${{secrets.APP_PRIVATE_KEY}}
-          server_repository: securefix-demo-server
-          branch: test-1
-          pull_request_title: Title
-          pull_request_base_branch: main
-          milestone_number: 1 # Add a created pull request to the milestone
+- uses: csm-actions/securefix-action@latest
+  with:
+    app_id: ${{vars.APP_ID}}
+    app_private_key: ${{secrets.APP_PRIVATE_KEY}}
+    server_repository: securefix-demo-server
+    branch: test-1
+    pull_request_title: Title
+    pull_request_base_branch: main
+    milestone_number: 1 # Add a created pull request to the milestone
 ```
+
 ## v0.3.2
 
 [Issues](https://github.com/csm-actions/securefix-action/issues?q=is%3Aissue+is%3Aclosed+milestone%3Av0.3.2) | [Pull Requests](https://github.com/csm-actions/securefix-action/pulls?q=is%3Apr+is%3Aclosed+milestone%3Av0.3.2) | https://github.com/csm-actions/securefix-action/compare/v0.3.1...v0.3.2 | [Base revision](https://github.com/csm-actions/securefix-action/tree/0b643ec4aac158e391d10e20424d7050779a3add)
@@ -236,6 +241,7 @@ e.g.
 ## Features
 
 #304 Support adding created pull requests to GitHub Organization Projects
+
 ## v0.3.1
 
 [Issues](https://github.com/csm-actions/securefix-action/issues?q=is%3Aissue+is%3Aclosed+milestone%3Av0.3.1) | [Pull Requests](https://github.com/csm-actions/securefix-action/pulls?q=is%3Apr+is%3Aclosed+milestone%3Av0.3.1) | https://github.com/csm-actions/securefix-action/compare/v0.3.0...v0.3.1 | [Base revision](https://github.com/csm-actions/securefix-action/tree/e73ef8ff1b196bdef9b687a9d2c3bf134447aad8)
@@ -243,6 +249,7 @@ e.g.
 ## 🐛 Bug Fixes
 
 #303 Fix a bug that it fails to push a commit to other repositories
+
 ## v0.3.0
 
 [Issues](https://github.com/csm-actions/securefix-action/issues?q=is%3Aissue+is%3Aclosed+milestone%3Av0.3.0) | [Pull Requests](https://github.com/csm-actions/securefix-action/pulls?q=is%3Apr+is%3Aclosed+milestone%3Av0.3.0) | https://github.com/csm-actions/securefix-action/compare/v0.2.2...v0.3.0 | [Base revision](https://github.com/csm-actions/securefix-action/tree/0733ec3787ee85cb3f13220c89bbcddaef2f0341)
@@ -254,6 +261,7 @@ e.g.
 ## Features
 
 #301 Support glob in configuration
+
 ## v0.2.2
 
 [Issues](https://github.com/csm-actions/securefix-action/issues?q=is%3Aissue+is%3Aclosed+milestone%3Av0.2.2) | [Pull Requests](https://github.com/csm-actions/securefix-action/pulls?q=is%3Apr+is%3Aclosed+milestone%3Av0.2.2) | https://github.com/csm-actions/securefix-action/compare/v0.2.1...v0.2.2 | [Base revision](https://github.com/csm-actions/securefix-action/tree/da7f64b3d2860f8986d29eb6ea0933007f928f51)
@@ -267,17 +275,18 @@ The input `root_dir` is added to the client action.
 e.g.
 
 ```yaml
-    - uses: csm-actions/securefix-action@latest
-      with:
-        app_id: ${{ vars.APP_ID }}
-        app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
-        server_repository: demo-server
-        root_dir: docs # By default, this is empty (${{github.workspace}})
-        # files must be relative paths from root_dir
-        files: index.html
+- uses: csm-actions/securefix-action@latest
+  with:
+    app_id: ${{ vars.APP_ID }}
+    app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+    server_repository: demo-server
+    root_dir: docs # By default, this is empty (${{github.workspace}})
+    # files must be relative paths from root_dir
+    files: index.html
 ```
 
 This is useful when the repository is checked out on the different path from `${{github.workspace}}`.
+
 ## v0.2.1
 
 [Issues](https://github.com/csm-actions/securefix-action/issues?q=is%3Aissue+is%3Aclosed+milestone%3Av0.2.1) | [Pull Requests](https://github.com/csm-actions/securefix-action/pulls?q=is%3Apr+is%3Aclosed+milestone%3Av0.2.1) | https://github.com/csm-actions/securefix-action/compare/v0.2.0...v0.2.1 | [Base revision](https://github.com/csm-actions/securefix-action/tree/2e2ade3d5d76b24c05466d279cbce3e294f1d6e4)
@@ -298,6 +307,7 @@ failed to run git: fatal: not a git repository (or any of the parent directories
 #209 Replace the GitHub Action tibdex/github-app-token with actions/create-github-app-token
 
 tibdex/github-app-token was archived.
+
 ## v0.2.0
 
 [Issues](https://github.com/csm-actions/securefix-action/issues?q=is%3Aissue+is%3Aclosed+milestone%3Av0.2.0) | [Pull Requests](https://github.com/csm-actions/securefix-action/pulls?q=is%3Apr+is%3Aclosed+milestone%3Av0.2.0) | https://github.com/csm-actions/securefix-action/compare/v0.1.0...v0.2.0 | [Base revision](https://github.com/csm-actions/securefix-action/tree/5970e1bc9bb1de9ee0dedf1ea0258bfb723fd054)
@@ -322,8 +332,7 @@ The server side requires the permission `issues:write` to delete labels.
 ```yaml
 jobs:
   fix:
-    permissions:
-      issues:write
+    permissions: issues:write
 ```
 
 ## Features
@@ -394,7 +403,7 @@ Additional Permissions of the server app are required if some inputs are given.
 e.g.
 
 ```yaml
-- uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+- uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
   with:
     persist-credentials: false
     sparse-checkout: |
@@ -423,7 +432,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
           sparse-checkout: |
@@ -478,15 +487,15 @@ All of them are optional.
 - `fail_if_changes`: If true, the action fails if there are changes
 
 By default, the client action fails if any files are changed, but if a commit is pushed to the other repository or branch, the action succeeds.
-If `fail_if_changes` is `true`, the client action fails if  any files are changed.
+If `fail_if_changes` is `true`, the client action fails if any files are changed.
 If `fail_if_changes` is `false`, the client action succeeds even if any files are changed.
 
 #### csm-actions/securefix-action/server/prepare
 
 Either `config` or `config_file` is required to change the repository and branch.
 
- - `config`: YAML config to push other repositories and branches
- - `config_file`: A file path to YAML config
+- `config`: YAML config to push other repositories and branches
+- `config_file`: A file path to YAML config
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/csm-actions/securefix-action/main/json-schema/config.json
@@ -518,6 +527,7 @@ entries:
 config is ignored if no repository or branch is set by the client action.
 If branch or repository is set, they are validated config.
 If there is no entry matching with source repository and branch and destination repository and branch.
+
 ## v0.1.0
 
 🎉 First Release
