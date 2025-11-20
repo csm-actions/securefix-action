@@ -403,7 +403,7 @@ Additional Permissions of the server app are required if some inputs are given.
 e.g.
 
 ```yaml
-- uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+- uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
   with:
     persist-credentials: false
     sparse-checkout: |
@@ -432,7 +432,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           persist-credentials: false
           sparse-checkout: |
