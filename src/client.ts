@@ -93,7 +93,9 @@ export const action = async () => {
         .filter((team_reviewer) => team_reviewer),
       draft: core.getBooleanInput("pull_request_draft"),
       comment: core.getInput("pull_request_comment"),
-      automerge_method: validateAutomergeMethod(core.getInput("automerge_method")),
+      automerge_method: validateAutomergeMethod(
+        core.getInput("automerge_method"),
+      ),
       project:
         core.getInput("project_number") || core.getInput("project_id")
           ? {
