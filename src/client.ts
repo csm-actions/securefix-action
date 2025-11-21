@@ -12,7 +12,7 @@ export const PullRequest = z.object({
   team_reviewers: z.array(z.string()),
   draft: z.boolean(),
   comment: z.string(),
-  automerge_method: z.optional(z.enum(["merge", "squash", "rebase"])),
+  automerge_method: z.string(),
   project: z.nullable(
     z.object({
       number: z.number(),
@@ -36,17 +36,6 @@ type Inputs = {
   pr: PullRequest;
   commitMessage: string;
   workspace: string;
-};
-
-type automergeMethod = undefined | "merge" | "squash" | "rebase";
-
-const validateAutomergeMethod = (method: string): automergeMethod => {
-  if (!["", "merge", "squash", "rebase"].includes(method)) {
-    throw new Error(
-      'automerge_method must be one of "", "merge", "squash", or "rebase"',
-    );
-  }
-  return method as automergeMethod;
 };
 
 export const action = async () => {
@@ -93,9 +82,7 @@ export const action = async () => {
         .filter((team_reviewer) => team_reviewer),
       draft: core.getBooleanInput("pull_request_draft"),
       comment: core.getInput("pull_request_comment"),
-      automerge_method: validateAutomergeMethod(
-        core.getInput("automerge_method"),
-      ),
+      automerge_method: core.getInput("automerge_method"),
       project:
         core.getInput("project_number") || core.getInput("project_id")
           ? {
