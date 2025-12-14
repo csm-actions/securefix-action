@@ -7,7 +7,7 @@
   "dependencies": {
     "@actions/artifact": "^4.0.0",
     "@actions/core": "1.11.1",
-    "@actions/exec": "^1.1.1",
+    "@actions/exec": "^2.0.0",
     "@actions/github": "6.0.1",
     "@csm-actions/label": "npm:@jsr/csm-actions__label@^0.0.2",
     "@octokit/core": "^7.0.0",
