@@ -26,6 +26,11 @@ tasks:
         script_envs:
           - REF
 
+  - name: changelog
+    description: Create a changelog
+    usage: Create a changelog
+    script: bash scripts/changelog.sh
+
   - name: notebook
     description: Create a notebook
     usage: Create a notebook
