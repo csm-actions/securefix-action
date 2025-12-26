@@ -254,7 +254,15 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     if (!matchClientRepositories(entry, clientRepo)) {
       continue;
     }
-    if (!(await matchClientBranches(octokit, entry, clientOwner, clientRepoName, data.branch ?? ""))) {
+    if (
+      !(await matchClientBranches(
+        octokit,
+        entry,
+        clientOwner,
+        clientRepoName,
+        data.branch ?? "",
+      ))
+    ) {
       continue;
     }
     if (!matchPushRepositories(entry, destRepo, clientRepo)) {
@@ -275,11 +283,16 @@ export const validateRepository = async (data: Data): Promise<Output> => {
         );
       }
       if (!entry.pull_request) {
-        throw new Error(
-          "Creating a pull request isn't allowed for this entry",
-        );
+        throw new Error("Creating a pull request isn't allowed for this entry");
       }
-      if (!(await validatePullRequestBaseBranch(octokit, entry, destRepo, metadata.inputs.pull_request.base))) {
+      if (
+        !(await validatePullRequestBaseBranch(
+          octokit,
+          entry,
+          destRepo,
+          metadata.inputs.pull_request.base,
+        ))
+      ) {
         throw new Error(
           "The given pull request branch isn't allowed for this entry",
         );
@@ -342,10 +355,7 @@ const getDefaultBranch = async (
 
 // Validation functions for config entry matching
 
-const matchClientRepositories = (
-  entry: Entry,
-  clientRepo: string,
-): boolean => {
+const matchClientRepositories = (entry: Entry, clientRepo: string): boolean => {
   return entry.client.repositories.some((repo) => minimatch(clientRepo, repo));
 };
 
@@ -359,7 +369,11 @@ const matchClientBranches = async (
   if (entry.client.branches) {
     return entry.client.branches.some((b) => minimatch(branch, b));
   }
-  const defaultBranch = await getDefaultBranch(octokit, clientOwner, clientRepoName);
+  const defaultBranch = await getDefaultBranch(
+    octokit,
+    clientOwner,
+    clientRepoName,
+  );
   return branch === defaultBranch;
 };
 
@@ -391,7 +405,11 @@ const validatePullRequestBaseBranch = async (
     return entry.pull_request.base_branches.includes(baseBranch);
   }
   const [destOwner, destRepoName] = destRepo.split("/");
-  const defaultBranch = await getDefaultBranch(octokit, destOwner, destRepoName);
+  const defaultBranch = await getDefaultBranch(
+    octokit,
+    destOwner,
+    destRepoName,
+  );
   return baseBranch === defaultBranch;
 };
 
