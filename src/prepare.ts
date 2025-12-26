@@ -5,7 +5,7 @@ import { DefaultArtifactClient } from "@actions/artifact";
 import { z } from "zod";
 import { minimatch } from "minimatch";
 import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
-import { readConfig } from "./config";
+import { readConfig, type Entry } from "./config";
 
 type Inputs = {
   appId: string;
@@ -246,46 +246,21 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     metadata.inputs.repository || metadata.context.payload.repository.full_name;
   const destBranch = metadata.inputs.branch || data.branch;
 
+  const clientRepo = metadata.context.payload.repository.full_name;
+  const clientOwner = metadata.context.payload.repository.owner.login;
+  const clientRepoName = metadata.context.payload.repository.name;
+
   for (const entry of config.entries) {
-    // Check client.repositories (required)
-    const clientReposMatch = entry.client.repositories.some((repo) =>
-      minimatch(metadata.context.payload.repository.full_name, repo),
-    );
-    if (!clientReposMatch) {
+    if (!matchClientRepositories(entry, clientRepo)) {
       continue;
     }
-
-    // Check client.branches (optional - default to client repo's default branch)
-    let clientBranchesMatch: boolean;
-    if (entry.client.branches) {
-      clientBranchesMatch = entry.client.branches.some((branch) =>
-        minimatch(data.branch ?? "", branch),
-      );
-    } else {
-      const clientDefaultBranch = await getDefaultBranch(
-        octokit,
-        metadata.context.payload.repository.owner.login,
-        metadata.context.payload.repository.name,
-      );
-      clientBranchesMatch = data.branch === clientDefaultBranch;
-    }
-    if (!clientBranchesMatch) {
+    if (!(await matchClientBranches(octokit, entry, clientOwner, clientRepoName, data.branch ?? ""))) {
       continue;
     }
-
-    // Check push.repositories (optional - default to client repository only)
-    const pushReposMatch = entry.push.repositories
-      ? entry.push.repositories.some((repo) => minimatch(destRepo, repo))
-      : destRepo === metadata.context.payload.repository.full_name;
-    if (!pushReposMatch) {
+    if (!matchPushRepositories(entry, destRepo, clientRepo)) {
       continue;
     }
-
-    // Check push.branches (required)
-    const pushBranchesMatch = entry.push.branches.some((branch) =>
-      minimatch(destBranch, branch),
-    );
-    if (!pushBranchesMatch) {
+    if (!matchPushBranches(entry, destBranch)) {
       continue;
     }
 
@@ -304,25 +279,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
           "Creating a pull request isn't allowed for this entry",
         );
       }
-
-      // Check pull_request.base_branches (optional - default to push repo's default branch)
-      let baseBranchAllowed: boolean;
-      if (entry.pull_request.base_branches) {
-        baseBranchAllowed = entry.pull_request.base_branches.includes(
-          metadata.inputs.pull_request.base,
-        );
-      } else {
-        const [destOwner, destRepoName] = destRepo.split("/");
-        const prBaseDefaultBranch = await getDefaultBranch(
-          octokit,
-          destOwner,
-          destRepoName,
-        );
-        baseBranchAllowed =
-          metadata.inputs.pull_request.base === prBaseDefaultBranch;
-      }
-
-      if (!baseBranchAllowed) {
+      if (!(await validatePullRequestBaseBranch(octokit, entry, destRepo, metadata.inputs.pull_request.base))) {
         throw new Error(
           "The given pull request branch isn't allowed for this entry",
         );
@@ -381,6 +338,61 @@ const getDefaultBranch = async (
   const { data: repository } = await octokit.rest.repos.get({ owner, repo });
   defaultBranchCache.set(key, repository.default_branch);
   return repository.default_branch;
+};
+
+// Validation functions for config entry matching
+
+const matchClientRepositories = (
+  entry: Entry,
+  clientRepo: string,
+): boolean => {
+  return entry.client.repositories.some((repo) => minimatch(clientRepo, repo));
+};
+
+const matchClientBranches = async (
+  octokit: ReturnType<typeof github.getOctokit>,
+  entry: Entry,
+  clientOwner: string,
+  clientRepoName: string,
+  branch: string,
+): Promise<boolean> => {
+  if (entry.client.branches) {
+    return entry.client.branches.some((b) => minimatch(branch, b));
+  }
+  const defaultBranch = await getDefaultBranch(octokit, clientOwner, clientRepoName);
+  return branch === defaultBranch;
+};
+
+const matchPushRepositories = (
+  entry: Entry,
+  destRepo: string,
+  clientRepo: string,
+): boolean => {
+  if (entry.push.repositories) {
+    return entry.push.repositories.some((repo) => minimatch(destRepo, repo));
+  }
+  return destRepo === clientRepo;
+};
+
+const matchPushBranches = (entry: Entry, destBranch: string): boolean => {
+  return entry.push.branches.some((branch) => minimatch(destBranch, branch));
+};
+
+const validatePullRequestBaseBranch = async (
+  octokit: ReturnType<typeof github.getOctokit>,
+  entry: Entry,
+  destRepo: string,
+  baseBranch: string,
+): Promise<boolean> => {
+  if (!entry.pull_request) {
+    return false;
+  }
+  if (entry.pull_request.base_branches) {
+    return entry.pull_request.base_branches.includes(baseBranch);
+  }
+  const [destOwner, destRepoName] = destRepo.split("/");
+  const defaultBranch = await getDefaultBranch(octokit, destOwner, destRepoName);
+  return baseBranch === defaultBranch;
 };
 
 const parseLabelDescription = (labelDescription: string): WorkflowRun => {

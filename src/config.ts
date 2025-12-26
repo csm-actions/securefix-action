@@ -17,11 +17,12 @@ const PullRequestEntry = z.object({
   base_branches: z.optional(z.array(z.string())),
 });
 
-const Entry = z.object({
+export const Entry = z.object({
   client: Client,
   push: Push,
   pull_request: z.optional(PullRequestEntry),
 });
+export type Entry = z.infer<typeof Entry>;
 
 export const Config = z.object({
   entries: z.array(Entry),
