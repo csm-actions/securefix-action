@@ -13,7 +13,7 @@ export const PullRequest = z.object({
   draft: z.boolean(),
   comment: z.string(),
   automerge_method: z.string(),
-  project: z.nullable(
+  project: z.optional(
     z.object({
       number: z.number(),
       owner: z.string(),
@@ -92,7 +92,7 @@ export const action = async () => {
               owner: core.getInput("project_owner"),
               id: core.getInput("project_id"),
             }
-          : null,
+          : undefined,
       milestone_number: core.getInput("milestone_number")
         ? parseInt(core.getInput("milestone_number"), 10)
         : 0,
