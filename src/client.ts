@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import { z } from "zod";
 import * as securefix from "@csm-actions/securefix-action";
+import { AutomergeMethod } from "./prepare";
 
 export const PullRequest = z.object({
   title: z.string(),
@@ -12,7 +13,7 @@ export const PullRequest = z.object({
   team_reviewers: z.array(z.string()),
   draft: z.boolean(),
   comment: z.string(),
-  automerge_method: z.string(),
+  automerge_method: z.optional(AutomergeMethod),
   project: z.optional(
     z.object({
       number: z.number(),
@@ -39,6 +40,9 @@ type Inputs = {
 };
 
 export const action = async () => {
+  const automergeMethod = AutomergeMethod.parse(
+    core.getInput("automerge_method"),
+  );
   const inputs: Inputs = {
     appId: core.getInput("app_id", { required: true }),
     privateKey: core.getInput("app_private_key", { required: true }),
@@ -82,7 +86,7 @@ export const action = async () => {
         .filter((team_reviewer) => team_reviewer),
       draft: core.getBooleanInput("pull_request_draft"),
       comment: core.getInput("pull_request_comment"),
-      automerge_method: core.getInput("automerge_method"),
+      automerge_method: automergeMethod,
       project:
         core.getInput("project_number") || core.getInput("project_id")
           ? {

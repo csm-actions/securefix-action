@@ -24,6 +24,9 @@ const User = z.object({
   login: z.string(),
 });
 
+export const AutomergeMethod = z.enum(["", "merge", "squash", "rebase"]);
+export type AutomergeMethod = z.infer<typeof AutomergeMethod>;
+
 const PullRequest = z.object({
   title: z.string(),
   body: z.string(),
@@ -33,7 +36,7 @@ const PullRequest = z.object({
   reviewers: z.array(z.string()),
   team_reviewers: z.array(z.string()),
   draft: z.boolean(),
-  automerge_method: z.optional(z.enum(["", "merge", "squash", "rebase"])),
+  automerge_method: z.optional(AutomergeMethod),
   comment: z.string(),
   project: z.optional(
     z.nullable(
