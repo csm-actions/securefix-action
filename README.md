@@ -24,6 +24,8 @@ It achieves a server/client architecture using GitHub Actions by unique approach
 
 ## :rocket: Recent Important Updates
 
+- [v0.4.2 (2025-12)](https://github.com/csm-actions/securefix-action/releases/tag/v0.4.2)
+  - You can write Configuration files more simply
 - [v0.4.1 (2025-11)](https://github.com/csm-actions/securefix-action/releases/tag/v0.4.1)
   - The performance was drastically improved
 - [v0.3.0 (2025-10)](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.0)
