@@ -245,50 +245,96 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   const destRepo =
     metadata.inputs.repository || metadata.context.payload.repository.full_name;
   const destBranch = metadata.inputs.branch || data.branch;
-  (() => {
-    for (const entry of config.entries) {
-      if (
-        entry.client.repositories.some((repo) =>
-          minimatch(metadata.context.payload.repository.full_name, repo),
-        ) &&
-        entry.client.branches.some((branch) =>
-          minimatch(data.branch ?? "", branch),
-        ) &&
-        entry.push.repositories.some((repo) => minimatch(destRepo, repo)) &&
-        entry.push.branches.some((branch) => minimatch(destBranch, branch))
-      ) {
-        outputs.setPushRepository(destRepo);
-        outputs.setBranch(destBranch);
-        if (metadata.inputs.pull_request?.title) {
-          if (!metadata.inputs.pull_request.base) {
-            throw new Error(
-              "pull_request base branch is required to create a pull request",
-            );
-          }
-          if (!entry.pull_request) {
-            throw new Error(
-              "Creating a pull request isn't allowed for this entry",
-            );
-          }
-          if (
-            !entry.pull_request.base_branches.includes(
-              metadata.inputs.pull_request.base,
-            )
-          ) {
-            throw new Error(
-              "The given pull request branch isn't allowed for this entry",
-            );
-          }
-          outputs.setPullRequest(JSON.stringify(metadata.inputs.pull_request));
-        }
-        return;
-      }
-    }
-    throw new Error(
-      "No matching entry found in the config for the given repository and branch.",
+
+  for (const entry of config.entries) {
+    // Check client.repositories (required)
+    const clientReposMatch = entry.client.repositories.some((repo) =>
+      minimatch(metadata.context.payload.repository.full_name, repo),
     );
-  })();
-  return outputs;
+    if (!clientReposMatch) {
+      continue;
+    }
+
+    // Check client.branches (optional - default to client repo's default branch)
+    let clientBranchesMatch: boolean;
+    if (entry.client.branches) {
+      clientBranchesMatch = entry.client.branches.some((branch) =>
+        minimatch(data.branch ?? "", branch),
+      );
+    } else {
+      const clientDefaultBranch = await getDefaultBranch(
+        octokit,
+        metadata.context.payload.repository.owner.login,
+        metadata.context.payload.repository.name,
+      );
+      clientBranchesMatch = data.branch === clientDefaultBranch;
+    }
+    if (!clientBranchesMatch) {
+      continue;
+    }
+
+    // Check push.repositories (optional - default to client repository only)
+    const pushReposMatch = entry.push.repositories
+      ? entry.push.repositories.some((repo) => minimatch(destRepo, repo))
+      : destRepo === metadata.context.payload.repository.full_name;
+    if (!pushReposMatch) {
+      continue;
+    }
+
+    // Check push.branches (required)
+    const pushBranchesMatch = entry.push.branches.some((branch) =>
+      minimatch(destBranch, branch),
+    );
+    if (!pushBranchesMatch) {
+      continue;
+    }
+
+    // All conditions matched
+    outputs.setPushRepository(destRepo);
+    outputs.setBranch(destBranch);
+
+    if (metadata.inputs.pull_request?.title) {
+      if (!metadata.inputs.pull_request.base) {
+        throw new Error(
+          "pull_request base branch is required to create a pull request",
+        );
+      }
+      if (!entry.pull_request) {
+        throw new Error(
+          "Creating a pull request isn't allowed for this entry",
+        );
+      }
+
+      // Check pull_request.base_branches (optional - default to push repo's default branch)
+      let baseBranchAllowed: boolean;
+      if (entry.pull_request.base_branches) {
+        baseBranchAllowed = entry.pull_request.base_branches.includes(
+          metadata.inputs.pull_request.base,
+        );
+      } else {
+        const [destOwner, destRepoName] = destRepo.split("/");
+        const prBaseDefaultBranch = await getDefaultBranch(
+          octokit,
+          destOwner,
+          destRepoName,
+        );
+        baseBranchAllowed =
+          metadata.inputs.pull_request.base === prBaseDefaultBranch;
+      }
+
+      if (!baseBranchAllowed) {
+        throw new Error(
+          "The given pull request branch isn't allowed for this entry",
+        );
+      }
+      outputs.setPullRequest(JSON.stringify(metadata.inputs.pull_request));
+    }
+    return outputs;
+  }
+
+  throw new Error(
+    "No matching entry found in the config for the given repository and branch.",
+  );
 };
 
 export const readInputs = (): Inputs => {
@@ -317,6 +363,24 @@ type WorkflowRun = {
   owner: string;
   repo: string;
   runId: number;
+};
+
+// Cache for default branch to avoid redundant API calls
+const defaultBranchCache = new Map<string, string>();
+
+const getDefaultBranch = async (
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+): Promise<string> => {
+  const key = `${owner}/${repo}`;
+  const cached = defaultBranchCache.get(key);
+  if (cached) {
+    return cached;
+  }
+  const { data: repository } = await octokit.rest.repos.get({ owner, repo });
+  defaultBranchCache.set(key, repository.default_branch);
+  return repository.default_branch;
 };
 
 const parseLabelDescription = (labelDescription: string): WorkflowRun => {
