@@ -25,7 +25,7 @@
                     }
                   }
                 },
-                "required": ["repositories", "branches"],
+                "required": ["repositories"],
                 "additionalProperties": false
               },
               "push": {
@@ -44,7 +44,7 @@
                     }
                   }
                 },
-                "required": ["repositories", "branches"],
+                "required": ["branches"],
                 "additionalProperties": false
               },
               "pull_request": {
@@ -57,7 +57,6 @@
                     }
                   }
                 },
-                "required": ["base_branches"],
                 "additionalProperties": false
               }
             },

@@ -8,9 +8,12 @@ entries:
   - client:
       repositories:
         - suzuki-shunsuke/tfaction-example
+      # As of v0.4.2, branches is optional. By default, the default branch of the client repository is used.
+      # We recommend settings branches explicitly to decrease GitHub API call to fetch the default branch.
       branches:
         - main
     push:
+      # As of v0.4.2, repositories is optional. By default, only the client repository is allowed.
       repositories:
         - suzuki-shunsuke/tfaction-example
       branches:
@@ -18,7 +21,9 @@ entries:
         - "follow-up-*" # Glob
     # Allow to create pull requests
     pull_request:
-      # base_branches is required.
+      # As of v0.4.2, base_branches is optional.
+      # By default, the default branch of the pull request base repository is used.
+      # We recommend settings branches explicitly to decrease GitHub API call to fetch the default branch.
       # The pull request base branch must be included in base_branches.
       base_branches:
         - main

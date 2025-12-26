@@ -5,7 +5,7 @@ import { DefaultArtifactClient } from "@actions/artifact";
 import { z } from "zod";
 import { minimatch } from "minimatch";
 import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
-import { readConfig } from "./config";
+import { readConfig, type Entry } from "./config";
 
 type Inputs = {
   appId: string;
@@ -245,50 +245,66 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   const destRepo =
     metadata.inputs.repository || metadata.context.payload.repository.full_name;
   const destBranch = metadata.inputs.branch || data.branch;
-  (() => {
-    for (const entry of config.entries) {
-      if (
-        entry.client.repositories.some((repo) =>
-          minimatch(metadata.context.payload.repository.full_name, repo),
-        ) &&
-        entry.client.branches.some((branch) =>
-          minimatch(data.branch ?? "", branch),
-        ) &&
-        entry.push.repositories.some((repo) => minimatch(destRepo, repo)) &&
-        entry.push.branches.some((branch) => minimatch(destBranch, branch))
-      ) {
-        outputs.setPushRepository(destRepo);
-        outputs.setBranch(destBranch);
-        if (metadata.inputs.pull_request?.title) {
-          if (!metadata.inputs.pull_request.base) {
-            throw new Error(
-              "pull_request base branch is required to create a pull request",
-            );
-          }
-          if (!entry.pull_request) {
-            throw new Error(
-              "Creating a pull request isn't allowed for this entry",
-            );
-          }
-          if (
-            !entry.pull_request.base_branches.includes(
-              metadata.inputs.pull_request.base,
-            )
-          ) {
-            throw new Error(
-              "The given pull request branch isn't allowed for this entry",
-            );
-          }
-          outputs.setPullRequest(JSON.stringify(metadata.inputs.pull_request));
-        }
-        return;
-      }
+
+  const clientRepo = metadata.context.payload.repository.full_name;
+  const clientOwner = metadata.context.payload.repository.owner.login;
+  const clientRepoName = metadata.context.payload.repository.name;
+
+  for (const entry of config.entries) {
+    if (!matchClientRepositories(entry, clientRepo)) {
+      continue;
     }
-    throw new Error(
-      "No matching entry found in the config for the given repository and branch.",
-    );
-  })();
-  return outputs;
+    if (
+      !(await matchClientBranches(
+        octokit,
+        entry,
+        clientOwner,
+        clientRepoName,
+        data.branch ?? "",
+      ))
+    ) {
+      continue;
+    }
+    if (!matchPushRepositories(entry, destRepo, clientRepo)) {
+      continue;
+    }
+    if (!matchPushBranches(entry, destBranch)) {
+      continue;
+    }
+
+    // All conditions matched
+    outputs.setPushRepository(destRepo);
+    outputs.setBranch(destBranch);
+
+    if (metadata.inputs.pull_request?.title) {
+      if (!metadata.inputs.pull_request.base) {
+        throw new Error(
+          "pull_request base branch is required to create a pull request",
+        );
+      }
+      if (!entry.pull_request) {
+        throw new Error("Creating a pull request isn't allowed for this entry");
+      }
+      if (
+        !(await validatePullRequestBaseBranch(
+          octokit,
+          entry,
+          destRepo,
+          metadata.inputs.pull_request.base,
+        ))
+      ) {
+        throw new Error(
+          "The given pull request branch isn't allowed for this entry",
+        );
+      }
+      outputs.setPullRequest(JSON.stringify(metadata.inputs.pull_request));
+    }
+    return outputs;
+  }
+
+  throw new Error(
+    "No matching entry found in the config for the given repository and branch.",
+  );
 };
 
 export const readInputs = (): Inputs => {
@@ -317,6 +333,84 @@ type WorkflowRun = {
   owner: string;
   repo: string;
   runId: number;
+};
+
+// Cache for default branch to avoid redundant API calls
+const defaultBranchCache = new Map<string, string>();
+
+const getDefaultBranch = async (
+  octokit: ReturnType<typeof github.getOctokit>,
+  owner: string,
+  repo: string,
+): Promise<string> => {
+  const key = `${owner}/${repo}`;
+  const cached = defaultBranchCache.get(key);
+  if (cached) {
+    return cached;
+  }
+  const { data: repository } = await octokit.rest.repos.get({ owner, repo });
+  defaultBranchCache.set(key, repository.default_branch);
+  return repository.default_branch;
+};
+
+// Validation functions for config entry matching
+
+const matchClientRepositories = (entry: Entry, clientRepo: string): boolean => {
+  return entry.client.repositories.some((repo) => minimatch(clientRepo, repo));
+};
+
+const matchClientBranches = async (
+  octokit: ReturnType<typeof github.getOctokit>,
+  entry: Entry,
+  clientOwner: string,
+  clientRepoName: string,
+  branch: string,
+): Promise<boolean> => {
+  if (entry.client.branches) {
+    return entry.client.branches.some((b) => minimatch(branch, b));
+  }
+  const defaultBranch = await getDefaultBranch(
+    octokit,
+    clientOwner,
+    clientRepoName,
+  );
+  return branch === defaultBranch;
+};
+
+const matchPushRepositories = (
+  entry: Entry,
+  destRepo: string,
+  clientRepo: string,
+): boolean => {
+  if (entry.push.repositories) {
+    return entry.push.repositories.some((repo) => minimatch(destRepo, repo));
+  }
+  return destRepo === clientRepo;
+};
+
+const matchPushBranches = (entry: Entry, destBranch: string): boolean => {
+  return entry.push.branches.some((branch) => minimatch(destBranch, branch));
+};
+
+const validatePullRequestBaseBranch = async (
+  octokit: ReturnType<typeof github.getOctokit>,
+  entry: Entry,
+  destRepo: string,
+  baseBranch: string,
+): Promise<boolean> => {
+  if (!entry.pull_request) {
+    return false;
+  }
+  if (entry.pull_request.base_branches) {
+    return entry.pull_request.base_branches.includes(baseBranch);
+  }
+  const [destOwner, destRepoName] = destRepo.split("/");
+  const defaultBranch = await getDefaultBranch(
+    octokit,
+    destOwner,
+    destRepoName,
+  );
+  return baseBranch === defaultBranch;
 };
 
 const parseLabelDescription = (labelDescription: string): WorkflowRun => {

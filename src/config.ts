@@ -5,23 +5,24 @@ import * as core from "@actions/core";
 
 const Client = z.object({
   repositories: z.array(z.string()),
-  branches: z.array(z.string()),
+  branches: z.optional(z.array(z.string())),
 });
 
 const Push = z.object({
-  repositories: z.array(z.string()),
+  repositories: z.optional(z.array(z.string())),
   branches: z.array(z.string()),
 });
 
 const PullRequestEntry = z.object({
-  base_branches: z.array(z.string()),
+  base_branches: z.optional(z.array(z.string())),
 });
 
-const Entry = z.object({
+export const Entry = z.object({
   client: Client,
   push: Push,
   pull_request: z.optional(PullRequestEntry),
 });
+export type Entry = z.infer<typeof Entry>;
 
 export const Config = z.object({
   entries: z.array(Entry),
