@@ -27,7 +27,7 @@ const User = z.object({
 export const AutomergeMethod = z.enum(["", "merge", "squash", "rebase"]);
 export type AutomergeMethod = z.infer<typeof AutomergeMethod>;
 
-const PullRequest = z.object({
+export const PullRequest = z.object({
   title: z.string(),
   body: z.string(),
   base: z.string(),
