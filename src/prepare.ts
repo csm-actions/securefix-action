@@ -180,10 +180,8 @@ const getTokenForDest = async (data: Data): Promise<string> => {
   const token = await createToken(
     data.inputs,
     data.metadata.context.payload.repository.owner.login,
-    [
-      data.workflowRun.repo,
-      data.metadata.context.payload.repository.name,
-    ]);
+    [data.workflowRun.repo, data.metadata.context.payload.repository.name],
+  );
   core.saveState("dest_token", token.token);
   core.saveState("dest_expires_at", token.expiresAt);
   return token.token;
@@ -532,7 +530,9 @@ export const prepare = async (
   outputs.setClientRepository(`${workflowRun.owner}/${workflowRun.repo}`);
 
   // create github app token
-  const token = await createToken(inputs, workflowRun.owner, [workflowRun.repo]);
+  const token = await createToken(inputs, workflowRun.owner, [
+    workflowRun.repo,
+  ]);
   core.saveState("token", token.token);
   core.saveState("expires_at", token.expiresAt);
   outputs.setGitHubToken(token.token);
