@@ -7,21 +7,21 @@ export const PullRequest = z.object({
   title: z.string(),
   body: z.string(),
   base: z.string(),
-  labels: z.array(z.string()),
-  assignees: z.array(z.string()),
-  reviewers: z.array(z.string()),
-  team_reviewers: z.array(z.string()),
+  labels: z.string().array(),
+  assignees: z.string().array(),
+  reviewers: z.string().array(),
+  team_reviewers: z.string().array(),
   draft: z.boolean(),
   comment: z.string(),
-  automerge_method: z.optional(AutomergeMethod),
-  project: z.optional(
-    z.object({
+  automerge_method: AutomergeMethod.optional(),
+  project: z
+    .object({
       number: z.number(),
       owner: z.string(),
-      id: z.optional(z.string()),
-    }),
-  ),
-  milestone_number: z.optional(z.number()),
+      id: z.string().optional(),
+    })
+    .optional(),
+  milestone_number: z.number().optional(),
 });
 export type PullRequest = z.infer<typeof PullRequest>;
 

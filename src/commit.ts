@@ -2,12 +2,11 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { z } from "zod";
 import * as commit from "@suzuki-shunsuke/commit-ts";
-import { PullRequest } from "./client";
-import { Outputs } from "./prepare";
+import { Outputs, PullRequest } from "./prepare";
 
 const Metadata = z.object({
   inputs: z.object({
-    commit_message: z.optional(z.string()),
+    commit_message: z.string().optional(),
   }),
 });
 type Metadata = z.infer<typeof Metadata>;
