@@ -32,7 +32,6 @@ export const action = async () => {
     });
     core.endGroup();
   } catch (e) {
-    const err = isObject(e);
     core.startGroup("notify");
     const msg = getErrorMessage(e);
     if (notify.isIgnoredErrorMessage(msg)) {
