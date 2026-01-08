@@ -14,11 +14,13 @@ export const PullRequest = z.object({
   draft: z.boolean(),
   comment: z.string(),
   automerge_method: AutomergeMethod.optional(),
-  project: z.object({
+  project: z
+    .object({
       number: z.number(),
       owner: z.string(),
       id: z.string().optional(),
-    }).optional(),
+    })
+    .optional(),
   milestone_number: z.number().optional(),
 });
 export type PullRequest = z.infer<typeof PullRequest>;
