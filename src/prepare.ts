@@ -435,18 +435,18 @@ const createToken = async (
   repo: Repository,
 ): Promise<githubAppToken.Token> => {
   const permissions: githubAppToken.Permissions = {
-    actions: "read",
-    contents: "write",
-    pull_requests: "write",
+    actions: "read", // Download Artifacts. Client repositories
+    contents: "write", // Create commits. Destination repositories
+    pull_requests: "write", // Create and update PRs. Destination repositories
   };
   if (inputs.allowWorkflowFix) {
-    permissions.workflows = "write";
+    permissions.workflows = "write"; // Create and Update workflow files. Destination repositories
   }
   if (inputs.allowMembersRead) {
-    permissions.members = "read";
+    permissions.members = "read"; // Request reviews to teams. Destination repositories
   }
   if (inputs.allowOrganizationProjectsWrite) {
-    permissions.organization_projects = "write";
+    permissions.organization_projects = "write"; // Add PRs to organization projects
   }
   core.info(`Creating a github token`);
   const token = await githubAppToken.create({
