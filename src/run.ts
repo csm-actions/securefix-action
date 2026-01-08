@@ -39,6 +39,7 @@ export const main = async () => {
     }
     const promises = [
       revoke(core.getState("token"), core.getState("expires_at")),
+      revoke(core.getState("dest_token"), core.getState("dest_expires_at")),
     ];
     if (core.getBooleanInput("delete_label")) {
       promises.push(

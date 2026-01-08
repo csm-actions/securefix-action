@@ -173,6 +173,19 @@ class Output {
   }
 }
 
+const getTokenForDest = async (data: Data): Promise<string> => {
+  if (data.workflowRun.repo === data.metadata.context.payload.repository.name) {
+    return data.token;
+  }
+  const token = await createToken(data.inputs, {
+    owner: data.metadata.context.payload.repository.owner.login,
+    repo: data.metadata.context.payload.repository.name,
+  });
+  core.saveState("dest_token", token.token);
+  core.saveState("dest_expires_at", token.expiresAt);
+  return token.token;
+};
+
 export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
   const outputs = data.outputs;
@@ -182,7 +195,8 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     .readFileSync(`${inputs.labelName}_files.txt`, "utf8")
     .trim();
   outputs.setFixedFiles(fixedFiles);
-  const octokit = github.getOctokit(data.token);
+
+  const octokit = github.getOctokit(await getTokenForDest(data));
 
   if (
     metadata.inputs.pull_request?.title &&
