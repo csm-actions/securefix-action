@@ -38,11 +38,13 @@ const PullRequest = z.object({
   draft: z.boolean(),
   automerge_method: AutomergeMethod.optional(),
   comment: z.string(),
-  project: z.object({
-    number: z.number(),
-    owner: z.string(),
-    id: z.string().optional(),
-  }).nullish(),
+  project: z
+    .object({
+      number: z.number(),
+      owner: z.string(),
+      id: z.string().optional(),
+    })
+    .nullish(),
   milestone_number: z.number().optional(),
 });
 
