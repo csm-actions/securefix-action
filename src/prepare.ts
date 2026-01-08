@@ -174,7 +174,10 @@ class Output {
 }
 
 const getTokenForDest = async (data: Data): Promise<string> => {
-  if (data.metadata.context.payload.repository.full_name === data.metadata.inputs.repository) {
+  if (
+    data.metadata.context.payload.repository.full_name ===
+    data.metadata.inputs.repository
+  ) {
     return data.token;
   }
   const token = await createToken(
