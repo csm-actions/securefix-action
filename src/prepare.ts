@@ -177,10 +177,13 @@ const getTokenForDest = async (data: Data): Promise<string> => {
   if (data.workflowRun.repo === data.metadata.context.payload.repository.name) {
     return data.token;
   }
-  const token = await createToken(data.inputs, {
-    owner: data.metadata.context.payload.repository.owner.login,
-    repo: data.metadata.context.payload.repository.name,
-  });
+  const token = await createToken(
+    data.inputs,
+    data.metadata.context.payload.repository.owner.login,
+    [
+      data.workflowRun.repo,
+      data.metadata.context.payload.repository.name,
+    ]);
   core.saveState("dest_token", token.token);
   core.saveState("dest_expires_at", token.expiresAt);
   return token.token;
@@ -196,7 +199,9 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     .trim();
   outputs.setFixedFiles(fixedFiles);
 
-  const octokit = github.getOctokit(await getTokenForDest(data));
+  const token = await getTokenForDest(data);
+  outputs.setGitHubToken(token);
+  const octokit = github.getOctokit(token);
 
   if (
     metadata.inputs.pull_request?.title &&
@@ -446,7 +451,8 @@ type Repository = {
 
 const createToken = async (
   inputs: Inputs,
-  repo: Repository,
+  owner: string,
+  repositories: string[],
 ): Promise<githubAppToken.Token> => {
   const permissions: githubAppToken.Permissions = {
     actions: "read", // Download Artifacts. Client repositories
@@ -466,8 +472,8 @@ const createToken = async (
   const token = await githubAppToken.create({
     appId: inputs.appId,
     privateKey: inputs.appPrivateKey,
-    owner: repo.owner,
-    repositories: [repo.repo],
+    owner: owner,
+    repositories: repositories,
     permissions: permissions,
   });
   core.setSecret(token.token);
@@ -526,10 +532,7 @@ export const prepare = async (
   outputs.setClientRepository(`${workflowRun.owner}/${workflowRun.repo}`);
 
   // create github app token
-  const token = await createToken(inputs, {
-    owner: workflowRun.owner,
-    repo: workflowRun.repo,
-  });
+  const token = await createToken(inputs, workflowRun.owner, [workflowRun.repo]);
   core.saveState("token", token.token);
   core.saveState("expires_at", token.expiresAt);
   outputs.setGitHubToken(token.token);
