@@ -173,6 +173,27 @@ class Output {
   }
 }
 
+const getTokenForDest = async (data: Data): Promise<string> => {
+  if (
+    !data.metadata.inputs.repository ||
+    data.metadata.context.payload.repository.full_name ===
+      data.metadata.inputs.repository
+  ) {
+    return data.token;
+  }
+  const token = await createToken(
+    data.inputs,
+    data.metadata.context.payload.repository.owner.login,
+    [
+      data.metadata.inputs.repository?.split("/")[1],
+      data.metadata.context.payload.repository.name,
+    ],
+  );
+  core.saveState("dest_token", token.token);
+  core.saveState("dest_expires_at", token.expiresAt);
+  return token.token;
+};
+
 export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
   const outputs = data.outputs;
@@ -182,7 +203,10 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     .readFileSync(`${inputs.labelName}_files.txt`, "utf8")
     .trim();
   outputs.setFixedFiles(fixedFiles);
-  const octokit = github.getOctokit(data.token);
+
+  const token = await getTokenForDest(data);
+  outputs.setGitHubToken(token);
+  const octokit = github.getOctokit(token);
 
   if (
     metadata.inputs.pull_request?.title &&
@@ -432,28 +456,31 @@ type Repository = {
 
 const createToken = async (
   inputs: Inputs,
-  repo: Repository,
+  owner: string,
+  repositories: string[],
 ): Promise<githubAppToken.Token> => {
   const permissions: githubAppToken.Permissions = {
-    actions: "read",
-    contents: "write",
-    pull_requests: "write",
+    actions: "read", // Download Artifacts. Client repositories
+    contents: "write", // Create commits. Destination repositories
+    pull_requests: "write", // Create and update PRs. Destination repositories
   };
   if (inputs.allowWorkflowFix) {
-    permissions.workflows = "write";
+    permissions.workflows = "write"; // Create and Update workflow files. Destination repositories
   }
   if (inputs.allowMembersRead) {
-    permissions.members = "read";
+    permissions.members = "read"; // Request reviews to teams. Destination repositories
   }
   if (inputs.allowOrganizationProjectsWrite) {
-    permissions.organization_projects = "write";
+    permissions.organization_projects = "write"; // Add PRs to organization projects
   }
-  core.info(`Creating a github token`);
+  core.info(
+    `Creating a github token owner=${owner} repositories=${repositories.join(",")}`,
+  );
   const token = await githubAppToken.create({
     appId: inputs.appId,
     privateKey: inputs.appPrivateKey,
-    owner: repo.owner,
-    repositories: [repo.repo],
+    owner: owner,
+    repositories: repositories,
     permissions: permissions,
   });
   core.setSecret(token.token);
@@ -512,10 +539,9 @@ export const prepare = async (
   outputs.setClientRepository(`${workflowRun.owner}/${workflowRun.repo}`);
 
   // create github app token
-  const token = await createToken(inputs, {
-    owner: workflowRun.owner,
-    repo: workflowRun.repo,
-  });
+  const token = await createToken(inputs, workflowRun.owner, [
+    workflowRun.repo,
+  ]);
   core.saveState("token", token.token);
   core.saveState("expires_at", token.expiresAt);
   outputs.setGitHubToken(token.token);
