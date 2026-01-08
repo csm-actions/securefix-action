@@ -175,15 +175,19 @@ class Output {
 
 const getTokenForDest = async (data: Data): Promise<string> => {
   if (
+    !data.metadata.inputs.repository ||
     data.metadata.context.payload.repository.full_name ===
-    data.metadata.inputs.repository
+      data.metadata.inputs.repository
   ) {
     return data.token;
   }
   const token = await createToken(
     data.inputs,
     data.metadata.context.payload.repository.owner.login,
-    [data.workflowRun.repo, data.metadata.context.payload.repository.name],
+    [
+      data.metadata.inputs.repository?.split("/")[1],
+      data.metadata.context.payload.repository.name,
+    ],
   );
   core.saveState("dest_token", token.token);
   core.saveState("dest_expires_at", token.expiresAt);
