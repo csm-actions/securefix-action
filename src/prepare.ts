@@ -31,23 +31,19 @@ const PullRequest = z.object({
   title: z.string(),
   body: z.string(),
   base: z.string(),
-  labels: z.array(z.string()),
-  assignees: z.array(z.string()),
-  reviewers: z.array(z.string()),
-  team_reviewers: z.array(z.string()),
+  labels: z.string().array(),
+  assignees: z.string().array(),
+  reviewers: z.string().array(),
+  team_reviewers: z.string().array(),
   draft: z.boolean(),
-  automerge_method: z.optional(AutomergeMethod),
+  automerge_method: AutomergeMethod.optional(),
   comment: z.string(),
-  project: z.optional(
-    z.nullable(
-      z.object({
-        number: z.number(),
-        owner: z.string(),
-        id: z.optional(z.string()),
-      }),
-    ),
-  ),
-  milestone_number: z.optional(z.number()),
+  project: z.object({
+    number: z.number(),
+    owner: z.string(),
+    id: z.string().optional(),
+  }).nullish(),
+  milestone_number: z.number().optional(),
 });
 
 const Repository = z.object({
@@ -61,13 +57,13 @@ const PayloadPullRequest = z.object({
 });
 
 const Inputs = z.object({
-  repository: z.optional(z.string()),
-  branch: z.optional(z.string()),
-  pull_request: z.optional(PullRequest),
+  repository: z.string().optional(),
+  branch: z.string().optional(),
+  pull_request: PullRequest.optional(),
 });
 
 const Payload = z.object({
-  pull_request: z.optional(PayloadPullRequest),
+  pull_request: PayloadPullRequest.optional(),
   repository: Repository,
 });
 
@@ -84,14 +80,14 @@ type Metadata = z.infer<typeof Metadata>;
 export const Outputs = z.object({
   branch: z.string(),
   client_repository: z.string(),
-  create_pull_request: z.optional(z.string()),
+  create_pull_request: z.string().optional(),
   fixed_files: z.string(),
   github_token: z.string(),
   metadata: z.string(),
   push_repository: z.string(),
-  pull_request: z.optional(z.string()),
+  pull_request: z.string().optional(),
   workflow_run: z.string(),
-  error: z.optional(z.string()),
+  error: z.string().optional(),
 });
 export type Outputs = z.infer<typeof Outputs>;
 
