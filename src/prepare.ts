@@ -469,7 +469,9 @@ const createToken = async (
   if (inputs.allowOrganizationProjectsWrite) {
     permissions.organization_projects = "write"; // Add PRs to organization projects
   }
-  core.info(`Creating a github token`);
+  core.info(
+    `Creating a github token owner=${owner} repositories=${repositories.join(",")}`,
+  );
   const token = await githubAppToken.create({
     appId: inputs.appId,
     privateKey: inputs.appPrivateKey,
