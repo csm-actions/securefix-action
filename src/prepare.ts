@@ -451,13 +451,15 @@ const createToken = async (
     permissions.organization_projects = "write";
   }
   core.info(`Creating a github token`);
-  return await githubAppToken.create({
+  const token = await githubAppToken.create({
     appId: inputs.appId,
     privateKey: inputs.appPrivateKey,
     owner: repo.owner,
     repositories: [repo.repo],
     permissions: permissions,
   });
+  core.setSecret(token.token);
+  return token;
 };
 
 const downloadArtifact = async (
