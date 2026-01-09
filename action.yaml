@@ -39,6 +39,11 @@ inputs:
     description: |
       Fixed files
     required: false
+  use_git_ls_files:
+    description: |
+      If true, the action uses `git ls-files` to list committed files.
+    required: false
+    default: "true"
   fail_if_changes:
     description: |
       If true, the action fails if there are changes.
@@ -177,7 +182,6 @@ inputs:
     default: "${{github.token}}"
   # commit
   # notify
-outputs: {}
 runs:
   using: node20
   main: dist/index.js

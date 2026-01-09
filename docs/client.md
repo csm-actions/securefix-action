@@ -121,6 +121,7 @@ pull_request_labels: |
 - `repository` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A repository full name where a commit will be pushed. The Server GitHub App must be installed into this repository
 - `branch` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A branch where a commit will be pushed
 - `root_dir` ([v0.2.2](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.2)): A root directory of fixed files
+- `use_git_ls_files` ([v0.5.1](https://github.com/csm-actions/securefix-action/releases/tag/v0.5.1)): If true, use `git ls-files` to get files to commit. The default is true.
 - `files` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A fixed files. By default, `git ls-files --modified --others --exclude-standard`. If `root_dir` is given, `files` must be relative paths from `root_dir`. Each file is separated by a newline.
 - `pull_request_title` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A pull request title
 - `pull_request_base_branch` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A pull request base branch. From v0.3.4, `pull_request_base_branch` becomes optional. By default the default branch is used
@@ -168,23 +169,13 @@ By default, this action fails if any files are changed, but if a commit is pushe
 If `fail_if_changes` is `true`, this action fails if any files are changed.
 If `fail_if_changes` is `false`, this action succeeds even if any files are changed.
 
-#### `root_dir`
+#### Which Files To Be Committed
 
-This is useful when the repository is checked out on the different path from `${{github.workspace}}`.
-
-e.g.
-
-```yaml
-- uses: csm-actions/securefix-action@latest
-  with:
-    action: client
-    app_id: ${{ vars.APP_ID }}
-    app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
-    server_repository: demo-server
-    root_dir: docs # By default, this is empty (${{github.workspace}})
-    # files must be relative paths from root_dir
-    files: index.html
-```
+By default, this action lists all added, modified, and deleted files by `git ls-files --modified --others --exclude-standard` in `root_dir` (The default is `.`).
+The input `files` is used as arguments of `git ls-files`.
+If the input `use_git_ls_files` is set to `false` (the default is `true`), the action uses the input `files` as files to be committed without `git ls-files`.
+The repository needs to be checked out before using this action unless `use_git_ls_files` is set to `false`.
+The input `files` is a list of relative paths from `root_dir`.
 
 ## Outputs
 

@@ -25,25 +25,11 @@ export const PullRequest = z.object({
 });
 export type PullRequest = z.infer<typeof PullRequest>;
 
-type Inputs = {
-  appId: string;
-  privateKey: string;
-  rootDir: string;
-  serverRepository: string;
-  repo: string;
-  branch: string;
-  failIfChanges: boolean;
-  files: Set<string>;
-  pr: PullRequest;
-  commitMessage: string;
-  workspace: string;
-};
-
 export const action = async () => {
   const automergeMethod = AutomergeMethod.parse(
     core.getInput("automerge_method"),
   );
-  const inputs: Inputs = {
+  const inputs: securefix.Inputs = {
     appId: core.getInput("app_id", { required: true }),
     privateKey: core.getInput("app_private_key", { required: true }),
     serverRepository: core.getInput("server_repository", { required: true }),
@@ -52,6 +38,7 @@ export const action = async () => {
     repo: core.getInput("repository"),
     branch: core.getInput("branch"),
     failIfChanges: core.getBooleanInput("fail_if_changes"),
+    useGit: core.getBooleanInput("use_git_ls_files"),
     files: new Set(
       core
         .getInput("files")
