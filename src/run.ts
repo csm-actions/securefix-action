@@ -32,7 +32,10 @@ const deleteLabel = async (token: string, labelName: string) => {
 };
 
 export const main = async () => {
-  const action = core.getInput("action", { required: true });
+  const serverRepository = core.getInput("server_repository");
+  const action = serverRepository
+    ? core.getInput("action") || "client"
+    : core.getInput("action", { required: true });
   if (core.getState("post")) {
     if (action !== "prepare" && action !== "server") {
       return;
