@@ -3,7 +3,9 @@ description: Securefix Action
 inputs:
   # common
   action:
-    description: config
+    description: |
+      Action to run. One of "client", "validate-config", "prepare", "notify", "commit", "server".
+      If server_repository is set, defaults to "client".
     required: false
   app_id:
     description: |
