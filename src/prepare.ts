@@ -208,27 +208,34 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   outputs.setGitHubToken(token);
   const octokit = github.getOctokit(token);
 
-  if (
-    metadata.inputs.pull_request?.title &&
-    !metadata.inputs.pull_request?.base
-  ) {
-    // Get the default branch
-    const { data: repository } = await octokit.rest.repos.get({
-      owner: metadata.context.payload.repository.owner.login,
-      repo: metadata.context.payload.repository.name,
-    });
-    metadata.inputs.pull_request.base = repository.default_branch;
-  }
+  const clientRepo = metadata.context.payload.repository.full_name;
+  const clientOwner = metadata.context.payload.repository.owner.login;
+  const clientRepoName = metadata.context.payload.repository.name;
 
-  if (metadata.inputs.pull_request?.title && fixedFiles) {
+  const destRepo =
+    metadata.inputs.repository || clientRepo;
+  const destBranch = metadata.inputs.branch || data.branch;
+  const destOwner = clientOwner;
+  const destRepoName = destRepo.split("/")[1];
+
+  let prBaseBranch = "";
+
+  if (metadata.inputs.pull_request?.title) {
+    if (metadata.inputs.pull_request?.base) {
+      prBaseBranch = metadata.inputs.pull_request.base;
+    } else {
+      // Get the default branch
+      prBaseBranch = await getDefaultBranch(octokit, destOwner, destRepoName);
+      metadata.inputs.pull_request.base = prBaseBranch;
+    }
     outputs.setCreatePullRequest(JSON.stringify(metadata.inputs.pull_request));
   }
 
   // Get a pull request
   if (metadata.context.payload.pull_request) {
     const { data: pullRequest } = await octokit.rest.pulls.get({
-      owner: metadata.context.payload.repository.owner.login,
-      repo: metadata.context.payload.repository.name,
+      owner: clientOwner,
+      repo: clientRepoName,
       pull_number: metadata.context.payload.pull_request.number,
     });
     outputs.setPullRequest(JSON.stringify(pullRequest));
@@ -247,15 +254,15 @@ export const validateRepository = async (data: Data): Promise<Output> => {
 
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
     // By default, push to the same repository and branch as the workflow run.
-    outputs.setPushRepository(metadata.context.payload.repository.full_name);
+    outputs.setPushRepository(clientRepo);
     outputs.setBranch(data.branch);
     return outputs;
   }
 
   // If pushed repository and branch are specified, the workflow run branch must be protected.
   const { data: branch } = await octokit.rest.repos.getBranch({
-    owner: metadata.context.payload.repository.owner.login,
-    repo: metadata.context.payload.repository.name,
+    owner: clientOwner,
+    repo: clientRepoName,
     branch: data.branch,
   });
   if (!branch.protected) {
@@ -264,13 +271,6 @@ export const validateRepository = async (data: Data): Promise<Output> => {
 
   // Read YAML config to push a commit to other repositories and branches
   const config = readConfig();
-  const destRepo =
-    metadata.inputs.repository || metadata.context.payload.repository.full_name;
-  const destBranch = metadata.inputs.branch || data.branch;
-
-  const clientRepo = metadata.context.payload.repository.full_name;
-  const clientOwner = metadata.context.payload.repository.owner.login;
-  const clientRepoName = metadata.context.payload.repository.name;
 
   for (const entry of config.entries) {
     if (!matchClientRepositories(entry, clientRepo)) {
@@ -298,28 +298,21 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     outputs.setPushRepository(destRepo);
     outputs.setBranch(destBranch);
 
-    if (metadata.inputs.pull_request?.title) {
-      if (!metadata.inputs.pull_request.base) {
-        throw new Error(
-          "pull_request base branch is required to create a pull request",
-        );
-      }
-      if (!entry.pull_request) {
-        throw new Error("Creating a pull request isn't allowed for this entry");
-      }
-      if (
-        !(await validatePullRequestBaseBranch(
-          octokit,
-          entry,
-          destRepo,
-          metadata.inputs.pull_request.base,
-        ))
-      ) {
-        throw new Error(
-          "The given pull request branch isn't allowed for this entry",
-        );
-      }
-      outputs.setPullRequest(JSON.stringify(metadata.inputs.pull_request));
+    if (!entry.pull_request) {
+      throw new Error("Creating a pull request isn't allowed for this entry");
+    }
+    if (
+      !(await validatePullRequestBaseBranch(
+        octokit,
+        entry,
+        destOwner,
+        destRepoName,
+        prBaseBranch,
+      ))
+    ) {
+      throw new Error(
+        "The given pull request branch isn't allowed for this entry",
+      );
     }
     return outputs;
   }
@@ -417,7 +410,8 @@ const matchPushBranches = (entry: Entry, destBranch: string): boolean => {
 const validatePullRequestBaseBranch = async (
   octokit: ReturnType<typeof github.getOctokit>,
   entry: Entry,
-  destRepo: string,
+  destOwner: string,
+  destRepoName: string,
   baseBranch: string,
 ): Promise<boolean> => {
   if (!entry.pull_request) {
@@ -426,7 +420,6 @@ const validatePullRequestBaseBranch = async (
   if (entry.pull_request.base_branches) {
     return entry.pull_request.base_branches.includes(baseBranch);
   }
-  const [destOwner, destRepoName] = destRepo.split("/");
   const defaultBranch = await getDefaultBranch(
     octokit,
     destOwner,
@@ -520,6 +513,7 @@ type Data = {
   workflowRun: WorkflowRun;
   token: string;
   sha: string;
+  /** The branch where the workflow run was triggered */
   branch: string;
   workflowName: string;
   runId: number;
