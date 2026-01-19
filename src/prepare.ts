@@ -292,8 +292,6 @@ export const validateRepository = async (data: Data): Promise<Output> => {
       continue;
     }
 
-    // All conditions matched
-    outputs.setBranch(destBranch);
 
     if (!entry.pull_request) {
       throw new Error("Creating a pull request isn't allowed for this entry");
