@@ -212,8 +212,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   const clientOwner = metadata.context.payload.repository.owner.login;
   const clientRepoName = metadata.context.payload.repository.name;
 
-  const destRepo =
-    metadata.inputs.repository || clientRepo;
+  const destRepo = metadata.inputs.repository || clientRepo;
   const destBranch = metadata.inputs.branch || data.branch;
   const destOwner = clientOwner;
   const destRepoName = destRepo.split("/")[1];
