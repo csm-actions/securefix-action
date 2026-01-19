@@ -213,12 +213,13 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   const clientRepoName = metadata.context.payload.repository.name;
 
   const destRepo = metadata.inputs.repository || clientRepo;
+  outputs.setPushRepository(destRepo);
   const destBranch = metadata.inputs.branch || data.branch;
+  outputs.setBranch(destBranch);
   const destOwner = clientOwner;
   const destRepoName = destRepo.split("/")[1];
 
   let prBaseBranch = "";
-
   if (metadata.inputs.pull_request?.title) {
     if (metadata.inputs.pull_request?.base) {
       prBaseBranch = metadata.inputs.pull_request.base;
@@ -253,8 +254,6 @@ export const validateRepository = async (data: Data): Promise<Output> => {
 
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
     // By default, push to the same repository and branch as the workflow run.
-    outputs.setPushRepository(clientRepo);
-    outputs.setBranch(data.branch);
     return outputs;
   }
 
@@ -294,7 +293,6 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     }
 
     // All conditions matched
-    outputs.setPushRepository(destRepo);
     outputs.setBranch(destBranch);
 
     if (!entry.pull_request) {
