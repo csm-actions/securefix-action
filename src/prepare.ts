@@ -295,19 +295,6 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     if (!entry.pull_request) {
       throw new Error("Creating a pull request isn't allowed for this entry");
     }
-    if (
-      !(await validatePullRequestBaseBranch(
-        octokit,
-        entry,
-        destOwner,
-        destRepoName,
-        prBaseBranch,
-      ))
-    ) {
-      throw new Error(
-        "The given pull request branch isn't allowed for this entry",
-      );
-    }
     return outputs;
   }
 
@@ -399,27 +386,6 @@ const matchPushRepositories = (
 
 const matchPushBranches = (entry: Entry, destBranch: string): boolean => {
   return entry.push.branches.some((branch) => minimatch(destBranch, branch));
-};
-
-const validatePullRequestBaseBranch = async (
-  octokit: ReturnType<typeof github.getOctokit>,
-  entry: Entry,
-  destOwner: string,
-  destRepoName: string,
-  baseBranch: string,
-): Promise<boolean> => {
-  if (!entry.pull_request) {
-    return false;
-  }
-  if (entry.pull_request.base_branches) {
-    return entry.pull_request.base_branches.includes(baseBranch);
-  }
-  const defaultBranch = await getDefaultBranch(
-    octokit,
-    destOwner,
-    destRepoName,
-  );
-  return baseBranch === defaultBranch;
 };
 
 const parseLabelDescription = (labelDescription: string): WorkflowRun => {

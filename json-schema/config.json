@@ -47,14 +47,7 @@
           },
           "pull_request": {
             "type": "object",
-            "properties": {
-              "base_branches": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
+            "properties": {},
             "additionalProperties": false
           }
         },

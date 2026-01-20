@@ -13,14 +13,10 @@ const Push = z.object({
   branches: z.array(z.string()),
 });
 
-const PullRequestEntry = z.object({
-  base_branches: z.optional(z.array(z.string())),
-});
-
 export const Entry = z.object({
   client: Client,
   push: Push,
-  pull_request: z.optional(PullRequestEntry),
+  pull_request: z.object({}).optional(),
 });
 export type Entry = z.infer<typeof Entry>;
 
