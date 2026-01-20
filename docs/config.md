@@ -19,14 +19,10 @@ entries:
       branches:
         - "scaffold-working-directory-*" # Glob
         - "follow-up-*" # Glob
-    # Allow to create pull requests
-    pull_request:
-      # As of v0.4.2, base_branches is optional.
-      # By default, the default branch of the pull request base repository is used.
-      # We recommend settings branches explicitly to decrease GitHub API call to fetch the default branch.
-      # The pull request base branch must be included in base_branches.
-      base_branches:
-        - main
+    # If pull_request isn't set, creating pull requests is forbidden.
+    # To allow pull requests, set pull_request: {}
+    # As of v0.6.0, pull_request.base_branches were abandoned.
+    pull_request: {}
   - client:
       repositories:
         - suzuki-shunsuke/tfaction

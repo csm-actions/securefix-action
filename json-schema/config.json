@@ -23,7 +23,9 @@
                 }
               }
             },
-            "required": ["repositories"],
+            "required": [
+              "repositories"
+            ],
             "additionalProperties": false
           },
           "push": {
@@ -42,27 +44,27 @@
                 }
               }
             },
-            "required": ["branches"],
+            "required": [
+              "branches"
+            ],
             "additionalProperties": false
           },
           "pull_request": {
             "type": "object",
-            "properties": {
-              "base_branches": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
+            "properties": {},
             "additionalProperties": false
           }
         },
-        "required": ["client", "push"],
+        "required": [
+          "client",
+          "push"
+        ],
         "additionalProperties": false
       }
     }
   },
-  "required": ["entries"],
+  "required": [
+    "entries"
+  ],
   "additionalProperties": false
 }
