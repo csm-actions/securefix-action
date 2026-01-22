@@ -29,12 +29,12 @@ export type AutomergeMethod = z.infer<typeof AutomergeMethod>;
 
 export const PullRequest = z.object({
   title: z.string(),
-  body: z.string(),
+  body: z.string().default(""),
   base: z.string(),
-  labels: z.string().array(),
-  assignees: z.string().array(),
-  reviewers: z.string().array(),
-  team_reviewers: z.string().array(),
+  labels: z.string().array().default([]),
+  assignees: z.string().array().default([]),
+  reviewers: z.string().array().default([]),
+  team_reviewers: z.string().array().default([]),
   draft: z.boolean(),
   automerge_method: AutomergeMethod.optional(),
   comment: z.string(),
