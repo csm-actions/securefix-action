@@ -9,7 +9,7 @@
     "@actions/core": "2.0.3",
     "@actions/exec": "^2.0.0",
     "@actions/github": "7.0.0",
-    "@csm-actions/label": "npm:@jsr/csm-actions__label@^0.0.5",
+    "@csm-actions/label": "npm:@jsr/csm-actions__label@^0.0.6",
     "@csm-actions/securefix-action": "npm:@jsr/csm-actions__securefix-action@^0.1.2",
     "@octokit/core": "^7.0.0",
     "@octokit/plugin-paginate-graphql": "^6.0.0",
