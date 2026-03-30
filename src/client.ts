@@ -89,6 +89,9 @@ export const action = async () => {
         : 0,
     },
     workspace: process.env.GITHUB_WORKSPACE || "",
+    custom: core.getInput("custom")
+      ? JSON.parse(core.getInput("custom"))
+      : null,
   };
   const result = await securefix.request(inputs);
   core.setOutput("artifact_name", result.artifactName);
