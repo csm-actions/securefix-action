@@ -62,7 +62,7 @@ const MetadataInputs = z.object({
   repository: z.string().optional(),
   branch: z.string().optional(),
   pull_request: PullRequest.optional(),
-  custom: z.string().optional(),
+  custom: z.unknown().optional(),
 });
 
 const Payload = z.object({
@@ -161,11 +161,12 @@ class Output {
     this.outputs.metadata = metadata;
   }
   setCustom(custom: unknown) {
-    core.debug(`output custom=${custom}`);
+    const s = JSON.stringify(custom);
+    core.debug(`output custom=${s}`);
     if (this.isOutput) {
-      core.setOutput("custom", custom);
+      core.setOutput("custom", s);
     }
-    this.outputs.custom = JSON.stringify(custom);
+    this.outputs.custom = s;
   }
   setPushRepository(pushRepository: string) {
     core.debug(`output push_repository=${pushRepository}`);

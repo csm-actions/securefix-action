@@ -126,6 +126,11 @@ inputs:
       auto-merge method. One of "merge", "squash", or "rebase".
       By default, auto-merge is disabled.
     required: false
+  custom:
+    description: |
+      Custom parameter in JSON format.
+      This is passed to the server side and output as the `custom` output of the prepare or server action.
+    required: false
   # prepare
   workflow_name:
     description: |
@@ -184,6 +189,48 @@ inputs:
     default: "${{github.token}}"
   # commit
   # notify
+outputs:
+  # client
+  artifact_name:
+    description: |
+      The name of the uploaded artifact.
+  changed_files:
+    description: |
+      Changed files.
+  changed_files_from_root_dir:
+    description: |
+      Changed files from the root directory.
+  # prepare and server
+  branch:
+    description: |
+      The branch where the commit will be pushed.
+  client_repository:
+    description: |
+      The client repository full name.
+  create_pull_request:
+    description: |
+      JSON serialized pull request creation parameters.
+  fixed_files:
+    description: |
+      Newline-separated list of fixed files.
+  github_token:
+    description: |
+      GitHub App installation token for the destination repository.
+  metadata:
+    description: |
+      JSON serialized metadata from the client.
+  custom:
+    description: |
+      Custom parameter from the client in JSON format.
+  push_repository:
+    description: |
+      The destination repository full name.
+  pull_request:
+    description: |
+      JSON serialized pull request data.
+  workflow_run:
+    description: |
+      JSON serialized workflow run data.
 runs:
   using: node20
   main: dist/index.js
