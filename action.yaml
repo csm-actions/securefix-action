@@ -128,7 +128,7 @@ inputs:
     required: false
   custom:
     description: |
-      Custom parameter in JSON format.
+      Custom parameter in JSON object format.
       This is passed to the server side and output as the `custom` output of the prepare or server action.
     required: false
   # prepare
@@ -221,7 +221,7 @@ outputs:
       JSON serialized metadata from the client.
   custom:
     description: |
-      Custom parameter from the client in JSON format.
+      Custom parameter from the client in JSON object format.
   push_repository:
     description: |
       The destination repository full name.
