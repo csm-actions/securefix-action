@@ -62,7 +62,7 @@ const MetadataInputs = z.object({
   repository: z.string().optional(),
   branch: z.string().optional(),
   pull_request: PullRequest.optional(),
-  custom: z.unknown().optional(),
+  custom: z.record(z.string(), z.unknown()).optional(),
 });
 
 const Payload = z.object({
@@ -515,7 +515,7 @@ export const prepare = async (
   const metadataS = fs.readFileSync(`${inputs.labelName}.json`, "utf8");
   const metadata = Metadata.parse(JSON.parse(metadataS));
   outputs.setMetadata(metadataS);
-  outputs.setCustom(metadata.inputs.custom);
+  outputs.setCustom(metadata.inputs.custom ?? {});
 
   if (metadata.context.payload.pull_request?.number) {
     core.notice(

@@ -25,6 +25,22 @@ export const PullRequest = z.object({
 });
 export type PullRequest = z.infer<typeof PullRequest>;
 
+const parseCustomInput = (input: string): Record<string, unknown> => {
+  if (!input) {
+    return {};
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(input);
+  } catch {
+    throw new Error("The `custom` input must be valid JSON: " + input);
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error("The `custom` input must be a JSON object, got: " + input);
+  }
+  return parsed as Record<string, unknown>;
+};
+
 export const action = async () => {
   const automergeMethod = AutomergeMethod.parse(
     core.getInput("automerge_method"),
@@ -89,9 +105,7 @@ export const action = async () => {
         : 0,
     },
     workspace: process.env.GITHUB_WORKSPACE || "",
-    custom: core.getInput("custom")
-      ? JSON.parse(core.getInput("custom"))
-      : null,
+    custom: parseCustomInput(core.getInput("custom")),
   };
   const result = await securefix.request(inputs);
   core.setOutput("artifact_name", result.artifactName);
