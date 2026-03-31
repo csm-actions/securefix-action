@@ -24,17 +24,14 @@ It achieves a server/client architecture using GitHub Actions by unique approach
 
 ## :rocket: Recent Important Updates
 
-- [v0.4.2 (2025-12)](https://github.com/csm-actions/securefix-action/releases/tag/v0.4.2)
-  - You can write Configuration files more simply
-- [v0.4.1 (2025-11)](https://github.com/csm-actions/securefix-action/releases/tag/v0.4.1)
-  - The performance was drastically improved
-- [v0.3.0 (2025-10)](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.0)
-  - :warning: If the repository or branch is changed, the source branch must be protected for security.
-- [v0.2.0 (2025-07)](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)
-  - [You can now push commits to the other repository and branch securely](#push-to-other-repository-and-branch)
-  - [You can now create pull requests](#create-pull-requests)
-  - Fix a bug that it fails to push a commit if hidden files are included
-  - :warning: [Delete labels on the server side](https://github.com/csm-actions/securefix-action/pull/164)
+- [v0.5.6 (2026-03)](https://github.com/csm-actions/securefix-action/releases/tag/v0.5.6)
+  - :bug: [Fix a bug that client fails when some files are deleted](https://github.com/csm-actions/securefix-action/issues/559)
+  - 💪 [Support passing custom parameters from client to server to customize server workflow](https://github.com/csm-actions/securefix-action/pull/564)
+- :bug: [v0.5.5 (2026-02) Fix a bug that Git Submodules are broken](https://github.com/csm-actions/securefix-action/releases/tag/v0.5.5)
+- :warning: [v0.5.3 (2026-01) pull_request.base_branches in configuration files were abandoned](https://github.com/csm-actions/securefix-action/releases/tag/v0.5.3)
+- 💪 [v0.4.2 (2025-12) You can write Configuration files more simply](https://github.com/csm-actions/securefix-action/releases/tag/v0.4.2)
+- :rocket: [v0.4.1 (2025-11) The performance was drastically improved](https://github.com/csm-actions/securefix-action/releases/tag/v0.4.1)
+- :warning: [v0.3.0 (2025-10) If the repository or branch is changed, the source branch must be protected for security.](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.0)
 
 See also [Release Notes](https://github.com/csm-actions/securefix-action/releases).
 
