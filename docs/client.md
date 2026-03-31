@@ -162,6 +162,7 @@ gh project view --owner "<Project Owner>" "<Project Number>" --format json --jq 
 
 - `milestone_number` ([v0.3.3](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.3)): Milestone Number
 - `automerge_method` ([v0.3.5](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.5)): auto-merge method. One of `merge`, `squash`, and `rebase`. By default, auto-merge is disabled.
+- `custom` (v0.5.6): Custom parameter in JSON object format. This is passed to the server side and output as the `custom` output of the prepare or server action.
 
 #### `fail_if_changes`
 

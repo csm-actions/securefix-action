@@ -324,7 +324,7 @@ You can use [`prepare` action's outputs](docs/prepare.md#outputs).
     action: commit
     outputs: ${{ toJson(steps.prepare.outputs) }}
 - uses: csm-actions/securefix-action@latest
-  failure()
+  if: failure()
   with:
     action: notify
     outputs: ${{ toJson(steps.prepare.outputs) }}
