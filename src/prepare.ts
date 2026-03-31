@@ -58,10 +58,11 @@ const PayloadPullRequest = z.object({
   number: z.number(),
 });
 
-const Inputs = z.object({
+const MetadataInputs = z.object({
   repository: z.string().optional(),
   branch: z.string().optional(),
   pull_request: PullRequest.optional(),
+  custom: z.record(z.string(), z.unknown()).optional(),
 });
 
 const Payload = z.object({
@@ -74,7 +75,7 @@ const Context = z.object({
 });
 
 const Metadata = z.object({
-  inputs: Inputs,
+  inputs: MetadataInputs,
   context: Context,
 });
 type Metadata = z.infer<typeof Metadata>;
@@ -86,6 +87,7 @@ export const Outputs = z.object({
   fixed_files: z.string(),
   github_token: z.string(),
   metadata: z.string(),
+  custom: z.string(),
   push_repository: z.string(),
   pull_request: z.string().optional(),
   workflow_run: z.string(),
@@ -105,6 +107,7 @@ class Output {
       fixed_files: "",
       github_token: "",
       metadata: "",
+      custom: "",
       push_repository: "",
       workflow_run: "",
     };
@@ -156,6 +159,12 @@ class Output {
       core.setOutput("metadata", metadata);
     }
     this.outputs.metadata = metadata;
+  }
+  setCustom(custom: unknown) {
+    const s = JSON.stringify(custom);
+    core.debug(`output custom=${s}`);
+    core.setOutput("custom", s); // custom is outputted regardless of `isOutput`
+    this.outputs.custom = s;
   }
   setPushRepository(pushRepository: string) {
     core.debug(`output push_repository=${pushRepository}`);
@@ -504,6 +513,7 @@ export const prepare = async (
   const metadataS = fs.readFileSync(`${inputs.labelName}.json`, "utf8");
   const metadata = Metadata.parse(JSON.parse(metadataS));
   outputs.setMetadata(metadataS);
+  outputs.setCustom(metadata.inputs.custom ?? {});
 
   if (metadata.context.payload.pull_request?.number) {
     core.notice(

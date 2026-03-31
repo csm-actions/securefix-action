@@ -83,6 +83,7 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
     draft: prParam.draft,
   });
   core.notice(`Created a pull request: ${pr.data.html_url}`);
+  core.setOutput("new_pull_request", JSON.stringify(pr.data));
 
   const promises = [];
 
