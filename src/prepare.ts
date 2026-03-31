@@ -163,9 +163,7 @@ class Output {
   setCustom(custom: unknown) {
     const s = JSON.stringify(custom);
     core.debug(`output custom=${s}`);
-    if (this.isOutput) {
-      core.setOutput("custom", s);
-    }
+    core.setOutput("custom", s); // custom is outputted regardless of `isOutput`
     this.outputs.custom = s;
   }
   setPushRepository(pushRepository: string) {
