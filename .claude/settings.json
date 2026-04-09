@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(npm run fmt:*)",
+      "Bash(npm run schema:*)"
+    ]
+  }
+}
