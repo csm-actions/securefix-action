@@ -49,6 +49,10 @@ export const create = async (inputs: Inputs) => {
   const [owner, repo] = elems;
 
   const octokit = github.getOctokit(outputs.github_token);
+  const submodules = outputs.submodules
+    ? JSON.parse(outputs.submodules)
+    : undefined;
+
   core.info(`Creating a commit on ${owner}/${repo} ${outputs.branch}`);
   const createdCommit = await commit.createCommit(octokit, {
     owner: owner,
@@ -58,6 +62,7 @@ export const create = async (inputs: Inputs) => {
 ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.repo}/actions/runs/${github.context.runId}`,
     files: fixedFiles,
     deleteIfNotExist: true,
+    submodules: submodules,
     logger: {
       info: core.info,
     },

@@ -58,11 +58,17 @@ const PayloadPullRequest = z.object({
   number: z.number(),
 });
 
+const Submodule = z.object({
+  path: z.string(),
+  sha: z.string(),
+});
+
 const MetadataInputs = z.object({
   repository: z.string().optional(),
   branch: z.string().optional(),
   pull_request: PullRequest.optional(),
   custom: z.record(z.string(), z.unknown()).optional(),
+  submodules: z.array(Submodule).optional(),
 });
 
 const Payload = z.object({
@@ -92,6 +98,7 @@ export const Outputs = z.object({
   pull_request: z.string().optional(),
   workflow_run: z.string(),
   error: z.string().optional(),
+  submodules: z.string().optional(),
 });
 export type Outputs = z.infer<typeof Outputs>;
 
@@ -173,6 +180,13 @@ class Output {
     }
     this.outputs.push_repository = pushRepository;
   }
+  setSubmodules(submodules: string) {
+    core.debug(`output submodules=${submodules}`);
+    if (this.isOutput) {
+      core.setOutput("submodules", submodules);
+    }
+    this.outputs.submodules = submodules;
+  }
   setWorkflowRun(workflowRun: string) {
     core.debug(`output workflow_run=${workflowRun}`);
     if (this.isOutput) {
@@ -212,6 +226,10 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     .readFileSync(`${inputs.labelName}_files.txt`, "utf8")
     .trim();
   outputs.setFixedFiles(fixedFiles);
+
+  if (metadata.inputs.submodules && metadata.inputs.submodules.length > 0) {
+    outputs.setSubmodules(JSON.stringify(metadata.inputs.submodules));
+  }
 
   const token = await getTokenForDest(data);
   outputs.setGitHubToken(token);
