@@ -21,6 +21,9 @@
     "tmp": "^0.2.3",
     "zod": "^4.0.0"
   },
+  "overrides": {
+    "undici": "6.24.1"
+  },
   "devDependencies": {
     "@types/js-yaml": "4.0.9",
     "@types/node": "20.19.39",
