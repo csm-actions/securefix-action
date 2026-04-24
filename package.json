@@ -6,7 +6,7 @@
   },
   "dependencies": {
     "@actions/artifact": "^6.0.0",
-    "@actions/core": "3.0.0",
+    "@actions/core": "3.0.1",
     "@actions/exec": "^3.0.0",
     "@actions/github": "9.1.0",
     "@csm-actions/label": "npm:@jsr/csm-actions__label@^0.0.7",
