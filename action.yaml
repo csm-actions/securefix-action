@@ -235,6 +235,6 @@ outputs:
     description: |
       JSON serialized workflow run data.
 runs:
-  using: node20
+  using: node24
   main: dist/index.js
   post: dist/index.js
