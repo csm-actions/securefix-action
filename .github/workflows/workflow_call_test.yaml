@@ -1,6 +1,10 @@
 name: test (workflow_call)
 permissions: {}
-on: workflow_call
+on:
+  workflow_call:
+    secrets:
+      TAKUMI_GUARD_BOT_ID:
+        required: true
 jobs:
   path-filter:
     timeout-minutes: 10
@@ -34,6 +38,9 @@ jobs:
     with:
       version: pr/${{github.event.pull_request.number}}
       pr: ${{github.event.pull_request.number}}
+    secrets:
+      TAKUMI_GUARD_BOT_ID: ${{secrets.TAKUMI_GUARD_BOT_ID}}
     permissions:
       contents: write
       pull-requests: write
+      id-token: write
