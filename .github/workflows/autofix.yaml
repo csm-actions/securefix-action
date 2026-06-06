@@ -30,6 +30,8 @@ jobs:
         with:
           bot-id: ${{secrets.TAKUMI_GUARD_BOT_ID}}
       - run: npm ci
+      - name: Restore .npmrc to avoid committing the registry auth token
+        run: git checkout -- .npmrc
       - name: Update JSONSchema
         run: npm run schema
       - name: Format using prettier
