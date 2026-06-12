@@ -25,7 +25,7 @@
     "@types/js-yaml": "4.0.9",
     "@types/node": "24.13.1",
     "@types/tmp": "0.2.6",
-    "@vercel/ncc": "0.38.4",
+    "@vercel/ncc": "0.44.0",
     "prettier": "3.8.4",
     "ts-node": "10.9.2",
     "typescript": "6.0.3"
