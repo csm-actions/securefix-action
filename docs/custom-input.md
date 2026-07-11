@@ -60,7 +60,7 @@ server:
 - if: |
     fromJSON(steps.server.outputs.custom).slack &&
     steps.server.outputs.pull_request
-  uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+  uses: slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc # v3.0.5
   id: slack
   with:
     method: chat.postMessage
