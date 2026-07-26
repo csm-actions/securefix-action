@@ -17,7 +17,7 @@
     "@suzuki-shunsuke/github-app-token": "npm:@jsr/suzuki-shunsuke__github-app-token@^0.0.4",
     "@types/json-diff": "^1.0.3",
     "glob": "13.0.6",
-    "js-yaml": "4.3.0",
+    "js-yaml": "5.2.1",
     "tmp": "^0.2.3",
     "zod": "^4.0.0"
   },
