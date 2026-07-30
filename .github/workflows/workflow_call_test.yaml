@@ -33,6 +33,14 @@ jobs:
     uses: ./.github/workflows/typos.yaml
     permissions: {}
 
+  test:
+    uses: ./.github/workflows/wc-test.yaml
+    secrets:
+      TAKUMI_GUARD_BOT_ID: ${{secrets.TAKUMI_GUARD_BOT_ID}}
+    permissions:
+      id-token: write
+      contents: read
+
   create_pr_branch:
     uses: ./.github/workflows/wc-create-pr-branch.yaml
     with:

@@ -11,7 +11,9 @@
     "esModuleInterop": true,
     "types": ["node"]
   },
-  "exclude": ["node_modules", "**/*.test.ts"]
+  // Test files are type checked too. They are never bundled into dist because
+  // ncc only follows imports from the entrypoint.
+  "exclude": ["node_modules"]
   // "ts-node": {
   //   "esm": true,
   //   "experimentalSpecifierResolution": "node",

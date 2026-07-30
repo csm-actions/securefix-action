@@ -25,7 +25,7 @@ export const PullRequest = z.object({
 });
 export type PullRequest = z.infer<typeof PullRequest>;
 
-const parseCustomInput = (input: string): Record<string, unknown> => {
+export const parseCustomInput = (input: string): Record<string, unknown> => {
   if (!input) {
     return {};
   }
