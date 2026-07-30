@@ -2,7 +2,10 @@
   "scripts": {
     "build": "ncc build src/index.ts --license LICENSE",
     "schema": "ncc build src/generate_schema.ts && node dist/index.js",
-    "fmt": "prettier -w ."
+    "fmt": "prettier -w .",
+    "test": "vitest --run",
+    "test:coverage": "vitest --run --coverage",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@actions/artifact": "^6.0.0",
@@ -26,9 +29,11 @@
     "@types/node": "24.13.3",
     "@types/tmp": "0.2.6",
     "@vercel/ncc": "0.44.1",
+    "@vitest/coverage-v8": "4.1.10",
     "prettier": "3.9.6",
     "ts-node": "10.9.2",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
   },
   "overrides": {
     "archiver-utils": {

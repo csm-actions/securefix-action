@@ -378,11 +378,14 @@ const getDefaultBranch = async (
 
 // Validation functions for config entry matching
 
-const matchClientRepositories = (entry: Entry, clientRepo: string): boolean => {
+export const matchClientRepositories = (
+  entry: Entry,
+  clientRepo: string,
+): boolean => {
   return entry.client.repositories.some((repo) => minimatch(clientRepo, repo));
 };
 
-const matchClientBranches = async (
+export const matchClientBranches = async (
   octokit: ReturnType<typeof github.getOctokit>,
   entry: Entry,
   clientOwner: string,
@@ -400,7 +403,7 @@ const matchClientBranches = async (
   return branch === defaultBranch;
 };
 
-const matchPushRepositories = (
+export const matchPushRepositories = (
   entry: Entry,
   destRepo: string,
   clientRepo: string,
@@ -411,11 +414,16 @@ const matchPushRepositories = (
   return destRepo === clientRepo;
 };
 
-const matchPushBranches = (entry: Entry, destBranch: string): boolean => {
+export const matchPushBranches = (
+  entry: Entry,
+  destBranch: string,
+): boolean => {
   return entry.push.branches.some((branch) => minimatch(destBranch, branch));
 };
 
-const parseLabelDescription = (labelDescription: string): WorkflowRun => {
+export const parseLabelDescription = (
+  labelDescription: string,
+): WorkflowRun => {
   const elems = labelDescription.split("/");
   if (elems.length !== 3) {
     throw new Error(
