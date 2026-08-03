@@ -42,6 +42,8 @@
   "overrides": {
     "archiver-utils": {
       "glob": "$glob"
-    }
+    },
+    "@azure/storage-blob": "12.31.0",
+    "@azure/storage-common": "12.3.0"
   }
 }

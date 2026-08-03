@@ -29,3 +29,19 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+      # npm test runs against src, and npm run build only checks that ncc can
+      # produce a bundle. Neither runs dist/index.js, which is what workflows
+      # actually execute, so a bundle that throws while it is being loaded
+      # passes both. Run the action itself to catch that.
+      - name: Smoke test the action
+        uses: ./
+        with:
+          action: validate-config
+          config: |
+            entries:
+              - client:
+                  repositories:
+                    - example/client
+                push:
+                  branches:
+                    - main
