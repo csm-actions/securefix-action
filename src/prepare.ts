@@ -1,4 +1,6 @@
 import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { DefaultArtifactClient } from "@actions/artifact";
@@ -6,6 +8,7 @@ import { z } from "zod";
 import { minimatch } from "minimatch";
 import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
 import { readConfig, type Entry } from "./config";
+import * as unzip from "./unzip";
 
 type Inputs = {
   appId: string;
@@ -475,7 +478,7 @@ const createToken = async (
   return token;
 };
 
-const downloadArtifact = async (
+export const downloadArtifact = async (
   token: string,
   workflowRun: WorkflowRun,
   labelName: string,
@@ -499,8 +502,34 @@ const downloadArtifact = async (
     core.setFailed(`Artifact '${labelName}' not found`);
     return;
   }
-  core.info(`Downloading an artifact`);
-  await artifact.downloadArtifact(targetArtifact.id, artifactOpts);
+  // The artifact is downloaded as a zip file and extracted by unzip.extract()
+  // instead of being extracted by `@actions/artifact`, which doesn't restore
+  // file modes.
+  const workspace = process.env.GITHUB_WORKSPACE;
+  if (!workspace) {
+    throw new Error("Unable to get the GITHUB_WORKSPACE env variable");
+  }
+  const downloadDir = fs.mkdtempSync(path.join(os.tmpdir(), "securefix-"));
+  try {
+    core.info(`Downloading an artifact`);
+    await artifact.downloadArtifact(targetArtifact.id, {
+      ...artifactOpts,
+      path: downloadDir,
+      skipDecompress: true,
+    });
+    // The downloaded file name is derived from the Content-Disposition header of
+    // the response, so the file is found by listing the directory.
+    const files = fs.readdirSync(downloadDir);
+    if (files.length !== 1) {
+      throw new Error(
+        `One downloaded artifact file is expected, but got ${files.length} files: ${files.join(", ")}`,
+      );
+    }
+    core.info(`Extracting the artifact into ${workspace}`);
+    await unzip.extract(path.join(downloadDir, files[0]), workspace);
+  } finally {
+    fs.rmSync(downloadDir, { recursive: true, force: true });
+  }
 };
 
 type Data = {
