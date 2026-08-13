@@ -20,7 +20,7 @@
     "@suzuki-shunsuke/github-app-token": "npm:@jsr/suzuki-shunsuke__github-app-token@^0.0.4",
     "@types/json-diff": "^1.0.3",
     "glob": "13.0.6",
-    "js-yaml": "5.2.2",
+    "js-yaml": "5.2.3",
     "tmp": "^0.2.3",
     "unzip-stream": "^0.3.4",
     "zod": "^4.0.0"
@@ -43,7 +43,7 @@
     "archiver-utils": {
       "glob": "$glob"
     },
-    "@azure/storage-blob": "12.31.0",
-    "@azure/storage-common": "12.3.0"
+    "@azure/storage-blob": "12.33.0",
+    "@azure/storage-common": "12.5.0"
   }
 }

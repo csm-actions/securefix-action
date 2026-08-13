@@ -1,28 +1,28 @@
 {
   "checksums": [
     {
-      "id": "github_release/github.com/crate-ci/typos/v1.48.0/typos-v1.48.0-aarch64-apple-darwin.tar.gz",
-      "checksum": "7DCAF386EC255995DCBAF629641F961574B7E8785203921115EAB75CBF1CA107",
+      "id": "github_release/github.com/crate-ci/typos/v1.49.0/typos-v1.49.0-aarch64-apple-darwin.tar.gz",
+      "checksum": "8C0E7BD40B2B60C0B0CFE9F74DD814B4D4385C956CE86860F7DA9E62D91FDC73",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/crate-ci/typos/v1.48.0/typos-v1.48.0-aarch64-unknown-linux-musl.tar.gz",
-      "checksum": "2960AE07BC1FFE19E4895E4359394DD349C9C31DE78AAC3A124B6E4AEB206698",
+      "id": "github_release/github.com/crate-ci/typos/v1.49.0/typos-v1.49.0-aarch64-unknown-linux-musl.tar.gz",
+      "checksum": "85C8B87B22A0FB1DA130CD4D495E0BEBA7F1225EB580933184509E146EC4C509",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/crate-ci/typos/v1.48.0/typos-v1.48.0-x86_64-apple-darwin.tar.gz",
-      "checksum": "F4335C255DB3D57374484E0E96505C8910C0E2FA6D8813B15DE529C98F93B1A9",
+      "id": "github_release/github.com/crate-ci/typos/v1.49.0/typos-v1.49.0-x86_64-apple-darwin.tar.gz",
+      "checksum": "4CECBF653A9FC45F023ABF57F4E2E2F6B138C2D2387B09289BEACDD3F0EA7BFD",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/crate-ci/typos/v1.48.0/typos-v1.48.0-x86_64-pc-windows-msvc.zip",
-      "checksum": "CE018A2352DA7C1B23BD2684019EE279D2080DC063087020E80C1247D11B0743",
+      "id": "github_release/github.com/crate-ci/typos/v1.49.0/typos-v1.49.0-x86_64-pc-windows-msvc.zip",
+      "checksum": "06D3A1B71C282E021671070696A72696D5C60EA485B47DC4F8F1FBCF90144D02",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/crate-ci/typos/v1.48.0/typos-v1.48.0-x86_64-unknown-linux-musl.tar.gz",
-      "checksum": "72A930C9A94FC3914AA56835C5B859C892A797D40C1C42638B98D93F16FF519C",
+      "id": "github_release/github.com/crate-ci/typos/v1.49.0/typos-v1.49.0-x86_64-unknown-linux-musl.tar.gz",
+      "checksum": "48BD2D58E02CE713B8C0F1AA239E68EE4F7D8C551013135806E6AED3938D9E10",
       "algorithm": "sha256"
     },
     {
@@ -86,43 +86,43 @@
       "algorithm": "sha256"
     },
     {
-      "id": "http/nodejs.org/dist/v24.18.1/node-v24.18.1-darwin-arm64.tar.gz",
-      "checksum": "EB02F7FAB96D3D67DE40C5EC8566096FCB4C2026728787683AE5A97EB612B941",
+      "id": "http/nodejs.org/dist/v24.19.0/node-v24.19.0-darwin-arm64.tar.gz",
+      "checksum": "8294B7AA9B03997481C06BABF1E8B270C859358F27DA57A11509AFE537AC381D",
       "algorithm": "sha256"
     },
     {
-      "id": "http/nodejs.org/dist/v24.18.1/node-v24.18.1-darwin-x64.tar.gz",
-      "checksum": "6FB20FCEACBB157C2F95825B80DF4A454A0F6D81CDCD7BB81EEAE9147E0E76EC",
+      "id": "http/nodejs.org/dist/v24.19.0/node-v24.19.0-darwin-x64.tar.gz",
+      "checksum": "D1B5E999DB158C62FE8F7267A4476B035D8BD93B1A605BAC24A3F0DD166E3316",
       "algorithm": "sha256"
     },
     {
-      "id": "http/nodejs.org/dist/v24.18.1/node-v24.18.1-linux-arm64.tar.gz",
-      "checksum": "DF224555A083B918E46260CC969838501B9F9A87140C1195E5B9597B56D5DAE2",
+      "id": "http/nodejs.org/dist/v24.19.0/node-v24.19.0-linux-arm64.tar.gz",
+      "checksum": "D28C8A5BF0A808F0ED434A1DCE8C54AE98F0371C0BD86AC58ABC613F73E6643F",
       "algorithm": "sha256"
     },
     {
-      "id": "http/nodejs.org/dist/v24.18.1/node-v24.18.1-linux-x64.tar.gz",
-      "checksum": "9F5EB6AC21845A66C493C91A253B1DA32FD684E89E9B7202D4936982336BE4CA",
+      "id": "http/nodejs.org/dist/v24.19.0/node-v24.19.0-linux-x64.tar.gz",
+      "checksum": "F625D97CD707DF4FF96254916FBC5FF014F09C09EFFE5A1E0CA8F6D41A8789D4",
       "algorithm": "sha256"
     },
     {
-      "id": "http/nodejs.org/dist/v24.18.1/node-v24.18.1-win-x64.zip",
-      "checksum": "EC56B84A7551893AB2324EBDFDC4AB974A63B4781162600B68A1293CC3E53765",
+      "id": "http/nodejs.org/dist/v24.19.0/node-v24.19.0-win-x64.zip",
+      "checksum": "57F71AB3652E797D84ACDDC79C81CC9FF1C6DDB2A1974CDB83F00FEE9BFF4C73",
       "algorithm": "sha256"
     },
     {
-      "id": "http/unofficial-builds.nodejs.org/download/release/v24.18.1/node-v24.18.1-linux-arm64-musl.tar.gz",
-      "checksum": "AE1B6457EDB875FD98130B37C853E51A53AC0CC40850ECCCD490B61C5A3558FA",
+      "id": "http/unofficial-builds.nodejs.org/download/release/v24.19.0/node-v24.19.0-linux-arm64-musl.tar.gz",
+      "checksum": "20824E4D35948FAE5B337DCCEF47813B04D8995312F59DF7386F2256D9F9AB7E",
       "algorithm": "sha256"
     },
     {
-      "id": "http/unofficial-builds.nodejs.org/download/release/v24.18.1/node-v24.18.1-linux-x64-musl.tar.gz",
-      "checksum": "696979CAEF92505AD7566A3674CA9A93D8558E282F34E7899181C0321821AE5F",
+      "id": "http/unofficial-builds.nodejs.org/download/release/v24.19.0/node-v24.19.0-linux-x64-musl.tar.gz",
+      "checksum": "C60223786DF14A5D23E220EBB8E60318F5322640A62F90E6D9E54D3A18DA532E",
       "algorithm": "sha256"
     },
     {
-      "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.547.0/registry.yaml",
-      "checksum": "BE4FB3294CC6A9E6B9D674C9A93093B902AE62244E5B1B80DC2C451C01E61E09",
+      "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.551.0/registry.yaml",
+      "checksum": "101779B840D3D53673DCF02005B015E290ED7C9C835CEBD6914BC651A00C5D8B",
       "algorithm": "sha256"
     }
   ]
