@@ -33,7 +33,7 @@
     "@types/unzip-stream": "0.3.4",
     "@vercel/ncc": "0.44.1",
     "@vitest/coverage-v8": "4.1.10",
-    "archiver": "^7.0.1",
+    "archiver": "7.0.1",
     "prettier": "3.9.6",
     "ts-node": "10.9.2",
     "typescript": "6.0.3",
