@@ -31,7 +31,7 @@
     "@types/node": "24.13.3",
     "@types/tmp": "0.2.6",
     "@types/unzip-stream": "0.3.4",
-    "@vercel/ncc": "0.44.1",
+    "@vercel/ncc": "0.45.0",
     "@vitest/coverage-v8": "4.1.10",
     "archiver": "7.0.1",
     "prettier": "3.9.6",
