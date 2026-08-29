@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import { describe, it, expect, beforeEach } from "vitest";
 import { extract, readFileModes } from "./unzip";
 
@@ -29,7 +29,7 @@ beforeEach(() => {
 const createZip = async (entries: Entry[]): Promise<string> => {
   const zipPath = path.join(workDir, "artifact.zip");
   const output = fs.createWriteStream(zipPath);
-  const zip = archiver.create("zip", {});
+  const zip = new ZipArchive({});
   zip.pipe(output);
   for (const entry of entries) {
     zip.append(entry.content ?? "", { name: entry.name, mode: entry.mode });

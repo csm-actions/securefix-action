@@ -26,14 +26,14 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@types/archiver": "7.0.0",
+    "@types/archiver": "8.0.0",
     "@types/js-yaml": "4.0.9",
     "@types/node": "24.13.3",
     "@types/tmp": "0.2.6",
     "@types/unzip-stream": "0.3.4",
     "@vercel/ncc": "0.45.0",
     "@vitest/coverage-v8": "4.1.11",
-    "archiver": "7.0.1",
+    "archiver": "8.0.0",
     "prettier": "3.9.6",
     "ts-node": "10.9.2",
     "typescript": "6.0.3",
