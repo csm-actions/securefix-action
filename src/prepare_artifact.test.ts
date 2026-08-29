@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // The tests for prepare.downloadArtifact() are separated from prepare.test.ts
@@ -48,7 +48,7 @@ afterEach(() => {
 const createZip = async (): Promise<string> => {
   const zipPath = path.join(workDir, "artifact.zip");
   const output = fs.createWriteStream(zipPath);
-  const zip = archiver.create("zip", {});
+  const zip = new ZipArchive({});
   zip.pipe(output);
   zip.append("securefix-1_files.txt\n", {
     name: "securefix-1_files.txt",
