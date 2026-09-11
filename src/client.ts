@@ -2,6 +2,7 @@ import * as core from "@actions/core";
 import { z } from "zod";
 import * as securefix from "@csm-actions/securefix-action";
 import { AutomergeMethod } from "./prepare";
+import { newAppOctokit } from "./app_octokit";
 
 export const PullRequest = z.object({
   title: z.string(),
@@ -46,8 +47,7 @@ export const action = async () => {
     core.getInput("automerge_method"),
   );
   const inputs: securefix.Inputs = {
-    appId: core.getInput("app_id", { required: true }),
-    privateKey: core.getInput("app_private_key", { required: true }),
+    appOctokit: newAppOctokit(),
     serverRepository: core.getInput("server_repository", { required: true }),
     rootDir: core.getInput("root_dir"),
     commitMessage: core.getInput("commit_message"),
