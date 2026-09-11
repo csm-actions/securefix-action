@@ -353,3 +353,36 @@ Reference:
 
 - [Rate Limit of REST API](https://docs.github.com/en/enterprise-cloud@latest/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28)
 - [Rate Limit of GraphQL API](https://docs.github.com/en/enterprise-cloud@latest/graphql/overview/rate-limits-and-node-limits-for-the-graphql-api)
+
+## Private keys in AWS KMS
+
+A GitHub App private key in GitHub Secrets never expires, so anyone who obtains
+it can generate installation access tokens indefinitely. Importing the key into
+AWS KMS removes that path: the key can never be exported, and only the JSON Web
+Token signing is delegated to it.
+
+Set `aws_kms_key_id` instead of `app_private_key`. Passing it as a key ARN is
+enough, since an ARN carries its region; for an alias or a bare key id, set
+`aws_region` or leave it to the AWS SDK.
+
+Set `aws_role_to_assume` and this action assumes the IAM role itself with the
+GitHub OIDC token. The AWS credentials then stay inside the action and are never
+exported, so later steps of the job can't see them. Leaving it unset uses the
+standard AWS credential chain, so `aws-actions/configure-aws-credentials` works
+as well.
+
+```yaml
+permissions:
+  id-token: write # Required to assume the AWS IAM role via OIDC
+  contents: read
+
+steps:
+  - uses: csm-actions/securefix-action@11b2bfd2f4b7e1e02b63648fbe5d17e6273e515d # v0.6.1
+    with:
+      client_id: ${{vars.APP_CLIENT_ID}}
+      aws_kms_key_id: ${{vars.KMS_KEY_ID}}
+      aws_role_to_assume: ${{vars.ROLE_TO_ASSUME}}
+```
+
+The app can be identified by either `client_id` or `app_id`. `client_id` takes
+precedence when both are set.

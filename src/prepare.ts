@@ -7,12 +7,12 @@ import { DefaultArtifactClient } from "@actions/artifact";
 import { z } from "zod";
 import { minimatch } from "minimatch";
 import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
+import { newAppOctokit } from "./app_octokit";
 import { readConfig, type Entry } from "./config";
 import * as unzip from "./unzip";
 
 type Inputs = {
-  appId: string;
-  appPrivateKey: string;
+  appOctokit: githubAppToken.Client;
   workflowName: string;
   labelName: string;
   labelDescription: string;
@@ -335,8 +335,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
 
 export const readInputs = (): Inputs => {
   return {
-    appId: core.getInput("app_id", { required: true }),
-    appPrivateKey: core.getInput("app_private_key", { required: true }),
+    appOctokit: newAppOctokit(),
     labelName: core.getInput("label_name", { required: true }),
     labelDescription: core.getInput("label_description", { required: true }),
     allowWorkflowFix: core.getBooleanInput("allow_workflow_fix"),
@@ -468,8 +467,7 @@ const createToken = async (
     `Creating a github token owner=${owner} repositories=${repositories.join(",")}`,
   );
   const token = await githubAppToken.create({
-    appId: inputs.appId,
-    privateKey: inputs.appPrivateKey,
+    octokit: inputs.appOctokit,
     owner: owner,
     repositories: repositories,
     permissions: permissions,
