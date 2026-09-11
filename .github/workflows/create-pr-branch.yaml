@@ -18,6 +18,9 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      # wc-create-pr-branch.yaml requests id-token: write, and a called workflow
+      # can't be granted more than its caller has.
+      id-token: write
     with:
       version: pr/${{inputs.pr}}
       pr: ${{fromJSON(inputs.pr)}}
