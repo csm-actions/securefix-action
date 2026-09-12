@@ -377,7 +377,7 @@ permissions:
   contents: read
 
 steps:
-  - uses: csm-actions/securefix-action@11b2bfd2f4b7e1e02b63648fbe5d17e6273e515d # v0.6.1
+  - uses: csm-actions/securefix-action@e0c41ad42cb2c011143f37c073ce990dd404c0da # v0.6.2
     with:
       client_id: ${{vars.APP_CLIENT_ID}}
       aws_kms_key_id: ${{vars.KMS_KEY_ID}}
