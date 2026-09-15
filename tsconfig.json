@@ -9,6 +9,10 @@
     "strict": true,
     "noImplicitAny": true,
     "esModuleInterop": true,
+    // vitest v5 pulls in tinybench, whose declarations reference DOM types
+    // this project has no reason to enable. Declaration files come from
+    // dependencies, so checking them buys nothing here.
+    "skipLibCheck": true,
     "types": ["node"]
   },
   // Test files are type checked too. They are never bundled into dist because
