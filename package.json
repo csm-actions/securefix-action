@@ -47,7 +47,7 @@
     "archiver-utils": {
       "glob": "$glob"
     },
-    "@azure/storage-blob": "12.33.0",
+    "@azure/storage-blob": "12.34.0",
     "@azure/storage-common": "12.5.0"
   }
 }
