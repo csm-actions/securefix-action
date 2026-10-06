@@ -24,7 +24,7 @@ on:
 jobs:
   create-pr-branch:
     timeout-minutes: 15
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       pull-requests: write
