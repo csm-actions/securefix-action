@@ -65,11 +65,14 @@ jobs:
       - uses: suzuki-shunsuke/download-npm-package-action/restore@ebbf371f6e38b49824a73f8c6680e2e1f83db2e8 # v0.0.1
         with:
           artifact_name: node_modules
+      # The committed file is formatted by prettier, which isn't installed in this job.
+      # So compare the content instead of the text.
+      - run: cp json-schema/config.json "$RUNNER_TEMP/config.json"
       - run: npm run schema
       - name: Check if json-schema is up to date
         run: |
-          if ! git diff --exit-code -- json-schema; then
-            echo "::error::json-schema is outdated. Please run 'npm run schema' and commit the result"
+          if ! diff <(jq -S . "$RUNNER_TEMP/config.json") <(jq -S . json-schema/config.json); then
+            echo "::error::json-schema/config.json is outdated. Please run 'npm run schema' and 'npm run fmt' and commit the result"
             exit 1
           fi
 
