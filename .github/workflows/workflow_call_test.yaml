@@ -6,49 +6,86 @@ on:
       TAKUMI_GUARD_BOT_ID:
         required: true
 jobs:
-  path-filter:
-    timeout-minutes: 10
-    outputs:
-      renovate-config-validator: ${{steps.changes.outputs.renovate-config-validator}}
-    runs-on: ubuntu-26.04
-    permissions: {}
-    steps:
-      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        id: changes
-        with:
-          filters: |
-            renovate-config-validator:
-              - renovate.json5
-              - .github/workflows/workflow_call_test.yaml
-              - .github/workflows/renovate-config-vdalidator.yaml
-
-  renovate-config-validator:
-    uses: ./.github/workflows/renovate-config-validator.yaml
-    needs: path-filter
-    if: needs.path-filter.outputs.renovate-config-validator == 'true'
+  # Install npm packages once and share node_modules with the test-js, schema, and release jobs,
+  # so they run in parallel against the same commit (the merge commit of the pull request)
+  npm:
+    uses: suzuki-shunsuke/download-npm-package-action/.github/workflows/download.yaml@ebbf371f6e38b49824a73f8c6680e2e1f83db2e8 # v0.0.1
     permissions:
       contents: read
-
-  typos:
-    uses: ./.github/workflows/typos.yaml
-    permissions: {}
-
-  test:
-    uses: ./.github/workflows/wc-test.yaml
-    secrets:
-      TAKUMI_GUARD_BOT_ID: ${{secrets.TAKUMI_GUARD_BOT_ID}}
-    permissions:
       id-token: write
-      contents: read
-
-  create_pr_branch:
-    uses: ./.github/workflows/wc-create-pr-branch.yaml
     with:
-      version: pr/${{github.event.pull_request.number}}
-      pr: ${{github.event.pull_request.number}}
+      ref: refs/pull/${{github.event.pull_request.number}}/merge
     secrets:
       TAKUMI_GUARD_BOT_ID: ${{secrets.TAKUMI_GUARD_BOT_ID}}
+
+  release:
+    uses: suzuki-shunsuke/js-action-release-workflow/.github/workflows/release.yaml@8be0b473dc9410a79482fad9e42fdf52d10118a3 # v0.0.4
+    needs: npm
     permissions:
       contents: write
       pull-requests: write
       id-token: write
+    secrets:
+      TAKUMI_GUARD_BOT_ID: ${{secrets.TAKUMI_GUARD_BOT_ID}}
+    with:
+      npm_artifact_name: node_modules
+      ref: ${{needs.npm.outputs.sha}}
+      version: pr/${{github.event.pull_request.number}}
+      pr: ${{github.event.pull_request.number}}
+
+  # npm run lint (type check) and npm test
+  test-js:
+    uses: suzuki-shunsuke/js-action-test-workflow/.github/workflows/test.yaml@93619ca5c984cc300f209f5b71cc3284838323b5 # v0.0.2
+    needs: npm
+    permissions:
+      contents: read
+      id-token: write
+    secrets:
+      TAKUMI_GUARD_BOT_ID: ${{secrets.TAKUMI_GUARD_BOT_ID}}
+    with:
+      npm_artifact_name: node_modules
+      ref: ${{needs.npm.outputs.sha}}
+
+  schema:
+    # json-schema/config.json is generated from the source code by npm run schema.
+    # Fail if it isn't up to date.
+    timeout-minutes: 15
+    runs-on: ubuntu-26.04
+    needs: npm
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{needs.npm.outputs.sha}}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: suzuki-shunsuke/download-npm-package-action/restore@ebbf371f6e38b49824a73f8c6680e2e1f83db2e8 # v0.0.1
+        with:
+          artifact_name: node_modules
+      - run: npm run schema
+      - name: Check if json-schema is up to date
+        run: |
+          if ! git diff --exit-code -- json-schema; then
+            echo "::error::json-schema is outdated. Please run 'npm run schema' and commit the result"
+            exit 1
+          fi
+
+  # Test the action built by the release job
+  test:
+    uses: ./.github/workflows/wc-test.yaml
+    needs: release
+    permissions:
+      contents: read
+    with:
+      sha: ${{needs.release.outputs.sha}}
+
+  test-workflow:
+    uses: suzuki-shunsuke/test-workflow/.github/workflows/test.yaml@51ece8dcaabff59820bfb2053c56e3cb281cf7b2 # v0.0.1
+    with:
+      aqua_version: v2.64.0
+    permissions:
+      contents: read
+      pull-requests: read

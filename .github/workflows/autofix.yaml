@@ -3,45 +3,22 @@ name: autofix.ci
 on: pull_request
 permissions: {}
 jobs:
-  autofix:
-    runs-on: ubuntu-26.04
+  fix:
+    uses: suzuki-shunsuke/js-autofix-action/.github/workflows/autofix-ci.yaml@71bff57547985a27ed4aaff4e7c2b3d6798704a0 # v0.0.3
     permissions:
-      id-token: write # Required for OIDC
       contents: read
-    timeout-minutes: 15
+      id-token: write
+    with:
+      aqua_version: v2.64.0
+    secrets:
+      TAKUMI_GUARD_BOT_ID: ${{secrets.TAKUMI_GUARD_BOT_ID}}
+  autofix:
+    # Required status check of this workflow
+    runs-on: ubuntu-26.04
+    if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    timeout-minutes: 10
+    permissions: {}
+    needs:
+      - fix
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: aquaproj/aqua-installer@82d0e83878a8657c4a6f2ff1755d3bfbfc67f329 # v4.1.0
-        with:
-          aqua_version: v2.64.0
-      - name: Update aqua-checksums.json
-        run: aqua upc -prune
-        env:
-          GITHUB_TOKEN: ${{github.token}}
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-          cache-dependency-path: package-lock.json
-          cache: npm
-      - uses: flatt-security/setup-takumi-guard-npm@14f07d0cbc739b42a1b7c70a04c2b84cd1318ddd # v1.4.0
-        with:
-          bot-id: ${{secrets.TAKUMI_GUARD_BOT_ID}}
-      - run: npm ci
-      - name: Restore .npmrc to avoid committing the registry auth token
-        run: git checkout -- .npmrc
-      - name: Update JSONSchema
-        run: npm run schema
-      - name: Format using prettier
-        run: npm run fmt
-
-      - name: Fix newlines
-        run: git ls-files | xargs nllint -f -s
-      - name: Update actions in the document
-        env:
-          GITHUB_TOKEN: ${{github.token}}
-        run: |
-          git ls-files | grep -E '\.md$' | grep -v -E "^changelogs/" | xargs pinact run -u
-      - uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a # v1.3.4
+      - run: exit 1
