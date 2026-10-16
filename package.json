@@ -14,7 +14,7 @@
     "@actions/exec": "^3.0.0",
     "@actions/github": "9.1.1",
     "@csm-actions/label": "npm:@jsr/csm-actions__label@^0.1.0",
-    "@csm-actions/securefix-action": "npm:@jsr/csm-actions__securefix-action@^0.2.0",
+    "@csm-actions/securefix-action": "npm:@jsr/csm-actions__securefix-action@^0.2.1",
     "@octokit/auth-app": "^8.3.1",
     "@octokit/core": "^7.0.0",
     "@octokit/plugin-paginate-graphql": "^6.0.0",
