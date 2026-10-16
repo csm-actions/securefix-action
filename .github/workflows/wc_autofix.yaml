@@ -1,0 +1,61 @@
+---
+name: autofix (workflow_call)
+on:
+  workflow_call:
+    secrets:
+      TAKUMI_GUARD_BOT_ID:
+        required: true
+permissions: {}
+jobs:
+  # Install npm packages through Takumi Guard, which requires id-token: write.
+  # The autofix job runs code of the repository and its dependencies, so it must not have id-token: write.
+  npm-prettier:
+    uses: suzuki-shunsuke/download-npm-package-action/.github/workflows/download.yaml@ebbf371f6e38b49824a73f8c6680e2e1f83db2e8 # v0.0.1
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      ref: ${{github.event.pull_request.head.sha}}
+      working_directory: .github/prettier
+      artifact_name: node_modules-prettier
+    secrets:
+      TAKUMI_GUARD_BOT_ID: ${{secrets.TAKUMI_GUARD_BOT_ID}}
+
+  npm:
+    uses: suzuki-shunsuke/download-npm-package-action/.github/workflows/download.yaml@ebbf371f6e38b49824a73f8c6680e2e1f83db2e8 # v0.0.1
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      ref: ${{github.event.pull_request.head.sha}}
+      artifact_name: node_modules-autofix
+    secrets:
+      TAKUMI_GUARD_BOT_ID: ${{secrets.TAKUMI_GUARD_BOT_ID}}
+
+  autofix:
+    runs-on: ubuntu-26.04
+    needs:
+      - npm-prettier
+      - npm
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{github.event.pull_request.head.sha}}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: suzuki-shunsuke/download-npm-package-action/restore@ebbf371f6e38b49824a73f8c6680e2e1f83db2e8 # v0.0.1
+        with:
+          artifact_name: node_modules-autofix
+      - name: Update JSON Schema
+        run: npm run schema
+      # Format the generated JSON Schema and fix the code, and push them with autofix.ci
+      - uses: suzuki-shunsuke/js-autofix-action@8e0708290def8c1edc4d1933e1419487b263098a
+        with:
+          aqua_version: v2.64.0
+          checkout: "false"
+          npm_artifact_name: node_modules-prettier
