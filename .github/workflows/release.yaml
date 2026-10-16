@@ -12,13 +12,13 @@ on:
         required: false
 jobs:
   release:
-    uses: ./.github/workflows/wc-create-pr-branch.yaml
-    with:
-      version: ${{inputs.tag}}
-      pr: ${{inputs.pr}}
+    uses: suzuki-shunsuke/js-action-release-workflow/.github/workflows/release.yaml@8be0b473dc9410a79482fad9e42fdf52d10118a3 # v0.0.4
     secrets:
       TAKUMI_GUARD_BOT_ID: ${{secrets.TAKUMI_GUARD_BOT_ID}}
     permissions:
       contents: write
       pull-requests: write
       id-token: write
+    with:
+      version: ${{inputs.tag}}
+      pr: ${{inputs.pr}}
