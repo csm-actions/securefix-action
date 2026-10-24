@@ -35,7 +35,7 @@ jobs:
 
   # npm run lint (type check) and npm test
   test-js:
-    uses: suzuki-shunsuke/js-action-test-workflow/.github/workflows/test.yaml@93619ca5c984cc300f209f5b71cc3284838323b5 # v0.0.2
+    uses: suzuki-shunsuke/js-action-test-workflow/.github/workflows/test.yaml@0f107d3b611b6139f139a3a9a3ecdafcb59b913e # v0.0.3
     needs: npm
     permissions:
       contents: read
