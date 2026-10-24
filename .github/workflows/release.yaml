@@ -12,7 +12,7 @@ on:
         required: false
 jobs:
   release:
-    uses: suzuki-shunsuke/js-action-release-workflow/.github/workflows/release.yaml@8be0b473dc9410a79482fad9e42fdf52d10118a3 # v0.0.4
+    uses: suzuki-shunsuke/js-action-release-workflow/.github/workflows/release.yaml@42e36aaa98bac85ec0f17d929aede6c61faa2fff # v0.0.5
     secrets:
       TAKUMI_GUARD_BOT_ID: ${{secrets.TAKUMI_GUARD_BOT_ID}}
     permissions:
