@@ -19,7 +19,7 @@ jobs:
       TAKUMI_GUARD_BOT_ID: ${{secrets.TAKUMI_GUARD_BOT_ID}}
 
   release:
-    uses: suzuki-shunsuke/js-action-release-workflow/.github/workflows/release.yaml@42e36aaa98bac85ec0f17d929aede6c61faa2fff # v0.0.5
+    uses: suzuki-shunsuke/js-action-release-workflow/.github/workflows/release.yaml@efac7db543858e8cd879d715fc025b360636e907 # v0.0.6
     needs: npm
     permissions:
       contents: write
