@@ -48,7 +48,8 @@ export const action = async () => {
   );
   const inputs: securefix.Inputs = {
     appOctokit: newAppOctokit(),
-    serverRepository: core.getInput("server_repository", { required: true }),
+    serverRepository: core.getInput("server_repository"),
+    serverWorkflowRef: core.getInput("server_workflow_ref"),
     rootDir: core.getInput("root_dir"),
     commitMessage: core.getInput("commit_message"),
     repo: core.getInput("repository"),
@@ -109,6 +110,9 @@ export const action = async () => {
   };
   const result = await securefix.request(inputs);
   core.setOutput("artifact_name", result.artifactName);
+  if (result.serverWorkflowRun) {
+    core.setOutput("server_workflow_run_url", result.serverWorkflowRun.url);
+  }
   if (result.changedFilesFromRootDir) {
     core.setOutput(
       "changed_files_from_root_dir",

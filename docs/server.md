@@ -29,6 +29,19 @@
 - `commit_message`: A commit message
 - `pull_request_comment`: A pull request comment template. A comment is posted if server actions fail to create a commit. The default value is `## :x: Securefix failed.`
 
+#### workflow_dispatch
+
+When the server workflow is run by a `workflow_dispatch` event (v0.7.0), the following inputs are read from the event by default, so you don't need to set them:
+
+- `artifact_name`: The name of the artifact uploaded by the client workflow run
+- `client_repository_owner`: The owner of the client repository
+- `client_repository_name`: The name of the client repository
+- `client_workflow_run_id`: The ID of the client workflow run
+
+They are used only if `label_name` is empty, i.e. the event isn't a label event.
+The action fails if the event is `workflow_dispatch` and `github.ref` isn't the default branch.
+[See also the example of the server workflow.](../README.md#migrate-from-labels-to-workflow_dispatch)
+
 #### `config`, `config_file`
 
 [Please see `prepare`](prepare.md#config-config_file).

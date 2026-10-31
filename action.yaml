@@ -5,7 +5,7 @@ inputs:
   action:
     description: |
       Action to run. One of "client", "validate-config", "prepare", "notify", "commit", "server".
-      If server_repository is set, defaults to "client".
+      If server_repository or server_workflow_ref is set, defaults to "client".
     required: false
   app_id:
     description: |
@@ -72,7 +72,18 @@ inputs:
   # client
   server_repository:
     description: |
-      Server repository name
+      Server repository name.
+      A label is created in this repository to trigger the server workflow.
+      It can be omitted when server_workflow_ref is set.
+      If both are set, they must point to the same repository.
+    required: false
+  server_workflow_ref:
+    description: |
+      The server workflow to run by a workflow_dispatch event,
+      in the format <owner>/<repo>/.github/workflows/<workflow file>@<branch or tag>.
+      e.g. my-org/securefix-server/.github/workflows/securefix.yaml@main
+      If this is set, the server workflow is run by a workflow_dispatch event instead of creating a label.
+      The client GitHub App requires the actions:write permission of the server repository.
     required: false
   files:
     description: |
@@ -261,6 +272,10 @@ outputs:
   changed_files_from_root_dir:
     description: |
       Changed files from the root directory.
+  server_workflow_run_url:
+    description: |
+      The URL of the server workflow run.
+      This is set only when server_workflow_ref is set and GitHub returns the run details.
   # prepare and server
   branch:
     description: |
