@@ -163,7 +163,8 @@ Permissions:
 
 - `issues:write`: To create labels
 
-Installed Repositories: Install the app into the server repository and client repositories.
+Installed Repositories: Install the app into only the server repository.
+You don't need to install it into client repositories, because client workflows create labels only in the server repository.
 
 ### Add GitHub App's id and private keys to GitHub Secrets and Variables
 
