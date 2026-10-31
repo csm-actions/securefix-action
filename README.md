@@ -295,7 +295,8 @@ There are several ideas:
 - GitHub App Private Key:
   - [Use GitHub Environment Secret](https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-deployments/managing-environments-for-deployment#deployment-protection-rules)
     - Restrict the branch
-  - Use a secret manager such as AWS Secrets Manager and [restrict the access by OIDC claims (repository, event, branch, workflow, etc)](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
+  - [Import the private key into AWS KMS](#private-keys-in-aws-kms) and [restrict the access to the KMS key by OIDC claims (repository, event, branch, workflow, etc)](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
+    - Workflows never read the private key, so it can't leak
 - Server Workflow
   - Restrict members having the write permission of the server repository
     - For instance, grant the write permission to only system administrators
