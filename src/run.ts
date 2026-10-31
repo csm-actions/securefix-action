@@ -44,11 +44,13 @@ export const main = async () => {
       revoke(core.getState("token"), core.getState("expires_at")),
       revoke(core.getState("dest_token"), core.getState("dest_expires_at")),
     ];
-    if (core.getBooleanInput("delete_label")) {
+    // label_name is empty when the server workflow is run by workflow_dispatch.
+    const labelName = core.getInput("label_name");
+    if (labelName && core.getBooleanInput("delete_label")) {
       promises.push(
         deleteLabel(
           core.getInput("github_token_to_delete_label", { required: true }),
-          core.getInput("label_name", { required: true }),
+          labelName,
         ),
       );
     }

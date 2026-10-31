@@ -224,6 +224,30 @@ inputs:
       GitHub token to delete the label.
     required: false
     default: "${{github.token}}"
+  artifact_name:
+    description: |
+      The name of the artifact uploaded by the client workflow run.
+      This is used when the server workflow is run by a workflow_dispatch event, i.e. label_name is empty.
+    required: false
+    default: ${{github.event.inputs.artifact_name}}
+  client_repository_owner:
+    description: |
+      The owner of the client repository.
+      This is used when the server workflow is run by a workflow_dispatch event, i.e. label_name is empty.
+    required: false
+    default: ${{github.event.inputs.client_repository_owner}}
+  client_repository_name:
+    description: |
+      The name of the client repository.
+      This is used when the server workflow is run by a workflow_dispatch event, i.e. label_name is empty.
+    required: false
+    default: ${{github.event.inputs.client_repository_name}}
+  client_workflow_run_id:
+    description: |
+      The ID of the client workflow run.
+      This is used when the server workflow is run by a workflow_dispatch event, i.e. label_name is empty.
+    required: false
+    default: ${{github.event.inputs.client_workflow_run_id}}
   # commit
   # notify
 outputs:

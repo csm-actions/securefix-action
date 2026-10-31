@@ -14,8 +14,10 @@ import * as unzip from "./unzip";
 type Inputs = {
   appOctokit: githubAppToken.Client;
   workflowName: string;
-  labelName: string;
-  labelDescription: string;
+  /** The name of the artifact uploaded by the client workflow run */
+  artifactName: string;
+  /** The client workflow run */
+  workflowRun: WorkflowRun;
   allowWorkflowFix: boolean;
   config: string;
   configFile: string;
@@ -226,7 +228,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   const metadata = data.metadata;
   // Read metadata
   const fixedFiles = fs
-    .readFileSync(`${inputs.labelName}_files.txt`, "utf8")
+    .readFileSync(`${inputs.artifactName}_files.txt`, "utf8")
     .trim();
   outputs.setFixedFiles(fixedFiles);
 
@@ -333,11 +335,111 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   );
 };
 
+export type RequestInputs = {
+  labelName: string;
+  labelDescription: string;
+  artifactName: string;
+  clientRepositoryOwner: string;
+  clientRepositoryName: string;
+  clientWorkflowRunId: string;
+};
+
+/**
+ * Works out the artifact and the client workflow run from either the label
+ * (labels:created event) or the inputs of a workflow_dispatch event.
+ *
+ * The label takes precedence. label_name defaults to github.event.label.name,
+ * which is empty unless the event is a label event.
+ */
+export const readRequest = (
+  inputs: RequestInputs,
+): { artifactName: string; workflowRun: WorkflowRun } => {
+  if (inputs.labelName) {
+    if (!inputs.labelDescription) {
+      throw new Error("label_description is required");
+    }
+    return {
+      artifactName: inputs.labelName,
+      workflowRun: parseLabelDescription(inputs.labelDescription),
+    };
+  }
+  const missing = (
+    [
+      ["artifact_name", inputs.artifactName],
+      ["client_repository_owner", inputs.clientRepositoryOwner],
+      ["client_repository_name", inputs.clientRepositoryName],
+      ["client_workflow_run_id", inputs.clientWorkflowRunId],
+    ] as const
+  )
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+  if (missing.length > 0) {
+    throw new Error(
+      `Either label_name or all of artifact_name, client_repository_owner, client_repository_name, and client_workflow_run_id are required. Missing: ${missing.join(", ")}`,
+    );
+  }
+  const runId = Number(inputs.clientWorkflowRunId);
+  if (!Number.isSafeInteger(runId) || runId <= 0) {
+    throw new Error(
+      `client_workflow_run_id must be a positive integer, got ${inputs.clientWorkflowRunId}`,
+    );
+  }
+  return {
+    artifactName: inputs.artifactName,
+    workflowRun: {
+      owner: inputs.clientRepositoryOwner,
+      repo: inputs.clientRepositoryName,
+      runId,
+    },
+  };
+};
+
+/**
+ * Fails unless a workflow_dispatch event runs on the default branch.
+ *
+ * Unlike a label event, which always runs the workflow on the default branch,
+ * workflow_dispatch lets the client choose any branch or tag of the server
+ * repository, where an old and vulnerable server workflow may remain.
+ * The default branch is read from the event payload, so no API call is needed.
+ */
+export const validateRef = (
+  eventName: string,
+  ref: string,
+  defaultBranch: string | undefined,
+): void => {
+  if (eventName !== "workflow_dispatch") {
+    return;
+  }
+  if (!defaultBranch) {
+    throw new Error(
+      "The default branch of the server repository isn't found in the event payload",
+    );
+  }
+  if (ref !== `refs/heads/${defaultBranch}`) {
+    throw new Error(
+      `The server workflow must run on the default branch ${defaultBranch}, but got ${ref}`,
+    );
+  }
+};
+
 export const readInputs = (): Inputs => {
+  validateRef(
+    github.context.eventName,
+    github.context.ref,
+    github.context.payload.repository?.default_branch,
+  );
+  const request = readRequest({
+    labelName: core.getInput("label_name"),
+    labelDescription: core.getInput("label_description"),
+    artifactName: core.getInput("artifact_name"),
+    clientRepositoryOwner: core.getInput("client_repository_owner"),
+    clientRepositoryName: core.getInput("client_repository_name"),
+    clientWorkflowRunId: core.getInput("client_workflow_run_id"),
+  });
   return {
     appOctokit: newAppOctokit(),
-    labelName: core.getInput("label_name", { required: true }),
-    labelDescription: core.getInput("label_description", { required: true }),
+    artifactName: request.artifactName,
+    workflowRun: request.workflowRun,
     allowWorkflowFix: core.getBooleanInput("allow_workflow_fix"),
     config: core.getInput("config"),
     configFile: core.getInput("config_file"),
@@ -479,7 +581,7 @@ const createToken = async (
 export const downloadArtifact = async (
   token: string,
   workflowRun: WorkflowRun,
-  labelName: string,
+  artifactName: string,
 ): Promise<void> => {
   // Download a GitHub Actions Artifact
   const artifact = new DefaultArtifactClient();
@@ -493,11 +595,11 @@ export const downloadArtifact = async (
     },
   };
   const { artifact: targetArtifact } = await artifact.getArtifact(
-    labelName,
+    artifactName,
     artifactOpts,
   );
   if (!targetArtifact) {
-    core.setFailed(`Artifact '${labelName}' not found`);
+    core.setFailed(`Artifact '${artifactName}' not found`);
     return;
   }
   // The artifact is downloaded as a zip file and extracted by unzip.extract()
@@ -548,7 +650,7 @@ export const prepare = async (
   isOutput: boolean,
 ): Promise<Data> => {
   const outputs = new Output(isOutput);
-  const workflowRun = parseLabelDescription(inputs.labelDescription);
+  const workflowRun = inputs.workflowRun;
   core.notice(
     `client workflow run: ${github.context.serverUrl}/${workflowRun.owner}/${workflowRun.repo}/actions/runs/${workflowRun.runId}`,
   );
@@ -561,9 +663,9 @@ export const prepare = async (
   core.saveState("token", token.token);
   core.saveState("expires_at", token.expiresAt);
   outputs.setGitHubToken(token.token);
-  await downloadArtifact(token.token, workflowRun, inputs.labelName);
+  await downloadArtifact(token.token, workflowRun, inputs.artifactName);
 
-  const metadataS = fs.readFileSync(`${inputs.labelName}.json`, "utf8");
+  const metadataS = fs.readFileSync(`${inputs.artifactName}.json`, "utf8");
   const metadata = Metadata.parse(JSON.parse(metadataS));
   outputs.setMetadata(metadataS);
   outputs.setCustom(metadata.inputs.custom ?? {});
