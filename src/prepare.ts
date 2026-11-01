@@ -187,7 +187,7 @@ class Output {
     this.outputs.push_repository = pushRepository;
   }
   /**
-   * The commit the client workflow run checked out.
+   * The head commit of the client workflow run (head_sha).
    * It's set only when the commit is pushed to the same repository and branch
    * as the client workflow run, so the commit is created on top of it and the
    * push fails if the branch has been updated since then.
@@ -299,13 +299,13 @@ export const validateRepository = async (data: Data): Promise<Output> => {
 
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
     // By default, push to the same repository and branch as the workflow run.
-    // Create the commit on top of the commit the workflow run checked out,
+    // Create the commit on top of the head commit of the workflow run,
     // so that a request for an old workflow run can't revert changes pushed
     // after it: the ref isn't force-updated, so the push fails unless the
     // branch is still at that commit.
-    if (!data.sha) {
-      throw new Error("workflowRun.head_sha is not set");
-    }
+    // data.sha is never empty here, because it's empty only when getting the
+    // workflow run failed, in which case data.branch is also empty and the
+    // check above fails.
     outputs.setBaseSHA(data.sha);
     return outputs;
   }
@@ -322,7 +322,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   // Reject a request for an old workflow run, which could revert changes
   // pushed after it. head_sha isn't a commit of the destination, so it can't be
   // used as the parent of the commit as in the default case.
-  validateHeadSHA(branch.commit.sha, data.sha);
+  validateHeadSHA(data.branch, branch.commit.sha, data.sha);
 
   // Read YAML config to push a commit to other repositories and branches
   const config = readConfig();
@@ -461,10 +461,14 @@ export const validateRef = (
 /**
  * Fails unless the client workflow run is for the latest commit of its branch.
  */
-export const validateHeadSHA = (branchSHA: string, runSHA: string): void => {
+export const validateHeadSHA = (
+  branchName: string,
+  branchSHA: string,
+  runSHA: string,
+): void => {
   if (!runSHA || branchSHA !== runSHA) {
     throw new Error(
-      `The client workflow run must be for the latest commit of the branch ${branchSHA}, but got ${runSHA || "(empty)"}`,
+      `The client workflow run must be for the latest commit ${branchSHA} of the branch ${branchName}, but got ${runSHA || "(empty)"}`,
     );
   }
 };

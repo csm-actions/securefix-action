@@ -111,4 +111,4 @@ If there is no entry matching with source repository and branch and destination 
 - `pull_request`: [A pull request payload](https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request) triggering a client workflow run
 - `push_repository`: A repository full name where a commit is pushed
 - `workflow_run`: [A client Workflow Run Payload](https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#get-a-workflow-run)
-- `base_sha` (v0.6.6): The commit the client workflow run checked out. This is set only when the commit is pushed to the same repository and branch as the client workflow run. The commit action creates the commit on top of it, so the push fails if the branch has been updated since the client workflow run
+- `base_sha` (v0.6.6): The head commit of the client workflow run (`head_sha`). This is set only when the commit is pushed to the same repository and branch as the client workflow run. The commit action creates the commit on top of it, so the push fails if the branch has been updated since the client workflow run

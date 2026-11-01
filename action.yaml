@@ -288,7 +288,7 @@ outputs:
       JSON serialized workflow run data.
   base_sha:
     description: |
-      The commit the client workflow run checked out.
+      The head commit of the client workflow run (head_sha).
       This is set only when the commit is pushed to the same repository and branch as the client workflow run.
       The commit action creates the commit on top of it, so the push fails if the branch has been updated since the client workflow run.
 runs:

@@ -301,16 +301,18 @@ describe("validateRef", () => {
 
 describe("validateHeadSHA", () => {
   it("accepts the latest commit of the branch", () => {
-    expect(() => validateHeadSHA("abc", "abc")).not.toThrow();
+    expect(() => validateHeadSHA("main", "abc", "abc")).not.toThrow();
   });
 
   it("rejects an old commit", () => {
-    expect(() => validateHeadSHA("abc", "def")).toThrowError(
-      "The client workflow run must be for the latest commit of the branch abc, but got def",
+    expect(() => validateHeadSHA("main", "abc", "def")).toThrowError(
+      "The client workflow run must be for the latest commit abc of the branch main, but got def",
     );
   });
 
   it("rejects an empty commit", () => {
-    expect(() => validateHeadSHA("abc", "")).toThrowError("but got (empty)");
+    expect(() => validateHeadSHA("main", "abc", "")).toThrowError(
+      "but got (empty)",
+    );
   });
 });
