@@ -184,4 +184,7 @@ The input `files` is a list of relative paths from `root_dir`.
 
 ## Outputs
 
-Nothing.
+- `artifact_name`: The name of the uploaded artifact
+- `changed_files`: Changed files
+- `changed_files_from_root_dir`: Changed files from the root directory
+- `server_workflow_run_url` (v0.6.5): The URL of the server workflow run. This is set only when `server_workflow_ref` is set and GitHub returns the run details
