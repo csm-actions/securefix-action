@@ -31,14 +31,10 @@
 
 #### workflow_dispatch
 
-When the server workflow is run by a `workflow_dispatch` event (v0.6.5), the following inputs are read from the event by default, so you don't need to set them:
+When the server workflow is run by a `workflow_dispatch` event (v0.6.5), the action reads the artifact and the client workflow run from the inputs of the event, which the client action sets: `artifact_name`, `client_repository_owner`, `client_repository_name`, and `client_workflow_run_id`.
+The server workflow must declare them as `workflow_dispatch` inputs, but you don't need to pass them to the action.
+Otherwise, the action reads them from the label.
 
-- `artifact_name`: The name of the artifact uploaded by the client workflow run
-- `client_repository_owner`: The owner of the client repository
-- `client_repository_name`: The name of the client repository
-- `client_workflow_run_id`: The ID of the client workflow run
-
-They are used only if `label_name` is empty, i.e. the event isn't a label event.
 The action fails if the event is `workflow_dispatch` and `github.ref` isn't the default branch.
 [See also the example of the server workflow.](../README.md#migrate-from-labels-to-workflow_dispatch)
 

@@ -335,60 +335,68 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   );
 };
 
-export type RequestInputs = {
+export type LabelInputs = {
   labelName: string;
   labelDescription: string;
-  artifactName: string;
-  clientRepositoryOwner: string;
-  clientRepositoryName: string;
-  clientWorkflowRunId: string;
 };
 
+const dispatchInputNames = [
+  "artifact_name",
+  "client_repository_owner",
+  "client_repository_name",
+  "client_workflow_run_id",
+] as const;
+
 /**
- * Works out the artifact and the client workflow run from either the label
- * (labels:created event) or the inputs of a workflow_dispatch event.
+ * Works out the artifact and the client workflow run.
  *
- * The label takes precedence. label_name defaults to github.event.label.name,
- * which is empty unless the event is a label event.
+ * When the server workflow is run by a workflow_dispatch event, they are read
+ * from the inputs of the event, which the client action sets.
+ * Otherwise they are read from the label (labels:created event).
  */
 export const readRequest = (
-  inputs: RequestInputs,
+  eventName: string,
+  label: LabelInputs,
+  dispatchInputs: Record<string, unknown> | undefined,
 ): { artifactName: string; workflowRun: WorkflowRun } => {
-  if (inputs.labelName) {
-    if (!inputs.labelDescription) {
+  if (eventName !== "workflow_dispatch") {
+    if (!label.labelName) {
+      throw new Error("label_name is required");
+    }
+    if (!label.labelDescription) {
       throw new Error("label_description is required");
     }
     return {
-      artifactName: inputs.labelName,
-      workflowRun: parseLabelDescription(inputs.labelDescription),
+      artifactName: label.labelName,
+      workflowRun: parseLabelDescription(label.labelDescription),
     };
   }
-  const missing = (
-    [
-      ["artifact_name", inputs.artifactName],
-      ["client_repository_owner", inputs.clientRepositoryOwner],
-      ["client_repository_name", inputs.clientRepositoryName],
-      ["client_workflow_run_id", inputs.clientWorkflowRunId],
-    ] as const
-  )
-    .filter(([, value]) => !value)
-    .map(([name]) => name);
+  const values: Record<string, string> = {};
+  const missing: string[] = [];
+  for (const name of dispatchInputNames) {
+    const value = dispatchInputs?.[name];
+    if (typeof value !== "string" || !value) {
+      missing.push(name);
+      continue;
+    }
+    values[name] = value;
+  }
   if (missing.length > 0) {
     throw new Error(
-      `Either label_name or all of artifact_name, client_repository_owner, client_repository_name, and client_workflow_run_id are required. Missing: ${missing.join(", ")}`,
+      `The workflow_dispatch event must have the inputs ${dispatchInputNames.join(", ")}. Missing: ${missing.join(", ")}`,
     );
   }
-  const runId = Number(inputs.clientWorkflowRunId);
+  const runId = Number(values.client_workflow_run_id);
   if (!Number.isSafeInteger(runId) || runId <= 0) {
     throw new Error(
-      `client_workflow_run_id must be a positive integer, got ${inputs.clientWorkflowRunId}`,
+      `client_workflow_run_id must be a positive integer, got ${values.client_workflow_run_id}`,
     );
   }
   return {
-    artifactName: inputs.artifactName,
+    artifactName: values.artifact_name,
     workflowRun: {
-      owner: inputs.clientRepositoryOwner,
-      repo: inputs.clientRepositoryName,
+      owner: values.client_repository_owner,
+      repo: values.client_repository_name,
       runId,
     },
   };
@@ -428,14 +436,14 @@ export const readInputs = (): Inputs => {
     github.context.ref,
     github.context.payload.repository?.default_branch,
   );
-  const request = readRequest({
-    labelName: core.getInput("label_name"),
-    labelDescription: core.getInput("label_description"),
-    artifactName: core.getInput("artifact_name"),
-    clientRepositoryOwner: core.getInput("client_repository_owner"),
-    clientRepositoryName: core.getInput("client_repository_name"),
-    clientWorkflowRunId: core.getInput("client_workflow_run_id"),
-  });
+  const request = readRequest(
+    github.context.eventName,
+    {
+      labelName: core.getInput("label_name"),
+      labelDescription: core.getInput("label_description"),
+    },
+    github.context.payload.inputs,
+  );
   return {
     appOctokit: newAppOctokit(),
     artifactName: request.artifactName,

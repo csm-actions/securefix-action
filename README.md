@@ -378,7 +378,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      # The inputs are read from the workflow_dispatch event by default
+      # The action reads the inputs of the workflow_dispatch event
       - uses: csm-actions/securefix-action@latest
         with:
           action: server

@@ -158,81 +158,65 @@ describe("matchPushBranches", () => {
 });
 
 describe("readRequest", () => {
-  const empty = {
-    labelName: "",
-    labelDescription: "",
-    artifactName: "",
-    clientRepositoryOwner: "",
-    clientRepositoryName: "",
-    clientWorkflowRunId: "",
+  const label = {
+    labelName: "securefix-abc",
+    labelDescription: "example/client/123",
+  };
+  const dispatchInputs = {
+    artifact_name: "securefix-xyz",
+    client_repository_owner: "example",
+    client_repository_name: "client",
+    client_workflow_run_id: "456",
   };
 
   it("reads a label", () => {
-    expect(
-      readRequest({
-        ...empty,
-        labelName: "securefix-abc",
-        labelDescription: "example/client/123",
-      }),
-    ).toEqual({
+    expect(readRequest("label", label, undefined)).toEqual({
       artifactName: "securefix-abc",
       workflowRun: { owner: "example", repo: "client", runId: 123 },
     });
   });
 
-  it("prefers a label to workflow_dispatch inputs", () => {
-    expect(
-      readRequest({
-        labelName: "securefix-abc",
-        labelDescription: "example/client/123",
-        artifactName: "securefix-xyz",
-        clientRepositoryOwner: "other",
-        clientRepositoryName: "other",
-        clientWorkflowRunId: "456",
-      }).artifactName,
-    ).toBe("securefix-abc");
-  });
-
-  it("fails if a label has no description", () => {
+  it("fails if the label is missing", () => {
     expect(() =>
-      readRequest({ ...empty, labelName: "securefix-abc" }),
+      readRequest("label", { labelName: "", labelDescription: "" }, undefined),
+    ).toThrowError("label_name is required");
+    expect(() =>
+      readRequest(
+        "label",
+        { labelName: "securefix-abc", labelDescription: "" },
+        undefined,
+      ),
     ).toThrowError("label_description is required");
   });
 
-  it("reads workflow_dispatch inputs", () => {
-    expect(
-      readRequest({
-        ...empty,
-        artifactName: "securefix-abc",
-        clientRepositoryOwner: "example",
-        clientRepositoryName: "client",
-        clientWorkflowRunId: "123",
-      }),
-    ).toEqual({
-      artifactName: "securefix-abc",
-      workflowRun: { owner: "example", repo: "client", runId: 123 },
+  it("reads the inputs of a workflow_dispatch event", () => {
+    expect(readRequest("workflow_dispatch", label, dispatchInputs)).toEqual({
+      artifactName: "securefix-xyz",
+      workflowRun: { owner: "example", repo: "client", runId: 456 },
     });
   });
 
-  it("fails if workflow_dispatch inputs are missing", () => {
+  it("fails if the inputs of a workflow_dispatch event are missing", () => {
     expect(() =>
-      readRequest({
-        ...empty,
-        artifactName: "securefix-abc",
-        clientRepositoryOwner: "example",
+      readRequest("workflow_dispatch", label, {
+        artifact_name: "securefix-xyz",
+        client_repository_owner: "example",
+        client_repository_name: "",
       }),
     ).toThrowError("Missing: client_repository_name, client_workflow_run_id");
+    expect(() =>
+      readRequest("workflow_dispatch", label, undefined),
+    ).toThrowError(
+      "Missing: artifact_name, client_repository_owner, client_repository_name, client_workflow_run_id",
+    );
   });
 
   it("fails if the workflow run ID isn't a positive integer", () => {
     for (const id of ["abc", "1.5", "-1", "0", "12abc"]) {
       expect(() =>
-        readRequest({
-          ...empty,
-          artifactName: "securefix-abc",
-          clientRepositoryOwner: "example",
-          clientRepositoryName: "client",
-          clientWorkflowRunId: id,
+        readRequest("workflow_dispatch", label, {
+          ...dispatchInputs,
+          client_workflow_run_id: id,
         }),
       ).toThrowError("client_workflow_run_id must be a positive integer");
     }
