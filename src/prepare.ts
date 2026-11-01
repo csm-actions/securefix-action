@@ -386,18 +386,21 @@ export const readRequest = (
       `The workflow_dispatch event must have the inputs ${dispatchInputNames.join(", ")}. Missing: ${missing.join(", ")}`,
     );
   }
-  const runId = Number(values.client_workflow_run_id);
-  if (!Number.isSafeInteger(runId) || runId <= 0) {
-    throw new Error(
-      `client_workflow_run_id must be a positive integer, got ${values.client_workflow_run_id}`,
-    );
-  }
   return {
     artifactName: values.artifact_name,
     workflowRun: {
-      owner: values.client_repository_owner,
-      repo: values.client_repository_name,
-      runId,
+      owner: validateName(
+        "client_repository_owner",
+        values.client_repository_owner,
+      ),
+      repo: validateName(
+        "client_repository_name",
+        values.client_repository_name,
+      ),
+      runId: parseRunId(
+        "client_workflow_run_id",
+        values.client_workflow_run_id,
+      ),
     },
   };
 };
@@ -533,6 +536,32 @@ export const matchPushBranches = (
   return entry.push.branches.some((branch) => minimatch(destBranch, branch));
 };
 
+// GitHub owner and repository names consist of alphanumerics, "-", "_", and ".".
+const namePattern = /^[A-Za-z0-9_.-]+$/;
+
+const validateName = (key: string, value: string): string => {
+  if (!namePattern.test(value)) {
+    throw new Error(`${key} is invalid: ${value}`);
+  }
+  return value;
+};
+
+/**
+ * Parses a workflow run ID strictly.
+ * Number() and parseInt() accept values such as "0x1A", "1e3", " 42 ",
+ * and "123abc", so the format is checked first.
+ */
+export const parseRunId = (key: string, value: string): number => {
+  if (!/^[1-9][0-9]*$/.test(value)) {
+    throw new Error(`${key} must be a positive integer, got ${value}`);
+  }
+  const runId = Number(value);
+  if (!Number.isSafeInteger(runId)) {
+    throw new Error(`${key} must be a positive integer, got ${value}`);
+  }
+  return runId;
+};
+
 export const parseLabelDescription = (
   labelDescription: string,
 ): WorkflowRun => {
@@ -543,9 +572,15 @@ export const parseLabelDescription = (
     );
   }
   return {
-    owner: elems[0],
-    repo: elems[1],
-    runId: parseInt(elems[2], 10),
+    owner: validateName(
+      "the repository owner of the label description",
+      elems[0],
+    ),
+    repo: validateName(
+      "the repository name of the label description",
+      elems[1],
+    ),
+    runId: parseRunId("the workflow run ID of the label description", elems[2]),
   };
 };
 

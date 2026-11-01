@@ -36,7 +36,8 @@ The server workflow must declare them as `workflow_dispatch` inputs, but you don
 Otherwise, the action reads them from the label.
 
 The action fails if the event is `workflow_dispatch` and `github.ref` isn't the default branch.
-[See also the example of the server workflow.](../README.md#migrate-from-labels-to-workflow_dispatch)
+[See also the risks of `actions:write` and how to protect the server workflow.](../README.md#run-the-server-workflow-only-on-the-default-branch)
+[See also the example of the server workflow.](migrate-to-workflow-dispatch.md#server-workflow)
 
 #### `config`, `config_file`
 

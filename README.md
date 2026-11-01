@@ -88,7 +88,7 @@ You don't need to host a server application.
 
 ## Example
 
-- [demo-server](https://github.com/securefix-action/demo-server): [workflow](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
+- [demo-server](https://github.com/securefix-action/demo-server): [workflow](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix_dispatch.yaml)
 - [demo-client](https://github.com/securefix-action/demo-client): [workflow](https://github.com/securefix-action/demo-client/blob/main/.github/workflows/securefix.yaml)
 
 ## Architecture
@@ -135,6 +135,8 @@ We recommend `workflow_dispatch`:
 The Client GitHub App is installed into only the server repository, so `actions:write` is limited to the server repository.
 [But `actions:write` allows more than running workflows, and the server workflow must run only on the default branch.](#workflow_dispatch-and-actionswrite)
 
+If you use labels now, see [the migration guide](docs/migrate-to-workflow-dispatch.md).
+
 > [!NOTE]
 > We don't use `repository_dispatch` because creating a repository_dispatch event requires `contents:write`.
 > `contents:write` of the server repository would let clients rewrite the server workflow.
@@ -172,13 +174,10 @@ Deactivate Webhook.
 
 Permissions:
 
-- `actions:write`: To run the server workflow by `workflow_dispatch` (`server_workflow_ref`)
-- `issues:write`: To create labels (`server_repository`). This isn't needed if you use `workflow_dispatch`
-
-Grant only one of them, depending on [how to trigger the server workflow](#how-to-trigger-the-server-workflow).
+- `actions:write`: To run the server workflow by `workflow_dispatch`
 
 Installed Repositories: Install the app into only the server repository.
-You don't need to install it into client repositories, because client workflows create labels only in the server repository.
+You don't need to install it into client repositories, because client workflows run the server workflow only in the server repository.
 
 ### Add GitHub App's id and private keys to GitHub Secrets and Variables
 
@@ -199,7 +198,7 @@ Add GitHub App's private keys and ID to Repository Secrets and Variables
 
 ### Fix the server workflow if necessary
 
-[Workflow](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix.yaml)
+[Workflow](https://github.com/securefix-action/demo-server/blob/main/.github/workflows/securefix_dispatch.yaml)
 
 If you change a variable name and a secret name, please fix the workflow.
 
@@ -208,7 +207,7 @@ If you change a variable name and a secret name, please fix the workflow.
 [Workflow](https://github.com/securefix-action/demo-client/blob/main/.github/workflows/securefix.yaml)
 
 - If you change a variable name and a secret name, please fix the workflow
-- If you change the server repository name, please fix the input `server_repository`
+- If you change the server repository name or the server workflow file name, please fix the input `server_workflow_ref`. Managing it with an organization variable lets you change it without fixing client workflows
 
 ### Add a new file `bar.yaml` to client' repository and create a pull request
 
@@ -297,8 +296,9 @@ As of Securefix Action v0.2.0, Securefix Action is released using [release-js-ac
 > - You can define custom validation before creating a commit
 > - Commits are verified (signed)
 
-Client workflows can use a Client GitHub App, but it has only `actions:write` or `issues:write` permission of the server repository.
-Even if the app is abused, the risk is low.
+Client workflows can use a Client GitHub App, but it has only `actions:write` (or `issues:write` if you use labels) permission of the server repository.
+It doesn't allow clients to change code or read secrets, so even if the app is abused, the risk is much lower than granting `contents:write` to clients.
+That said, `actions:write` allows more than running the server workflow, [so you should understand what it allows](#workflow_dispatch-and-actionswrite).
 Server action creates a commit to the same repository and branch with the GitHub Actions Artifact.
 So it doesn't allow attackers to create a malicious commit to a different repository or a different branch.
 
@@ -334,7 +334,7 @@ We consider these acceptable as long as secrets are available only on the defaul
 A label event always runs the workflow on the default branch, but `workflow_dispatch` lets clients choose any branch or tag of the server repository.
 If an old branch or tag has a vulnerable server workflow, it could be run.
 
-- The `prepare` and `server` actions fail if the event is `workflow_dispatch` and `github.ref` isn't the default branch. This is always enabled
+- The `prepare` and `server` actions fail if the event is `workflow_dispatch` and `github.ref` isn't the default branch. Note that this check runs in the workflow on the dispatched ref, so it doesn't protect a branch or tag whose workflow uses an older action or doesn't use the action at all. The following measures are enforced outside the workflow, so use them too
 - Restrict the deployment branches of the environment to the default branch
 - If the private key is managed in AWS KMS, restrict the access by OIDC claims. When the job uses an environment, the `sub` claim doesn't include the ref, so customize the subject claim to include `job_workflow_ref`, for instance
 
@@ -344,61 +344,6 @@ If an old branch or tag has a vulnerable server workflow, it could be run.
 A re-run uses the workflow at the same commit as the original run, and both the deployment branch policy of the environment and `job_workflow_ref` see only the branch name.
 So even after a vulnerability of the server workflow is fixed, re-running a run from before the fix runs the old workflow (re-runs are allowed within 30 days).
 When you fix a vulnerability of the server workflow, delete the server workflow runs from before the fix.
-
-### Migrate from labels to workflow_dispatch
-
-Updating the action doesn't change the behavior.
-
-1. Add `actions:write` to the Client GitHub App and approve the new permission on the installation. Until it's approved, client actions with `server_workflow_ref` fail
-2. Add a `workflow_dispatch` server workflow alongside the existing label-based one
-3. Set `server_workflow_ref` in client workflows. You can keep `server_repository`, but it must point to the same repository
-4. After all clients are migrated, remove the label-based server workflow and `issues:write` from the Client GitHub App
-
-Server workflow:
-
-```yaml
-name: securefix
-run-name: securefix (${{ inputs.client_repository_owner }}/${{ inputs.client_repository_name }})
-on:
-  workflow_dispatch:
-    inputs:
-      client_repository_owner:
-        required: true
-      client_repository_name:
-        required: true
-      client_workflow_run_id:
-        required: true
-      artifact_name:
-        required: true
-jobs:
-  fix:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    environment: main # Restrict the deployment branches to the default branch
-    permissions:
-      id-token: write
-    steps:
-      # The action reads the inputs of the workflow_dispatch event
-      - uses: csm-actions/securefix-action@latest
-        with:
-          action: server
-          client_id: ${{ vars.SERVER_APP_CLIENT_ID }}
-          aws_kms_key_id: ${{ vars.KMS_KEY_ID }}
-          aws_role_to_assume: ${{ vars.ROLE_TO_ASSUME }}
-```
-
-Client workflow:
-
-```yaml
-- uses: csm-actions/securefix-action@latest
-  with:
-    client_id: ${{ vars.CLIENT_APP_CLIENT_ID }}
-    app_private_key: ${{ secrets.CLIENT_APP_PRIVATE_KEY }}
-    # <owner>/<repo>/.github/workflows/<workflow file>@<branch or tag>
-    server_workflow_ref: ${{ vars.SECUREFIX_SERVER_WORKFLOW_REF }}
-```
-
-Managing `server_workflow_ref` with an organization variable lets you change it later without fixing client workflows.
 
 ### Custom Validation
 

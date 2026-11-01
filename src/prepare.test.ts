@@ -212,13 +212,60 @@ describe("readRequest", () => {
   });
 
   it("fails if the workflow run ID isn't a positive integer", () => {
-    for (const id of ["abc", "1.5", "-1", "0", "12abc"]) {
+    for (const id of [
+      "abc",
+      "1.5",
+      "-1",
+      "0",
+      "12abc",
+      "0x1A",
+      "1e3",
+      " 42 ",
+      "01",
+    ]) {
       expect(() =>
         readRequest("workflow_dispatch", label, {
           ...dispatchInputs,
           client_workflow_run_id: id,
         }),
       ).toThrowError("client_workflow_run_id must be a positive integer");
+    }
+  });
+});
+
+describe("readRequest validates names", () => {
+  it("rejects invalid owner and repository names", () => {
+    const base = {
+      artifact_name: "securefix-xyz",
+      client_repository_owner: "example",
+      client_repository_name: "client",
+      client_workflow_run_id: "456",
+    };
+    for (const [key, value] of [
+      ["client_repository_owner", "exa mple"],
+      ["client_repository_name", "client/other"],
+    ]) {
+      expect(() =>
+        readRequest(
+          "workflow_dispatch",
+          { labelName: "", labelDescription: "" },
+          { ...base, [key]: value },
+        ),
+      ).toThrowError(`${key} is invalid`);
+    }
+  });
+});
+
+describe("parseLabelDescription validates the run ID", () => {
+  it("rejects a run ID which isn't a positive integer", () => {
+    for (const d of [
+      "example/client/123abc",
+      "example/client/abc",
+      "example/client/0x1A",
+    ]) {
+      expect(() => parseLabelDescription(d)).toThrowError(
+        "the workflow run ID of the label description must be a positive integer",
+      );
     }
   });
 });
