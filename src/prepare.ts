@@ -104,6 +104,7 @@ export const Outputs = z.object({
   workflow_run: z.string(),
   error: z.string().optional(),
   submodules: z.string().optional(),
+  base_sha: z.string().optional(),
 });
 export type Outputs = z.infer<typeof Outputs>;
 
@@ -184,6 +185,18 @@ class Output {
       core.setOutput("push_repository", pushRepository);
     }
     this.outputs.push_repository = pushRepository;
+  }
+  /**
+   * The head commit of the client workflow run (head_sha).
+   * It's set only when the commit is pushed to the same repository and branch
+   * as the client workflow run, so the commit is created on top of it and the
+   * push fails if the branch has been updated since then.
+   */
+  setBaseSHA(baseSHA: string) {
+    if (this.isOutput) {
+      core.setOutput("base_sha", baseSHA);
+    }
+    this.outputs.base_sha = baseSHA;
   }
   setSubmodules(submodules: string) {
     core.debug(`output submodules=${submodules}`);
@@ -286,6 +299,14 @@ export const validateRepository = async (data: Data): Promise<Output> => {
 
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
     // By default, push to the same repository and branch as the workflow run.
+    // Create the commit on top of the head commit of the workflow run,
+    // so that a request for an old workflow run can't revert changes pushed
+    // after it: the ref isn't force-updated, so the push fails unless the
+    // branch is still at that commit.
+    // data.sha is never empty here, because it's empty only when getting the
+    // workflow run failed, in which case data.branch is also empty and the
+    // check above fails.
+    outputs.setBaseSHA(data.sha);
     return outputs;
   }
 
@@ -298,6 +319,10 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   if (!branch.protected) {
     throw new Error("the workflow run head branch must be protected");
   }
+  // Reject a request for an old workflow run, which could revert changes
+  // pushed after it. head_sha isn't a commit of the destination, so it can't be
+  // used as the parent of the commit as in the default case.
+  validateHeadSHA(data.branch, branch.commit.sha, data.sha);
 
   // Read YAML config to push a commit to other repositories and branches
   const config = readConfig();
@@ -429,6 +454,21 @@ export const validateRef = (
   if (ref !== `refs/heads/${defaultBranch}`) {
     throw new Error(
       `The server workflow must run on the default branch ${defaultBranch}, but got ${ref}`,
+    );
+  }
+};
+
+/**
+ * Fails unless the client workflow run is for the latest commit of its branch.
+ */
+export const validateHeadSHA = (
+  branchName: string,
+  branchSHA: string,
+  runSHA: string,
+): void => {
+  if (!runSHA || branchSHA !== runSHA) {
+    throw new Error(
+      `The client workflow run must be for the latest commit ${branchSHA} of the branch ${branchName}, but got ${runSHA || "(empty)"}`,
     );
   }
 };
