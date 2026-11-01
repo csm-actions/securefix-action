@@ -109,8 +109,9 @@ export const action = async () => {
     custom: parseCustomInput(core.getInput("custom")),
   };
   const result = await securefix.request(inputs);
-  // No artifact is uploaded if there are no changes, so the name isn't output.
-  if (result.changedFiles.length > 0) {
+  // artifactName is empty if no artifact is uploaded, i.e. there are no
+  // changes. It's set even if only submodules are updated.
+  if (result.artifactName) {
     core.setOutput("artifact_name", result.artifactName);
   }
   if (result.serverWorkflowRun) {
