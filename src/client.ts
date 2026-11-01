@@ -109,7 +109,11 @@ export const action = async () => {
     custom: parseCustomInput(core.getInput("custom")),
   };
   const result = await securefix.request(inputs);
-  core.setOutput("artifact_name", result.artifactName);
+  // artifactName is empty if no artifact is uploaded, i.e. there are no
+  // changes. It's set even if only submodules are updated.
+  if (result.artifactName) {
+    core.setOutput("artifact_name", result.artifactName);
+  }
   if (result.serverWorkflowRun) {
     core.setOutput("server_workflow_run_url", result.serverWorkflowRun.url);
   }
