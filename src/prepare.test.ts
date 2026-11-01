@@ -7,6 +7,8 @@ import {
   matchPushBranches,
   matchPushRepositories,
   parseLabelDescription,
+  readRequest,
+  validateRef,
 } from "./prepare";
 
 type Octokit = ReturnType<typeof github.getOctokit>;
@@ -152,5 +154,146 @@ describe("matchPushBranches", () => {
   it("doesn't match anything if no branch is configured", () => {
     const entry = newEntry({ push: { branches: [] } });
     expect(matchPushBranches(entry, "main")).toBe(false);
+  });
+});
+
+describe("readRequest", () => {
+  const label = {
+    labelName: "securefix-abc",
+    labelDescription: "example/client/123",
+  };
+  const dispatchInputs = {
+    artifact_name: "securefix-xyz",
+    client_repository_owner: "example",
+    client_repository_name: "client",
+    client_workflow_run_id: "456",
+  };
+
+  it("reads a label", () => {
+    expect(readRequest("label", label, undefined)).toEqual({
+      artifactName: "securefix-abc",
+      workflowRun: { owner: "example", repo: "client", runId: 123 },
+    });
+  });
+
+  it("fails if the label is missing", () => {
+    expect(() =>
+      readRequest("label", { labelName: "", labelDescription: "" }, undefined),
+    ).toThrowError("label_name is required");
+    expect(() =>
+      readRequest(
+        "label",
+        { labelName: "securefix-abc", labelDescription: "" },
+        undefined,
+      ),
+    ).toThrowError("label_description is required");
+  });
+
+  it("reads the inputs of a workflow_dispatch event", () => {
+    expect(readRequest("workflow_dispatch", label, dispatchInputs)).toEqual({
+      artifactName: "securefix-xyz",
+      workflowRun: { owner: "example", repo: "client", runId: 456 },
+    });
+  });
+
+  it("fails if the inputs of a workflow_dispatch event are missing", () => {
+    expect(() =>
+      readRequest("workflow_dispatch", label, {
+        artifact_name: "securefix-xyz",
+        client_repository_owner: "example",
+        client_repository_name: "",
+      }),
+    ).toThrowError("Missing: client_repository_name, client_workflow_run_id");
+    expect(() =>
+      readRequest("workflow_dispatch", label, undefined),
+    ).toThrowError(
+      "Missing: artifact_name, client_repository_owner, client_repository_name, client_workflow_run_id",
+    );
+  });
+
+  it("fails if the workflow run ID isn't a positive integer", () => {
+    for (const id of [
+      "abc",
+      "1.5",
+      "-1",
+      "0",
+      "12abc",
+      "0x1A",
+      "1e3",
+      " 42 ",
+      "01",
+    ]) {
+      expect(() =>
+        readRequest("workflow_dispatch", label, {
+          ...dispatchInputs,
+          client_workflow_run_id: id,
+        }),
+      ).toThrowError("client_workflow_run_id must be a positive integer");
+    }
+  });
+});
+
+describe("readRequest validates names", () => {
+  it("rejects invalid owner and repository names", () => {
+    const base = {
+      artifact_name: "securefix-xyz",
+      client_repository_owner: "example",
+      client_repository_name: "client",
+      client_workflow_run_id: "456",
+    };
+    for (const [key, value] of [
+      ["client_repository_owner", "exa mple"],
+      ["client_repository_name", "client/other"],
+    ]) {
+      expect(() =>
+        readRequest(
+          "workflow_dispatch",
+          { labelName: "", labelDescription: "" },
+          { ...base, [key]: value },
+        ),
+      ).toThrowError(`${key} is invalid`);
+    }
+  });
+});
+
+describe("parseLabelDescription validates the run ID", () => {
+  it("rejects a run ID which isn't a positive integer", () => {
+    for (const d of [
+      "example/client/123abc",
+      "example/client/abc",
+      "example/client/0x1A",
+    ]) {
+      expect(() => parseLabelDescription(d)).toThrowError(
+        "the workflow run ID of the label description must be a positive integer",
+      );
+    }
+  });
+});
+
+describe("validateRef", () => {
+  it("ignores events other than workflow_dispatch", () => {
+    expect(() =>
+      validateRef("label", "refs/heads/feature", "main"),
+    ).not.toThrow();
+  });
+
+  it("accepts the default branch", () => {
+    expect(() =>
+      validateRef("workflow_dispatch", "refs/heads/main", "main"),
+    ).not.toThrow();
+  });
+
+  it("rejects other branches and tags", () => {
+    for (const ref of ["refs/heads/feature", "refs/tags/v1.0.0", "main"]) {
+      expect(() => validateRef("workflow_dispatch", ref, "main")).toThrowError(
+        "The server workflow must run on the default branch main",
+      );
+    }
+  });
+
+  it("fails if the default branch is unknown", () => {
+    expect(() =>
+      validateRef("workflow_dispatch", "refs/heads/main", undefined),
+    ).toThrowError("The default branch of the server repository isn't found");
   });
 });

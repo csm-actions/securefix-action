@@ -14,8 +14,10 @@ import * as unzip from "./unzip";
 type Inputs = {
   appOctokit: githubAppToken.Client;
   workflowName: string;
-  labelName: string;
-  labelDescription: string;
+  /** The name of the artifact uploaded by the client workflow run */
+  artifactName: string;
+  /** The client workflow run */
+  workflowRun: WorkflowRun;
   allowWorkflowFix: boolean;
   config: string;
   configFile: string;
@@ -226,7 +228,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   const metadata = data.metadata;
   // Read metadata
   const fixedFiles = fs
-    .readFileSync(`${inputs.labelName}_files.txt`, "utf8")
+    .readFileSync(`${inputs.artifactName}_files.txt`, "utf8")
     .trim();
   outputs.setFixedFiles(fixedFiles);
 
@@ -333,11 +335,122 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   );
 };
 
+export type LabelInputs = {
+  labelName: string;
+  labelDescription: string;
+};
+
+const dispatchInputNames = [
+  "artifact_name",
+  "client_repository_owner",
+  "client_repository_name",
+  "client_workflow_run_id",
+] as const;
+
+/**
+ * Works out the artifact and the client workflow run.
+ *
+ * When the server workflow is run by a workflow_dispatch event, they are read
+ * from the inputs of the event, which the client action sets.
+ * Otherwise they are read from the label (labels:created event).
+ */
+export const readRequest = (
+  eventName: string,
+  label: LabelInputs,
+  dispatchInputs: Record<string, unknown> | undefined,
+): { artifactName: string; workflowRun: WorkflowRun } => {
+  if (eventName !== "workflow_dispatch") {
+    if (!label.labelName) {
+      throw new Error("label_name is required");
+    }
+    if (!label.labelDescription) {
+      throw new Error("label_description is required");
+    }
+    return {
+      artifactName: label.labelName,
+      workflowRun: parseLabelDescription(label.labelDescription),
+    };
+  }
+  const values: Record<string, string> = {};
+  const missing: string[] = [];
+  for (const name of dispatchInputNames) {
+    const value = dispatchInputs?.[name];
+    if (typeof value !== "string" || !value) {
+      missing.push(name);
+      continue;
+    }
+    values[name] = value;
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `The workflow_dispatch event must have the inputs ${dispatchInputNames.join(", ")}. Missing: ${missing.join(", ")}`,
+    );
+  }
+  return {
+    artifactName: values.artifact_name,
+    workflowRun: {
+      owner: validateName(
+        "client_repository_owner",
+        values.client_repository_owner,
+      ),
+      repo: validateName(
+        "client_repository_name",
+        values.client_repository_name,
+      ),
+      runId: parseRunId(
+        "client_workflow_run_id",
+        values.client_workflow_run_id,
+      ),
+    },
+  };
+};
+
+/**
+ * Fails unless a workflow_dispatch event runs on the default branch.
+ *
+ * Unlike a label event, which always runs the workflow on the default branch,
+ * workflow_dispatch lets the client choose any branch or tag of the server
+ * repository, where an old and vulnerable server workflow may remain.
+ * The default branch is read from the event payload, so no API call is needed.
+ */
+export const validateRef = (
+  eventName: string,
+  ref: string,
+  defaultBranch: string | undefined,
+): void => {
+  if (eventName !== "workflow_dispatch") {
+    return;
+  }
+  if (!defaultBranch) {
+    throw new Error(
+      "The default branch of the server repository isn't found in the event payload",
+    );
+  }
+  if (ref !== `refs/heads/${defaultBranch}`) {
+    throw new Error(
+      `The server workflow must run on the default branch ${defaultBranch}, but got ${ref}`,
+    );
+  }
+};
+
 export const readInputs = (): Inputs => {
+  validateRef(
+    github.context.eventName,
+    github.context.ref,
+    github.context.payload.repository?.default_branch,
+  );
+  const request = readRequest(
+    github.context.eventName,
+    {
+      labelName: core.getInput("label_name"),
+      labelDescription: core.getInput("label_description"),
+    },
+    github.context.payload.inputs,
+  );
   return {
     appOctokit: newAppOctokit(),
-    labelName: core.getInput("label_name", { required: true }),
-    labelDescription: core.getInput("label_description", { required: true }),
+    artifactName: request.artifactName,
+    workflowRun: request.workflowRun,
     allowWorkflowFix: core.getBooleanInput("allow_workflow_fix"),
     config: core.getInput("config"),
     configFile: core.getInput("config_file"),
@@ -423,6 +536,32 @@ export const matchPushBranches = (
   return entry.push.branches.some((branch) => minimatch(destBranch, branch));
 };
 
+// GitHub owner and repository names consist of alphanumerics, "-", "_", and ".".
+const namePattern = /^[A-Za-z0-9_.-]+$/;
+
+const validateName = (key: string, value: string): string => {
+  if (!namePattern.test(value)) {
+    throw new Error(`${key} is invalid: ${value}`);
+  }
+  return value;
+};
+
+/**
+ * Parses a workflow run ID strictly.
+ * Number() and parseInt() accept values such as "0x1A", "1e3", " 42 ",
+ * and "123abc", so the format is checked first.
+ */
+export const parseRunId = (key: string, value: string): number => {
+  if (!/^[1-9][0-9]*$/.test(value)) {
+    throw new Error(`${key} must be a positive integer, got ${value}`);
+  }
+  const runId = Number(value);
+  if (!Number.isSafeInteger(runId)) {
+    throw new Error(`${key} must be a positive integer, got ${value}`);
+  }
+  return runId;
+};
+
 export const parseLabelDescription = (
   labelDescription: string,
 ): WorkflowRun => {
@@ -433,9 +572,15 @@ export const parseLabelDescription = (
     );
   }
   return {
-    owner: elems[0],
-    repo: elems[1],
-    runId: parseInt(elems[2], 10),
+    owner: validateName(
+      "the repository owner of the label description",
+      elems[0],
+    ),
+    repo: validateName(
+      "the repository name of the label description",
+      elems[1],
+    ),
+    runId: parseRunId("the workflow run ID of the label description", elems[2]),
   };
 };
 
@@ -479,7 +624,7 @@ const createToken = async (
 export const downloadArtifact = async (
   token: string,
   workflowRun: WorkflowRun,
-  labelName: string,
+  artifactName: string,
 ): Promise<void> => {
   // Download a GitHub Actions Artifact
   const artifact = new DefaultArtifactClient();
@@ -493,11 +638,11 @@ export const downloadArtifact = async (
     },
   };
   const { artifact: targetArtifact } = await artifact.getArtifact(
-    labelName,
+    artifactName,
     artifactOpts,
   );
   if (!targetArtifact) {
-    core.setFailed(`Artifact '${labelName}' not found`);
+    core.setFailed(`Artifact '${artifactName}' not found`);
     return;
   }
   // The artifact is downloaded as a zip file and extracted by unzip.extract()
@@ -548,7 +693,7 @@ export const prepare = async (
   isOutput: boolean,
 ): Promise<Data> => {
   const outputs = new Output(isOutput);
-  const workflowRun = parseLabelDescription(inputs.labelDescription);
+  const workflowRun = inputs.workflowRun;
   core.notice(
     `client workflow run: ${github.context.serverUrl}/${workflowRun.owner}/${workflowRun.repo}/actions/runs/${workflowRun.runId}`,
   );
@@ -561,9 +706,9 @@ export const prepare = async (
   core.saveState("token", token.token);
   core.saveState("expires_at", token.expiresAt);
   outputs.setGitHubToken(token.token);
-  await downloadArtifact(token.token, workflowRun, inputs.labelName);
+  await downloadArtifact(token.token, workflowRun, inputs.artifactName);
 
-  const metadataS = fs.readFileSync(`${inputs.labelName}.json`, "utf8");
+  const metadataS = fs.readFileSync(`${inputs.artifactName}.json`, "utf8");
   const metadata = Metadata.parse(JSON.parse(metadataS));
   outputs.setMetadata(metadataS);
   outputs.setCustom(metadata.inputs.custom ?? {});

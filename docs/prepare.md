@@ -25,6 +25,16 @@
 - `config`: YAML config to push other repositories and branches. Either `config` or `config_file` is required if you want to change repositories and branches where commits are pushed
 - `config_file`: A file path to YAML config to push other repositories and branches. Either `config` or `config_file` is required if you want to change repositories and branches where commits are pushed
 
+#### workflow_dispatch
+
+When the server workflow is run by a `workflow_dispatch` event (v0.6.5), the action reads the artifact and the client workflow run from the inputs of the event, which the client action sets: `artifact_name`, `client_repository_owner`, `client_repository_name`, and `client_workflow_run_id`.
+The server workflow must declare them as `workflow_dispatch` inputs, but you don't need to pass them to the action.
+Otherwise, the action reads them from the label.
+
+The action fails if the event is `workflow_dispatch` and `github.ref` isn't the default branch.
+[See also the risks of `actions:write` and how to protect the server workflow.](../README.md#run-the-server-workflow-only-on-the-default-branch)
+[See also the example of the server workflow.](migrate-to-workflow-dispatch.md#server-workflow)
+
 #### `config`, `config_file`
 
 `config` and `config_file` are ignored if no repository or branch is set by the client action.
