@@ -27,7 +27,7 @@
 
 #### workflow_dispatch
 
-When the server workflow is run by a `workflow_dispatch` event (v0.7.0), the following inputs are read from the event by default, so you don't need to set them:
+When the server workflow is run by a `workflow_dispatch` event (v0.6.5), the following inputs are read from the event by default, so you don't need to set them:
 
 - `artifact_name`: The name of the artifact uploaded by the client workflow run
 - `client_repository_owner`: The owner of the client repository

@@ -123,7 +123,7 @@ It uses following GitHub Apps, repositories, and workflows:
 
 There are two ways to trigger the server workflow:
 
-- `workflow_dispatch` (v0.7.0): The client workflow runs the server workflow by [the workflow_dispatch API](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event). The Client GitHub App requires `actions:write`. Set the input `server_workflow_ref` to use this
+- `workflow_dispatch` (v0.6.5): The client workflow runs the server workflow by [the workflow_dispatch API](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event). The Client GitHub App requires `actions:write`. Set the input `server_workflow_ref` to use this
 - label: The client workflow creates an issue label in the server repository, and the server workflow is triggered by the `label:created` event and deletes the label. The Client GitHub App requires `issues:write`. Set the input `server_repository` to use this
 
 We recommend `workflow_dispatch`:

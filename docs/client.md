@@ -107,7 +107,7 @@ You can also configure pull request body, labels, reviewers, assignees, mileston
 - `app_id`: A GitHub App ID
 - `app_private_key`: A GitHub App Private Key
 - Either `server_workflow_ref` or `server_repository`:
-  - `server_workflow_ref` (v0.7.0): The server workflow to run by a `workflow_dispatch` event, in the format `<owner>/<repo>/.github/workflows/<workflow file>@<branch or tag>`. e.g. `my-org/securefix-server/.github/workflows/securefix.yaml@main`. The ref must be a branch or tag, not a commit SHA. The Client GitHub App requires `actions:write`
+  - `server_workflow_ref` (v0.6.5): The server workflow to run by a `workflow_dispatch` event, in the format `<owner>/<repo>/.github/workflows/<workflow file>@<branch or tag>`. e.g. `my-org/securefix-server/.github/workflows/securefix.yaml@main`. The ref must be a branch or tag, not a commit SHA. The Client GitHub App requires `actions:write`
   - `server_repository`: A GitHub Repository name where a server workflow works. A label is created in this repository. The Client GitHub App requires `issues:write`. If both are set, they must point to the same repository
 
 ### Optional Inputs
