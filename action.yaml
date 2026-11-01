@@ -242,6 +242,7 @@ outputs:
   artifact_name:
     description: |
       The name of the uploaded artifact.
+      This is set only when there are changes.
   changed_files:
     description: |
       Changed files.
