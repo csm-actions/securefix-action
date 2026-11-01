@@ -109,7 +109,10 @@ export const action = async () => {
     custom: parseCustomInput(core.getInput("custom")),
   };
   const result = await securefix.request(inputs);
-  core.setOutput("artifact_name", result.artifactName);
+  // No artifact is uploaded if there are no changes, so the name isn't output.
+  if (result.changedFiles.length > 0) {
+    core.setOutput("artifact_name", result.artifactName);
+  }
   if (result.serverWorkflowRun) {
     core.setOutput("server_workflow_run_url", result.serverWorkflowRun.url);
   }
