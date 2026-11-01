@@ -8,6 +8,7 @@ import {
   matchPushRepositories,
   parseLabelDescription,
   readRequest,
+  validateHeadSHA,
   validateRef,
 } from "./prepare";
 
@@ -295,5 +296,21 @@ describe("validateRef", () => {
     expect(() =>
       validateRef("workflow_dispatch", "refs/heads/main", undefined),
     ).toThrowError("The default branch of the server repository isn't found");
+  });
+});
+
+describe("validateHeadSHA", () => {
+  it("accepts the latest commit of the branch", () => {
+    expect(() => validateHeadSHA("abc", "abc")).not.toThrow();
+  });
+
+  it("rejects an old commit", () => {
+    expect(() => validateHeadSHA("abc", "def")).toThrowError(
+      "The client workflow run must be for the latest commit of the branch abc, but got def",
+    );
+  });
+
+  it("rejects an empty commit", () => {
+    expect(() => validateHeadSHA("abc", "")).toThrowError("but got (empty)");
   });
 });

@@ -301,6 +301,7 @@ It doesn't allow clients to change code or read secrets, so even if the app is a
 That said, `actions:write` allows more than running the server workflow, [so you should understand what it allows](#workflow_dispatch-and-actionswrite).
 Server action creates a commit to the same repository and branch with the GitHub Actions Artifact.
 So it doesn't allow attackers to create a malicious commit to a different repository or a different branch.
+Server action also rejects a request for an old client workflow run, which could revert changes pushed after it: the commit is created on top of the commit the client workflow run checked out, so the push fails if the branch has been updated since then.
 
 ### How to manage a server GitHub App and a server workflow
 
