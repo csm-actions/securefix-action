@@ -301,6 +301,8 @@ It doesn't allow clients to change code or read secrets, so even if the app is a
 That said, `actions:write` allows more than running the server workflow, [so you should understand what it allows](#workflow_dispatch-and-actionswrite).
 Server action creates a commit to the same repository and branch with the GitHub Actions Artifact.
 So it doesn't allow attackers to create a malicious commit to a different repository or a different branch.
+Server action also rejects a request for an old client workflow run, which could revert changes pushed after it: the commit is created on top of the head commit of the client workflow run, so the push fails if the branch has been updated since then.
+For the same reason, if a client workflow run sends multiple requests, e.g. from multiple jobs, only the first fix is pushed in that run. The fix commit runs the client workflow again, and the other fixes are pushed then.
 
 ### How to manage a server GitHub App and a server workflow
 
@@ -428,7 +430,7 @@ permissions:
   contents: read
 
 steps:
-  - uses: csm-actions/securefix-action@ada5710dddfb54a0a55109e320830a757472ce04 # v0.6.4
+  - uses: csm-actions/securefix-action@67763c722aa5439d48cf062e4eb07676bf2d1650 # v0.6.5
     with:
       client_id: ${{vars.APP_CLIENT_ID}}
       aws_kms_key_id: ${{vars.KMS_KEY_ID}}

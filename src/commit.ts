@@ -63,6 +63,10 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
     files: fixedFiles,
     deleteIfNotExist: true,
     submodules: submodules,
+    // The ref is updated without force, so the push fails with
+    // "Update is not a fast forward" if the branch has been updated since the
+    // client workflow run.
+    baseSHA: outputs.base_sha || undefined,
     logger: {
       info: core.info,
     },
