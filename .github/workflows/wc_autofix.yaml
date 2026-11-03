@@ -54,7 +54,7 @@ jobs:
       - name: Update JSON Schema
         run: npm run schema
       # Format the generated JSON Schema and fix the code, and push them with autofix.ci
-      - uses: suzuki-shunsuke/js-autofix-action@14ba0e336fffecbc007e00fb059a03d665c27c9f # v0.0.7
+      - uses: suzuki-shunsuke/js-autofix-action@6b20f1bdf3ff5d34071623583b0170e5dc464256 # v0.1.0
         with:
           aqua_version: v2.66.0
           checkout: "false"
