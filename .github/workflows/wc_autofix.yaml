@@ -56,6 +56,6 @@ jobs:
       # Format the generated JSON Schema and fix the code, and push them with autofix.ci
       - uses: suzuki-shunsuke/js-autofix-action@v0.1.0
         with:
-          aqua_version: v2.66.0
+          aqua_version: v2.66.1
           checkout: "false"
           npm_artifact_name: node_modules-prettier
