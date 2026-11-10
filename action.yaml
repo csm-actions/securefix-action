@@ -269,6 +269,15 @@ outputs:
   github_token:
     description: |
       GitHub App installation token for the destination repository.
+  submodules:
+    description: |
+      JSON serialized list of submodules to update, e.g. [{"path": "foo", "sha": "..."}].
+      This is set only when submodules are changed.
+  symlinks:
+    description: |
+      JSON serialized list of symlinks to commit, e.g. [{"path": "dir/link.txt", "target": "../shared.txt"}].
+      Symlinks aren't included in fixed_files. They are committed as tree entries with mode 120000.
+      This is set only when symlinks are changed.
   metadata:
     description: |
       JSON serialized metadata from the client.

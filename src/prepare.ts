@@ -68,12 +68,26 @@ const Submodule = z.object({
   sha: z.string(),
 });
 
+/**
+ * A symlink is sent in the metadata file instead of the artifact, because
+ * @actions/artifact dereferences symlinks on upload and unzip-stream writes
+ * every entry as a regular file on download.
+ * It's committed as a tree entry with mode 120000 whose content is the target,
+ * and it's never created on disk.
+ */
+export const Symlink = z.object({
+  path: z.string().min(1),
+  target: z.string().min(1),
+});
+export type Symlink = z.infer<typeof Symlink>;
+
 const MetadataInputs = z.object({
   repository: z.string().optional(),
   branch: z.string().optional(),
   pull_request: PullRequest.optional(),
   custom: z.record(z.string(), z.unknown()).optional(),
   submodules: z.array(Submodule).optional(),
+  symlinks: z.array(Symlink).optional(),
 });
 
 const Payload = z.object({
@@ -104,6 +118,7 @@ export const Outputs = z.object({
   workflow_run: z.string(),
   error: z.string().optional(),
   submodules: z.string().optional(),
+  symlinks: z.string().optional(),
   base_sha: z.string().optional(),
 });
 export type Outputs = z.infer<typeof Outputs>;
@@ -205,6 +220,13 @@ class Output {
     }
     this.outputs.submodules = submodules;
   }
+  setSymlinks(symlinks: string) {
+    core.debug(`output symlinks=${symlinks}`);
+    if (this.isOutput) {
+      core.setOutput("symlinks", symlinks);
+    }
+    this.outputs.symlinks = symlinks;
+  }
   setWorkflowRun(workflowRun: string) {
     core.debug(`output workflow_run=${workflowRun}`);
     if (this.isOutput) {
@@ -247,6 +269,9 @@ export const validateRepository = async (data: Data): Promise<Output> => {
 
   if (metadata.inputs.submodules && metadata.inputs.submodules.length > 0) {
     outputs.setSubmodules(JSON.stringify(metadata.inputs.submodules));
+  }
+  if (metadata.inputs.symlinks && metadata.inputs.symlinks.length > 0) {
+    outputs.setSymlinks(JSON.stringify(metadata.inputs.symlinks));
   }
 
   const token = await getTokenForDest(data);

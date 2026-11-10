@@ -91,7 +91,11 @@ If there is no entry matching with source repository and branch and destination 
 - `branch`: A branch where a commit is pushed
 - `client_repository`: A client repository's full name
 - `create_pull_request`: Parameters to create a pull request
-- `fixed_files`: Fixed file paths. Paths are separated with newlines
+- `fixed_files`: Fixed file paths. Paths are separated with newlines. Symlinks aren't included
+- `submodules`: Submodules to update. It's a JSON string such as `[{"path": "foo", "sha": "..."}]`. It's set only when submodules are changed
+- `symlinks`: Symlinks to commit. It's a JSON string such as `[{"path": "dir/link.txt", "target": "../shared.txt"}]`. It's set only when symlinks are changed.
+  Symlinks can't be sent as files in the artifact, so the client sends their targets in the metadata.
+  They are committed as tree entries with mode `120000`, and they aren't created on disk
 - `github_token`: A GitHub App installation access token to create a commit and a pull request
 - `metadata`: A request's metadata. It's a JSON string.
 

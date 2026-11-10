@@ -2,7 +2,7 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { z } from "zod";
 import * as commit from "@suzuki-shunsuke/commit-ts";
-import { Outputs, PullRequest } from "./prepare";
+import { Outputs, PullRequest, Symlink } from "./prepare";
 
 const Metadata = z.object({
   inputs: z.object({
@@ -34,7 +34,13 @@ export const create = async (inputs: Inputs) => {
     .split("\n")
     .map((file) => file.trim())
     .filter((file) => file.length > 0);
-  if (fixedFiles.length === 0) {
+  const submodules = outputs.submodules
+    ? JSON.parse(outputs.submodules)
+    : undefined;
+  const symlinks = outputs.symlinks
+    ? Symlink.array().parse(JSON.parse(outputs.symlinks))
+    : undefined;
+  if (fixedFiles.length === 0 && !submodules?.length && !symlinks?.length) {
     core.info("No files to commit");
     return;
   }
@@ -49,9 +55,6 @@ export const create = async (inputs: Inputs) => {
   const [owner, repo] = elems;
 
   const octokit = github.getOctokit(outputs.github_token);
-  const submodules = outputs.submodules
-    ? JSON.parse(outputs.submodules)
-    : undefined;
 
   core.info(`Creating a commit on ${owner}/${repo} ${outputs.branch}`);
   const createdCommit = await commit.createCommit(octokit, {
@@ -63,6 +66,7 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
     files: fixedFiles,
     deleteIfNotExist: true,
     submodules: submodules,
+    symlinks: symlinks,
     // The ref is updated without force, so the push fails with
     // "Update is not a fast forward" if the branch has been updated since the
     // client workflow run.
