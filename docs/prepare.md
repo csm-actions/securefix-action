@@ -95,7 +95,9 @@ If there is no entry matching with source repository and branch and destination 
 - `submodules`: Submodules to update. It's a JSON string such as `[{"path": "foo", "sha": "..."}]`. It's set only when submodules are changed
 - `symlinks`: Symlinks to commit. It's a JSON string such as `[{"path": "dir/link.txt", "target": "../shared.txt"}]`. It's set only when symlinks are changed.
   Symlinks can't be sent as files in the artifact, so the client sends their targets in the metadata.
-  They are committed as tree entries with mode `120000`, and they aren't created on disk
+  They are committed as tree entries with mode `120000`, and they aren't created on disk.
+  If you validate the paths of `fixed_files` in custom validation (e.g. to restrict which files can be changed), validate the `path` of `submodules` and `symlinks` too, because they aren't included in `fixed_files`.
+  You may also want to validate the `target` of `symlinks`, e.g. to reject absolute paths and paths outside the repository
 - `github_token`: A GitHub App installation access token to create a commit and a pull request
 - `metadata`: A request's metadata. It's a JSON string.
 
