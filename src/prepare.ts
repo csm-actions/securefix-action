@@ -266,6 +266,8 @@ export const validateChanges = (
   submodules: Submodule[],
   symlinks: Symlink[],
   allowWorkflowFix: boolean,
+  // Returns true if a file is deleted, i.e. it isn't in the artifact
+  isDeleted: (file: string) => boolean = () => false,
 ): void => {
   // Values from the client are quoted with JSON.stringify in errors, which
   // are posted to the client's pull request.
@@ -287,9 +289,12 @@ export const validateChanges = (
       throw new Error(`a path of a file must not contain .git: ${q(file)}`);
     }
   }
-  // Paths are compared case-insensitively (foldPath), because paths which
-  // differ only in case collide on case-insensitive file systems.
-  const seen = new Set(files.map(foldPath));
+  // Paths are compared case-insensitively (foldPath) too, because paths which
+  // differ only in case collide on case-insensitive file systems. A deleted
+  // file doesn't collide, e.g. replacing a file "README" with a symlink
+  // "readme".
+  const exactSeen = new Set(files);
+  const seen = new Set(files.filter((file) => !isDeleted(file)).map(foldPath));
   for (const { path: p, kind } of [
     ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
     ...symlinks.map((s) => ({ path: s.path, kind: "symlink" })),
@@ -301,11 +306,12 @@ export const validateChanges = (
         `a path of a ${kind} must be a normalized relative path in the repository without backslashes: ${q(p)}`,
       );
     }
-    if (seen.has(foldPath(p))) {
+    if (exactSeen.has(p) || seen.has(foldPath(p))) {
       throw new Error(
         `a path of a ${kind} must not be passed with another file, submodule, or symlink: ${q(p)}`,
       );
     }
+    exactSeen.add(p);
     seen.add(foldPath(p));
     if (hasGitDir(p)) {
       throw new Error(`a path of a ${kind} must not contain .git: ${q(p)}`);
@@ -337,26 +343,20 @@ export const validateChanges = (
   // A path under a symlink or a submodule in the request, compared
   // case-insensitively. e.g. "Docs" and "docs/link" on a case-insensitive
   // file system: the symlink's target would be resolved from Docs's target.
-  // A file exactly under a symlink or a submodule is allowed, because it's a
-  // deletion when a directory is replaced with a symlink or a submodule.
-  // commit-ts rejects other files there.
-  const exactPaths = new Set([
-    ...submodules.map((s) => s.path),
-    ...symlinks.map((s) => s.path),
-  ]);
+  // A deleted file under them is allowed, because files in a directory are
+  // deleted when the directory is replaced with a symlink or a submodule.
   for (const { path: p, kind } of [
     ...files.map((f) => ({ path: f, kind: "file" })),
     ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
     ...symlinks.map((s) => ({ path: s.path, kind: "symlink" })),
   ]) {
+    if (kind === "file" && isDeleted(p)) {
+      continue;
+    }
     const dirs = p.split("/").slice(0, -1);
     for (let i = 1; i <= dirs.length; i++) {
-      const exact = dirs.slice(0, i).join("/");
-      const dir = foldPath(exact);
-      if (
-        (submodulePaths.has(dir) || symlinkPaths.has(dir)) &&
-        !(kind === "file" && exactPaths.has(exact))
-      ) {
+      const dir = foldPath(dirs.slice(0, i).join("/"));
+      if (submodulePaths.has(dir) || symlinkPaths.has(dir)) {
         throw new Error(
           `a ${kind} must not be under a symlink or a submodule: ${q(p)}`,
         );
@@ -568,7 +568,8 @@ export const listChangedPaths = (
  * isNormalizedPath instead.
  */
 export const splitFiles = (files: string): string[] => [
-  ...new Set(files.split("\n").filter((file) => file.length > 0)),
+  // CRLF is accepted too
+  ...new Set(files.split(/\r?\n/).filter((file) => file.length > 0)),
 ];
 
 /**
@@ -590,7 +591,16 @@ const validateAndSetChanges = (data: Data): void => {
     sha: submodule.sha.toLowerCase(),
   }));
   const symlinks = metadata.inputs.symlinks ?? [];
-  validateChanges(files, submodules, symlinks, inputs.allowWorkflowFix);
+  // The artifact is extracted into the workspace, and a file which isn't in it
+  // is deleted by the commit action (deleteIfNotExist)
+  const workspace = process.env.GITHUB_WORKSPACE ?? "";
+  validateChanges(
+    files,
+    submodules,
+    symlinks,
+    inputs.allowWorkflowFix,
+    (file) => !fs.existsSync(path.join(workspace, file)),
+  );
   // fixed_files includes the paths of submodules and symlinks too, so that
   // custom validation of fixed_files checks every changed path.
   // The commit action excludes them from the files to commit.

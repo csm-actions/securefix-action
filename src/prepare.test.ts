@@ -607,13 +607,36 @@ describe("validateChanges", () => {
       );
     },
   );
-  it("allows deletions exactly under a symlink or a submodule", () => {
+  it("allows deleted files under a symlink or a submodule at any depth", () => {
     expect(() =>
       validateChanges(
-        ["dir/a.txt", "sub/b.txt"],
+        ["dir/a.txt", "Dir/b/c.txt", "sub/d.txt"],
         [{ path: "sub", sha }],
         [{ path: "dir", target: "other" }],
         true,
+        () => true,
+      ),
+    ).not.toThrow();
+  });
+  it.each([
+    [["dir/a.txt"], [], [{ path: "dir", target: "other" }]],
+    [["vendor/x/deep/b.go"], [{ path: "vendor/x", sha }], []],
+  ])(
+    "rejects existing files under a symlink or a submodule: %o %o %o",
+    (files, submodules, symlinks) => {
+      expect(() =>
+        validateChanges(files, submodules, symlinks, true, () => false),
+      ).toThrow("must not be under a symlink or a submodule");
+    },
+  );
+  it("allows replacing a deleted file with a symlink differing in case", () => {
+    expect(() =>
+      validateChanges(
+        ["README"],
+        [],
+        [{ path: "readme", target: "x" }],
+        true,
+        (file) => file === "README",
       ),
     ).not.toThrow();
   });
@@ -718,6 +741,9 @@ describe("isGitSpecialFile", () => {
 });
 
 describe("splitFiles", () => {
+  it("accepts CRLF", () => {
+    expect(splitFiles("a.txt\r\nb.txt\r\n")).toEqual(["a.txt", "b.txt"]);
+  });
   it("ignores empty and duplicated lines without trimming", () => {
     expect(splitFiles("a.txt\n\nb.txt \na.txt\n")).toEqual(["a.txt", "b.txt "]);
   });
