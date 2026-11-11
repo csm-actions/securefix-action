@@ -5,6 +5,7 @@ import {
   isNormalizedPath,
   listFixedFiles,
   isGitDir,
+  splitFiles,
   validateChanges,
   validateSymlinkTarget,
   matchClientBranches,
@@ -323,12 +324,16 @@ describe("validateHeadSHA", () => {
 });
 
 describe("isNormalizedPath", () => {
-  it.each(["a", "a/b", "a.txt", ".github/workflows/ci.yaml", "a..b"])(
-    "%s is normalized",
-    (p) => {
-      expect(isNormalizedPath(p)).toBe(true);
-    },
-  );
+  it.each([
+    "a",
+    "a/b",
+    "a.txt",
+    ".github/workflows/ci.yaml",
+    "a..b",
+    "a\tb.txt",
+  ])("%s is normalized", (p) => {
+    expect(isNormalizedPath(p)).toBe(true);
+  });
   it.each([
     "",
     ".",
@@ -588,6 +593,12 @@ describe("validateChanges", () => {
         false,
       ),
     ).not.toThrow();
+  });
+});
+
+describe("splitFiles", () => {
+  it("trims lines and ignores empty and duplicated lines", () => {
+    expect(splitFiles(" a.txt\n\nb.txt\na.txt\n")).toEqual(["a.txt", "b.txt"]);
   });
 });
 

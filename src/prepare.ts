@@ -76,13 +76,11 @@ export const isNormalizedPath = (p: string): boolean =>
   !p.endsWith("/") &&
   !p.startsWith("../") &&
   path.posix.normalize(p) === p &&
-  // Leading or trailing whitespace and control characters such as newlines
-  // break newline-separated lists like fixed_files
+  // Leading or trailing whitespace and newlines break newline-separated
+  // lists like fixed_files. Other characters such as tabs are allowed,
+  // because Git and the Create a tree API allow them.
   p.trim() === p &&
-  !hasControlCharacter(p);
-
-const hasControlCharacter = (s: string): boolean =>
-  /[\u0000-\u001f\u007f]/.test(s);
+  !/[\n\r\u0000]/.test(p);
 
 /**
  * Returns true if a path component can refer to .git on some file systems,
@@ -169,8 +167,8 @@ const targetNamePattern = /^[A-Za-z0-9._-]*[A-Za-z0-9_-]$/;
  */
 export const validateSymlinkTarget = (
   symlink: Symlink,
-  submodulePaths: string[] = [],
-  symlinkPaths: string[] = [],
+  submodulePaths: Set<string> = new Set(),
+  symlinkPaths: Set<string> = new Set(),
 ): void => {
   const { path: p, target } = symlink;
   const fail = (reason: string): never => {
@@ -179,8 +177,10 @@ export const validateSymlinkTarget = (
     );
   };
   const components = target.split("/");
-  const ups = components.findIndex((c) => c !== "..");
-  const leadingUps = ups === -1 ? components.length : ups;
+  let leadingUps = 0;
+  while (components[leadingUps] === "..") {
+    leadingUps++;
+  }
   const names = components.slice(leadingUps);
   if (names.length === 0) {
     fail('must not be only ".."');
@@ -200,19 +200,18 @@ export const validateSymlinkTarget = (
     fail("must not be outside the repository");
   }
   const resolved = [...dirs.slice(0, dirs.length - leadingUps), ...names];
-  if (resolved.some(hasGitDir)) {
+  if (resolved.some(isGitDir)) {
     fail("must not be in .git");
   }
-  // Compare folded paths for case-insensitive file systems
-  const submodules = new Set(submodulePaths.map(foldPath));
-  const symlinks = new Set(symlinkPaths.map(foldPath));
+  // submodulePaths and symlinkPaths are folded by foldPath for
+  // case-insensitive file systems
   for (let i = 1; i <= resolved.length; i++) {
     const prefix = foldPath(resolved.slice(0, i).join("/"));
-    if (submodules.has(prefix)) {
+    if (submodulePaths.has(prefix)) {
       // Including the submodule itself, whose contents aren't checked
       fail("must not point to or go through a submodule");
     }
-    if (i < resolved.length && symlinks.has(prefix)) {
+    if (i < resolved.length && symlinkPaths.has(prefix)) {
       fail("must not go through a symlink");
     }
   }
@@ -291,8 +290,8 @@ export const validateChanges = (
       }
     }
   }
-  const submodulePaths = submodules.map((submodule) => submodule.path);
-  const symlinkPaths = symlinks.map((symlink) => symlink.path);
+  const submodulePaths = new Set(submodules.map((s) => foldPath(s.path)));
+  const symlinkPaths = new Set(symlinks.map((s) => foldPath(s.path)));
   for (const symlink of symlinks) {
     validateSymlinkTarget(symlink, submodulePaths, symlinkPaths);
   }
@@ -491,37 +490,21 @@ export const listFixedFiles = (
 
 /**
  * Splits newline-separated files such as _files.txt and fixed_files.
- * Lines are trimmed and empty lines are ignored.
+ * Lines are trimmed, and empty and duplicated lines are ignored.
  */
-export const splitFiles = (files: string): string[] =>
-  files
-    .split("\n")
-    .map((file) => file.trim())
-    .filter((file) => file.length > 0);
+export const splitFiles = (files: string): string[] => [
+  ...new Set(
+    files
+      .split("\n")
+      .map((file) => file.trim())
+      .filter((file) => file.length > 0),
+  ),
+];
 
 export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
   const outputs = data.outputs;
   const metadata = data.metadata;
-  // Read metadata
-  const files = splitFiles(
-    fs.readFileSync(`${inputs.artifactName}_files.txt`, "utf8"),
-  );
-  const submodules = metadata.inputs.submodules ?? [];
-  const symlinks = metadata.inputs.symlinks ?? [];
-  validateChanges(files, submodules, symlinks, inputs.allowWorkflowFix);
-  // fixed_files includes the paths of submodules and symlinks too, so that
-  // custom validation of fixed_files checks every changed path.
-  // The commit action excludes them from the files to commit.
-  outputs.setFixedFiles(listFixedFiles(files, submodules, symlinks));
-
-  if (submodules.length > 0) {
-    outputs.setSubmodules(JSON.stringify(submodules));
-  }
-  if (symlinks.length > 0) {
-    outputs.setSymlinks(JSON.stringify(symlinks));
-  }
-
   const token = await getTokenForDest(data);
   outputs.setGitHubToken(token);
   const octokit = github.getOctokit(token);
@@ -557,6 +540,26 @@ export const validateRepository = async (data: Data): Promise<Output> => {
       pull_number: metadata.context.payload.pull_request.number,
     });
     outputs.setPullRequest(JSON.stringify(pullRequest));
+  }
+
+  // The changes are validated after the pull_request output is set, so that
+  // the notify action can post the error to the client's pull request.
+  const files = splitFiles(
+    fs.readFileSync(`${inputs.artifactName}_files.txt`, "utf8"),
+  );
+  const submodules = metadata.inputs.submodules ?? [];
+  const symlinks = metadata.inputs.symlinks ?? [];
+  validateChanges(files, submodules, symlinks, inputs.allowWorkflowFix);
+  // fixed_files includes the paths of submodules and symlinks too, so that
+  // custom validation of fixed_files checks every changed path.
+  // The commit action excludes them from the files to commit.
+  outputs.setFixedFiles(listFixedFiles(files, submodules, symlinks));
+
+  if (submodules.length > 0) {
+    outputs.setSubmodules(JSON.stringify(submodules));
+  }
+  if (symlinks.length > 0) {
+    outputs.setSymlinks(JSON.stringify(symlinks));
   }
 
   if (!data.branch) {
