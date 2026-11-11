@@ -88,6 +88,9 @@ const MetadataInputs = z.object({
   custom: z.record(z.string(), z.unknown()).optional(),
   submodules: z.array(Submodule).optional(),
   symlinks: z.array(Symlink).optional(),
+  // Paths of files, symlinks, or submodules replaced with directories.
+  // They must be deleted explicitly, because they exist as directories on disk.
+  deleted_files: z.array(z.string().min(1)).optional(),
 });
 
 const Payload = z.object({
@@ -119,6 +122,7 @@ export const Outputs = z.object({
   error: z.string().optional(),
   submodules: z.string().optional(),
   symlinks: z.string().optional(),
+  deleted_files: z.string().optional(),
   base_sha: z.string().optional(),
 });
 export type Outputs = z.infer<typeof Outputs>;
@@ -227,6 +231,13 @@ class Output {
     }
     this.outputs.symlinks = symlinks;
   }
+  setDeletedFiles(deletedFiles: string) {
+    core.debug(`output deleted_files=${deletedFiles}`);
+    if (this.isOutput) {
+      core.setOutput("deleted_files", deletedFiles);
+    }
+    this.outputs.deleted_files = deletedFiles;
+  }
   setWorkflowRun(workflowRun: string) {
     core.debug(`output workflow_run=${workflowRun}`);
     if (this.isOutput) {
@@ -272,6 +283,12 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   }
   if (metadata.inputs.symlinks && metadata.inputs.symlinks.length > 0) {
     outputs.setSymlinks(JSON.stringify(metadata.inputs.symlinks));
+  }
+  if (
+    metadata.inputs.deleted_files &&
+    metadata.inputs.deleted_files.length > 0
+  ) {
+    outputs.setDeletedFiles(JSON.stringify(metadata.inputs.deleted_files));
   }
 
   const token = await getTokenForDest(data);
