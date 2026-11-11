@@ -422,6 +422,8 @@ describe("validateSymlinkTarget", () => {
     [{ path: "a/b/link", target: "../c/../../../x" }, '".." after'],
     [{ path: "docs/config", target: "../.git/config" }, ".git"],
     [{ path: "a", target: ".git" }, ".git"],
+    [{ path: "a/b/link", target: "../../a" }, "parent directory"],
+    [{ path: "a/b/link", target: "link" }, "itself"],
   ])("rejects %o (%s)", (symlink, reason) => {
     expect(() => validateSymlinkTarget(symlink)).toThrow(reason);
   });
@@ -682,6 +684,15 @@ describe("validateChanges", () => {
       expect(() => validateChanges([p], [], [], true)).not.toThrow();
     },
   );
+  it("rejects a symlink target in .github/workflows unless allowWorkflowFix", () => {
+    const symlinks = [
+      { path: "docs/ci.yaml", target: "../.github/workflows/ci.yaml" },
+    ];
+    expect(() => validateChanges([], [], symlinks, false)).toThrow(
+      "must not point to .github/workflows",
+    );
+    expect(() => validateChanges([], [], symlinks, true)).not.toThrow();
+  });
   it("allows other files in .github", () => {
     expect(() =>
       validateChanges(
