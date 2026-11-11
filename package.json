@@ -25,6 +25,7 @@
     "@types/json-diff": "^1.0.3",
     "glob": "14.0.4",
     "js-yaml": "5.5.0",
+    "minimatch": "^11.0.5",
     "tmp": "^0.2.3",
     "unzip-stream": "^0.3.4",
     "zod": "^4.0.0"
