@@ -521,16 +521,19 @@ describe("validateChanges", () => {
   });
   it.each([
     [{ path: "x", target: "sub" }, "point to or go through a submodule"],
-  ])("rejects %o case-insensitively", (symlink, message) => {
-    expect(() =>
-      validateChanges(
-        [],
-        [{ path: "sub", sha }],
-        [symlink, { path: "link", target: "dir" }],
-        true,
-      ),
-    ).toThrow(message);
-  });
+  ])(
+    "rejects a target pointing to a submodule or going through it: %o",
+    (symlink, message) => {
+      expect(() =>
+        validateChanges(
+          [],
+          [{ path: "sub", sha }],
+          [symlink, { path: "link", target: "dir" }],
+          true,
+        ),
+      ).toThrow(message);
+    },
+  );
   it("allows a target pointing to a symlink itself", () => {
     expect(() =>
       validateChanges(

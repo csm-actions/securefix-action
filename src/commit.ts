@@ -1,3 +1,5 @@
+import * as fs from "fs";
+import * as path from "path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { z } from "zod";
@@ -8,8 +10,8 @@ import {
   splitFiles,
   Submodule,
   Symlink,
+  validateChanges,
   validateFileTypes,
-  validateSymlinkTarget,
 } from "./prepare";
 
 const Metadata = z.object({
@@ -72,18 +74,32 @@ export const create = async (inputs: Inputs) => {
   const symlinks = outputs.symlinks
     ? Symlink.array().parse(JSON.parse(outputs.symlinks))
     : [];
+  // Validated in prepare too, but the commit action can be run separately.
+  // Files are validated before deleted files under submodules and symlinks
+  // are excluded, so that an existing file under them is rejected instead of
+  // being dropped silently.
+  const entryPaths = new Set([
+    ...submodules.map((submodule) => submodule.path),
+    ...symlinks.map((symlink) => symlink.path),
+  ]);
+  const files = splitFiles(outputs.fixed_files).filter(
+    (file) => !entryPaths.has(file),
+  );
+  validateFileTypes(files, outputs.artifact_dir);
+  validateChanges(
+    files,
+    submodules,
+    symlinks,
+    // allow_workflow_fix isn't an input of the commit action. It's checked in
+    // prepare, and the token doesn't have the workflows permission without it.
+    true,
+    (file) => !fs.existsSync(path.join(outputs.artifact_dir, file)),
+  );
   const fixedFiles = listFilesToCommit(
     outputs.fixed_files,
     submodules,
     symlinks,
   );
-  // Validated in prepare too, but the commit action can be run separately
-  validateFileTypes(fixedFiles, outputs.artifact_dir);
-  const submodulePaths = new Set(submodules.map((s) => s.path));
-  const symlinkPaths = new Set(symlinks.map((s) => s.path));
-  for (const symlink of symlinks) {
-    validateSymlinkTarget(symlink, submodulePaths, symlinkPaths);
-  }
   if (fixedFiles.length + submodules.length + symlinks.length === 0) {
     core.info("No files to commit");
     return;

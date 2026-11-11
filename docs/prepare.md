@@ -107,7 +107,7 @@ If there is no entry matching with source repository and branch and destination 
 
   A file, a submodule, or a symlink must not be under a symlink or a submodule in the request (except deleted files), and a submodule or a symlink must not be `.gitmodules`, `.gitattributes`, `.gitignore`, or `.mailmap`, which Git's fsck rejects.
 
-  These rules assume that the repository is checked out on Linux. Windows and macOS file systems interpret some names specially (e.g. case-insensitivity), which isn't taken into account. The server assumes that the other components of a target are directories: a symlink already in the repository which points outside the repository, or a symlink in a submodule, can't be checked.
+  These rules assume that the repository is checked out on Linux. Windows and macOS file systems interpret some names specially (e.g. case-insensitivity), which isn't taken into account. The server doesn't read the destination's tree, and assumes that the other components of a target are directories: a symlink or a submodule already in the repository isn't checked, e.g. a symlink which points outside the repository, a symlink in a submodule, or an existing symlink whose target resolves differently after a directory is replaced with a symlink in the request.
 
 - `github_token`: A GitHub App installation access token to create a commit and a pull request
 - `metadata`: A request's metadata. It's a JSON string.
