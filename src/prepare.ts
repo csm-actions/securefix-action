@@ -224,6 +224,14 @@ export const validateSymlinkTarget = (
   }
   // submodulePaths and symlinkPaths are folded by foldPath for
   // case-insensitive file systems
+  // A directory containing a submodule, e.g. "vendor" for a submodule
+  // "vendor/x", would lead to the submodule through the symlink
+  const resolvedPath = foldPath(resolved.join("/"));
+  for (const submodulePath of submodulePaths) {
+    if (submodulePath.startsWith(`${resolvedPath}/`)) {
+      fail("must not point to a directory containing a submodule");
+    }
+  }
   for (let i = 1; i <= resolved.length; i++) {
     const prefix = foldPath(resolved.slice(0, i).join("/"));
     if (submodulePaths.has(prefix)) {
@@ -272,7 +280,7 @@ export const validateChanges = (
   for (const file of files) {
     if (!isNormalizedPath(file)) {
       throw new Error(
-        `a path of a file must be a normalized relative path in the repository: ${JSON.stringify(file)}`,
+        `a path of a file must be a normalized relative path in the repository: ${q(file)}`,
       );
     }
     if (hasGitDir(file)) {
@@ -286,9 +294,11 @@ export const validateChanges = (
     ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
     ...symlinks.map((s) => ({ path: s.path, kind: "symlink" })),
   ]) {
-    if (!isNormalizedPath(p)) {
+    // A backslash is a path separator on Windows, so checking whether a path
+    // is under another path would be inaccurate
+    if (!isNormalizedPath(p) || p.includes("\\")) {
       throw new Error(
-        `a path of a ${kind} must be a normalized relative path in the repository: ${JSON.stringify(p)}`,
+        `a path of a ${kind} must be a normalized relative path in the repository without backslashes: ${q(p)}`,
       );
     }
     if (seen.has(foldPath(p))) {
@@ -310,11 +320,7 @@ export const validateChanges = (
     }
   }
   if (!allowWorkflowFix) {
-    for (const p of [
-      ...files,
-      ...submodules.map((s) => s.path),
-      ...symlinks.map((s) => s.path),
-    ]) {
+    for (const p of listChangedPaths(files, submodules, symlinks)) {
       if (
         p === ".github" ||
         p === ".github/workflows" ||
@@ -328,19 +334,36 @@ export const validateChanges = (
   }
   const submodulePaths = new Set(submodules.map((s) => foldPath(s.path)));
   const symlinkPaths = new Set(symlinks.map((s) => foldPath(s.path)));
-  for (const symlink of symlinks) {
-    // A symlink under another symlink or a submodule in the request (e.g.
-    // "Docs" and "docs/link" on a case-insensitive file system) would resolve
-    // its target from the other symlink's target or in the submodule.
-    const dirs = symlink.path.split("/").slice(0, -1);
+  // A path under a symlink or a submodule in the request, compared
+  // case-insensitively. e.g. "Docs" and "docs/link" on a case-insensitive
+  // file system: the symlink's target would be resolved from Docs's target.
+  // A file exactly under a symlink or a submodule is allowed, because it's a
+  // deletion when a directory is replaced with a symlink or a submodule.
+  // commit-ts rejects other files there.
+  const exactPaths = new Set([
+    ...submodules.map((s) => s.path),
+    ...symlinks.map((s) => s.path),
+  ]);
+  for (const { path: p, kind } of [
+    ...files.map((f) => ({ path: f, kind: "file" })),
+    ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
+    ...symlinks.map((s) => ({ path: s.path, kind: "symlink" })),
+  ]) {
+    const dirs = p.split("/").slice(0, -1);
     for (let i = 1; i <= dirs.length; i++) {
-      const dir = foldPath(dirs.slice(0, i).join("/"));
-      if (submodulePaths.has(dir) || symlinkPaths.has(dir)) {
+      const exact = dirs.slice(0, i).join("/");
+      const dir = foldPath(exact);
+      if (
+        (submodulePaths.has(dir) || symlinkPaths.has(dir)) &&
+        !(kind === "file" && exactPaths.has(exact))
+      ) {
         throw new Error(
-          `a symlink must not be under another symlink or a submodule: ${q(symlink.path)}`,
+          `a ${kind} must not be under a symlink or a submodule: ${q(p)}`,
         );
       }
     }
+  }
+  for (const symlink of symlinks) {
     validateSymlinkTarget(symlink, submodulePaths, symlinkPaths);
   }
 };
@@ -522,19 +545,18 @@ const getTokenForDest = async (data: Data): Promise<string> => {
 };
 
 /**
- * Returns the newline-separated paths of files in _files.txt, submodules, and
- * symlinks, which are output as fixed_files.
+ * Returns the paths of files in _files.txt, submodules, and symlinks, i.e. all
+ * changed paths. They are output as fixed_files.
  */
-export const listFixedFiles = (
+export const listChangedPaths = (
   files: string[],
   submodules: Submodule[],
   symlinks: Symlink[],
-): string =>
-  [
-    ...files,
-    ...submodules.map((submodule) => submodule.path),
-    ...symlinks.map((symlink) => symlink.path),
-  ].join("\n");
+): string[] => [
+  ...files,
+  ...submodules.map((submodule) => submodule.path),
+  ...symlinks.map((symlink) => symlink.path),
+];
 
 /**
  * Splits newline-separated files such as _files.txt and fixed_files.
@@ -548,6 +570,40 @@ export const listFixedFiles = (
 export const splitFiles = (files: string): string[] => [
   ...new Set(files.split("\n").filter((file) => file.length > 0)),
 ];
+
+/**
+ * Validates the changes in the request and outputs them.
+ *
+ * It's called after the request is authorized (e.g. the workflow name, the
+ * protected branch, and the config), so that an unauthorized request is
+ * reported as such, and after the pull_request output is set, so that the
+ * notify action can post the error to the client's pull request.
+ */
+const validateAndSetChanges = (data: Data): void => {
+  const { inputs, outputs, metadata } = data;
+  const files = splitFiles(
+    fs.readFileSync(`${inputs.artifactName}_files.txt`, "utf8"),
+  );
+  // A SHA is lowercased, which the Create a tree API expects
+  const submodules = (metadata.inputs.submodules ?? []).map((submodule) => ({
+    ...submodule,
+    sha: submodule.sha.toLowerCase(),
+  }));
+  const symlinks = metadata.inputs.symlinks ?? [];
+  validateChanges(files, submodules, symlinks, inputs.allowWorkflowFix);
+  // fixed_files includes the paths of submodules and symlinks too, so that
+  // custom validation of fixed_files checks every changed path.
+  // The commit action excludes them from the files to commit.
+  outputs.setFixedFiles(
+    listChangedPaths(files, submodules, symlinks).join("\n"),
+  );
+  if (submodules.length > 0) {
+    outputs.setSubmodules(JSON.stringify(submodules));
+  }
+  if (symlinks.length > 0) {
+    outputs.setSymlinks(JSON.stringify(symlinks));
+  }
+};
 
 export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
@@ -590,30 +646,6 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     outputs.setPullRequest(JSON.stringify(pullRequest));
   }
 
-  // The changes are validated after the pull_request output is set, so that
-  // the notify action can post the error to the client's pull request.
-  const files = splitFiles(
-    fs.readFileSync(`${inputs.artifactName}_files.txt`, "utf8"),
-  );
-  // A SHA is lowercased, which the Create a tree API expects
-  const submodules = (metadata.inputs.submodules ?? []).map((submodule) => ({
-    ...submodule,
-    sha: submodule.sha.toLowerCase(),
-  }));
-  const symlinks = metadata.inputs.symlinks ?? [];
-  validateChanges(files, submodules, symlinks, inputs.allowWorkflowFix);
-  // fixed_files includes the paths of submodules and symlinks too, so that
-  // custom validation of fixed_files checks every changed path.
-  // The commit action excludes them from the files to commit.
-  outputs.setFixedFiles(listFixedFiles(files, submodules, symlinks));
-
-  if (submodules.length > 0) {
-    outputs.setSubmodules(JSON.stringify(submodules));
-  }
-  if (symlinks.length > 0) {
-    outputs.setSymlinks(JSON.stringify(symlinks));
-  }
-
   if (!data.branch) {
     throw new Error("workflowRun.head_branch is not set");
   }
@@ -635,6 +667,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     // workflow run failed, in which case data.branch is also empty and the
     // check above fails.
     outputs.setBaseSHA(data.sha);
+    validateAndSetChanges(data);
     return outputs;
   }
 
@@ -680,6 +713,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     if (!entry.pull_request) {
       throw new Error("Creating a pull request isn't allowed for this entry");
     }
+    validateAndSetChanges(data);
     return outputs;
   }
 

@@ -58,16 +58,16 @@ export const create = async (inputs: Inputs) => {
 
   const submodules = outputs.submodules
     ? Submodule.array().parse(JSON.parse(outputs.submodules))
-    : undefined;
+    : [];
   const symlinks = outputs.symlinks
     ? Symlink.array().parse(JSON.parse(outputs.symlinks))
-    : undefined;
+    : [];
   const fixedFiles = listFilesToCommit(
     outputs.fixed_files,
-    submodules ?? [],
-    symlinks ?? [],
+    submodules,
+    symlinks,
   );
-  if (fixedFiles.length === 0 && !submodules?.length && !symlinks?.length) {
+  if (fixedFiles.length + submodules.length + symlinks.length === 0) {
     core.info("No files to commit");
     return;
   }

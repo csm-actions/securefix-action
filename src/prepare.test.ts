@@ -3,7 +3,7 @@ import type * as github from "@actions/github";
 import type { Entry } from "./config";
 import {
   isNormalizedPath,
-  listFixedFiles,
+  listChangedPaths,
   isGitDir,
   isGitSpecialFile,
   splitFiles,
@@ -547,11 +547,11 @@ describe("validateChanges", () => {
     },
   );
   it.each(["a\\.git\\x", "a\\GIT~1"])(
-    "rejects a symlink path containing .git with backslashes: %o",
+    "rejects a file path containing .git with backslashes: %o",
     (p) => {
-      expect(() =>
-        validateChanges([], [], [{ path: p, target: "x" }], true),
-      ).toThrow("must not contain .git");
+      expect(() => validateChanges([p], [], [], true)).toThrow(
+        "must not contain .git",
+      );
     },
   );
   it("quotes values from the client in errors", () => {
@@ -591,19 +591,56 @@ describe("validateChanges", () => {
     "rejects a symlink under another symlink or a submodule: %o %o",
     (submodules, symlinks) => {
       expect(() => validateChanges([], submodules, symlinks, true)).toThrow(
-        "must not be under another symlink or a submodule",
+        "must not be under a symlink or a submodule",
       );
     },
   );
+  it.each([
+    [["docs/x"], [], [{ path: "Docs", target: "x" }]],
+    [[], [{ path: "docs/sub", sha }], [{ path: "Docs", target: "x" }]],
+    [["sub/x"], [{ path: "SUB", sha }], []],
+  ])(
+    "rejects a file or a submodule under a symlink or a submodule: %o %o %o",
+    (files, submodules, symlinks) => {
+      expect(() => validateChanges(files, submodules, symlinks, true)).toThrow(
+        "must not be under a symlink or a submodule",
+      );
+    },
+  );
+  it("allows deletions exactly under a symlink or a submodule", () => {
+    expect(() =>
+      validateChanges(
+        ["dir/a.txt", "sub/b.txt"],
+        [{ path: "sub", sha }],
+        [{ path: "dir", target: "other" }],
+        true,
+      ),
+    ).not.toThrow();
+  });
+  it("rejects a target pointing to a directory containing a submodule", () => {
+    expect(() =>
+      validateChanges(
+        [],
+        [{ path: "vendor/evil", sha }],
+        [{ path: "l", target: "vendor" }],
+        true,
+      ),
+    ).toThrow("directory containing a submodule");
+  });
+  it("rejects a backslash in a symlink path", () => {
+    expect(() =>
+      validateChanges([], [], [{ path: "a\\b", target: "x" }], true),
+    ).toThrow("without backslashes");
+  });
   it("compares NFC and NFD paths as the same", () => {
     expect(() =>
       validateChanges(
         [],
-        [{ path: "caf\u00e9", sha }],
-        [{ path: "cafe\u0301/link", target: "x" }],
+        [{ path: "dir\u00e9", sha }],
+        [{ path: "dire\u0301/link", target: "x" }],
         true,
       ),
-    ).toThrow("must not be under another symlink or a submodule");
+    ).toThrow("must not be under a symlink or a submodule");
   });
   it.each([".gitmodules", "a/.gitattributes", ".GITIGNORE", "GITMOD~1"])(
     "rejects a symlink at %s",
@@ -686,19 +723,14 @@ describe("splitFiles", () => {
   });
 });
 
-describe("listFixedFiles", () => {
+describe("listChangedPaths", () => {
   it("includes files, submodules, and symlinks", () => {
     expect(
-      listFixedFiles(
+      listChangedPaths(
         ["a.txt", "b.txt"],
         [{ path: "sub", sha: "1111111111111111111111111111111111111111" }],
         [{ path: "link", target: "a.txt" }],
       ),
-    ).toBe("a.txt\nb.txt\nsub\nlink");
-  });
-  it("works with only symlinks", () => {
-    expect(listFixedFiles([], [], [{ path: "link", target: "a" }])).toBe(
-      "link",
-    );
+    ).toEqual(["a.txt", "b.txt", "sub", "link"]);
   });
 });
