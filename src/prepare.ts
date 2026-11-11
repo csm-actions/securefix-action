@@ -235,15 +235,36 @@ const getTokenForDest = async (data: Data): Promise<string> => {
   return token.token;
 };
 
+/**
+ * Splits newline-separated files such as _files.txt and fixed_files.
+ * Empty and duplicated lines are ignored.
+ *
+ * Lines aren't trimmed: a file name can have leading or trailing spaces, and
+ * trimming it would make another file deleted, e.g. "config.yaml " would be
+ * committed as the deletion of "config.yaml". Such paths are rejected by
+ * validateRepository instead.
+ */
+export const splitFiles = (files: string): string[] => [
+  // CRLF is accepted too
+  ...new Set(files.split(/\r?\n/).filter((file) => file.length > 0)),
+];
+
 export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
   const outputs = data.outputs;
   const metadata = data.metadata;
   // Read metadata
-  const fixedFiles = fs
-    .readFileSync(`${inputs.artifactName}_files.txt`, "utf8")
-    .trim();
-  outputs.setFixedFiles(fixedFiles);
+  const files = splitFiles(
+    fs.readFileSync(`${inputs.artifactName}_files.txt`, "utf8"),
+  );
+  for (const file of files) {
+    if (file.trim() !== file) {
+      throw new Error(
+        `a path of a file must not have leading or trailing whitespace: ${JSON.stringify(file)}`,
+      );
+    }
+  }
+  outputs.setFixedFiles(files.join("\n"));
 
   if (metadata.inputs.submodules && metadata.inputs.submodules.length > 0) {
     outputs.setSubmodules(JSON.stringify(metadata.inputs.submodules));

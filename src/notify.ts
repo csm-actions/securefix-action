@@ -56,13 +56,13 @@ export const action = async () => {
   const [owner, repo] = elems;
   const msgs = [inputs.comment];
   if (outputs.error) {
-    msgs.push("\n## Prepare Error", "\n```", outputs.error, "```\n");
+    msgs.push("\n## Prepare Error", codeBlock(outputs.error));
   }
   if (inputs.commitError) {
     if (isIgnoredErrorMessage(inputs.commitError)) {
       core.info("Ignoring commit error message");
     } else {
-      msgs.push("\n## Commit Error", "\n```", inputs.commitError, "```\n");
+      msgs.push("\n## Commit Error", codeBlock(inputs.commitError));
     }
   }
   if (msgs.length === 0) {
@@ -106,4 +106,21 @@ The comment was created by [Securefix Action](https://github.com/csm-actions/sec
 <!-- github-comment: {"SHA1":"${inputs.sha}","Program":"securefix-action","TemplateKey":"notify"} -->`,
   });
   core.notice(`Created a pull request comment: ${comment.data.html_url}`);
+};
+
+/**
+ * Returns a fenced code block of text for a comment.
+ * The fence is longer than any run of backticks in text, so that text, which
+ * can contain values from the client, can't close the block and inject
+ * Markdown or mentions into the comment.
+ */
+export const codeBlock = (text: string): string => {
+  // A loop instead of Math.max(...runs), which throws a RangeError with too
+  // many runs
+  let longest = 0;
+  for (const run of text.match(/`+/g) ?? []) {
+    longest = Math.max(longest, run.length);
+  }
+  const fence = "`".repeat(Math.max(3, longest + 1));
+  return `\n${fence}\n${text}\n${fence}\n`;
 };

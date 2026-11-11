@@ -8,6 +8,7 @@ import {
   matchPushRepositories,
   parseLabelDescription,
   readRequest,
+  splitFiles,
   validateHeadSHA,
   validateRef,
 } from "./prepare";
@@ -314,5 +315,14 @@ describe("validateHeadSHA", () => {
     expect(() => validateHeadSHA("main", "abc", "")).toThrowError(
       "but got (empty)",
     );
+  });
+});
+
+describe("splitFiles", () => {
+  it("ignores empty and duplicated lines without trimming", () => {
+    expect(splitFiles("a.txt\n\nb.txt \na.txt\n")).toEqual(["a.txt", "b.txt "]);
+  });
+  it("accepts CRLF", () => {
+    expect(splitFiles("a.txt\r\nb.txt\r\n")).toEqual(["a.txt", "b.txt"]);
   });
 });
