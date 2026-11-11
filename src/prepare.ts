@@ -88,7 +88,7 @@ const MetadataInputs = z.object({
   custom: z.record(z.string(), z.unknown()).optional(),
   submodules: z.array(Submodule).optional(),
   symlinks: z.array(Symlink).optional(),
-  // Paths of files, symlinks, or submodules replaced with directories.
+  // Paths of files or symlinks replaced with directories.
   // They must be deleted explicitly, because they exist as directories on disk.
   deleted_files: z.array(z.string().min(1)).optional(),
 });

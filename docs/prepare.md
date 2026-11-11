@@ -98,7 +98,7 @@ If there is no entry matching with source repository and branch and destination 
   They are committed as tree entries with mode `120000`, and they aren't created on disk.
   If you validate the paths of `fixed_files` in custom validation (e.g. to restrict which files can be changed), validate the `path` of `submodules` and `symlinks` too, because they aren't included in `fixed_files`.
   You may also want to validate the `target` of `symlinks`, e.g. to reject absolute paths and paths outside the repository
-- `deleted_files`: Paths to delete explicitly. It's a JSON string such as `["dir"]`. It's set only when a file, a symlink, or a submodule is replaced with a directory.
+- `deleted_files`: Paths to delete explicitly. It's a JSON string such as `["dir"]`. It's set only when a file or a symlink is replaced with a directory.
   The Create a tree API requires the old entry to be deleted explicitly to add files under it, but the path exists as a directory on disk, so it can't be deleted by `fixed_files`.
   If you validate the paths of `fixed_files` in custom validation, validate them too
 - `github_token`: A GitHub App installation access token to create a commit and a pull request

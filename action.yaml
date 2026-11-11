@@ -281,7 +281,7 @@ outputs:
   deleted_files:
     description: |
       JSON serialized list of paths to delete explicitly, e.g. ["dir"].
-      They are files, symlinks, or submodules replaced with directories. They exist as directories on disk, so they can't be deleted by fixed_files.
+      They are files or symlinks replaced with directories. They exist as directories on disk, so they can't be deleted by fixed_files.
       This is set only when such paths exist.
   metadata:
     description: |
