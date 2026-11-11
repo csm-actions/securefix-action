@@ -82,13 +82,14 @@ export const isNormalizedPath = (p: string): boolean =>
   // trimmed.
   !/[\n\u0000]/.test(p);
 
-// The validation of paths assumes that the repository is
+// The validation of paths and symlink targets assumes that the repository is
 // checked out on Linux, whose file systems are case-sensitive and don't
 // interpret names specially, unlike Windows (NTFS) and macOS (HFS+, APFS).
 
 export const isGitDir = (component: string): boolean => component === ".git";
 
-// Git's fsck rejects these files as submodules (e.g. gitmodulesBlob)
+// Git's fsck rejects these files as symlinks or submodules (e.g.
+// gitmodulesSymlink)
 const gitSpecialFiles = new Set([
   ".gitmodules",
   ".gitattributes",
@@ -106,7 +107,115 @@ export const Submodule = z.object({
 // SHA-1. GitHub doesn't support SHA-256 repositories.
 const shaPattern = /^[0-9a-f]{40}$/i;
 
+/**
+ * A symlink is sent in the metadata file instead of the artifact, because
+ * @actions/artifact dereferences symlinks on upload and unzip-stream writes
+ * every entry as a regular file on download.
+ * It's committed as a tree entry with mode 120000 whose content is the target,
+ * and it's never created on disk.
+ */
+export const Symlink = z.object({
+  path: z.string(),
+  target: z.string(),
+});
+export type Symlink = z.infer<typeof Symlink>;
 export type Submodule = z.infer<typeof Submodule>;
+
+// A component of a symlink target other than "..": alphanumerics, ".", "_",
+// and "-", not ending with "."
+const targetNamePattern = /^[A-Za-z0-9._-]*[A-Za-z0-9_-]$/;
+
+/**
+ * Validates a symlink's target sent by the client, which isn't trusted, so
+ * that a workflow which checks out the branch and reads the symlink can't be
+ * made to read a file outside the repository (e.g. on the runner) or in .git
+ * (e.g. the credentials in .git/config).
+ *
+ * Only safe targets are allowed, instead of rejecting known unsafe ones:
+ *
+ * - It consists of components separated by "/". Empty components and "."
+ *   aren't allowed.
+ * - ".." can only be at the beginning, e.g. "../a/b", but not "a/../b".
+ *   Otherwise ".." after a symlink in the path would be resolved from the
+ *   symlink's target, e.g. "d/../x" where d -> "../..", so the target can't
+ *   be checked as text. The leading ".." must not go above the root of the
+ *   repository.
+ * - Other components consist of alphanumerics, ".", "_", and "-", and don't
+ *   end with ".".
+ * - The resolved path must not contain .git, and must not be the symlink
+ *   itself or its parent directory. Other loops (e.g. two symlinks pointing
+ *   to each other) aren't checked.
+ * - The resolved path must not point to or go through a submodule, or go
+ *   through a symlink, in the request, because their contents aren't
+ *   checked.
+ *
+ * It assumes that the repository is checked out on Linux, and that the
+ * other components of the resolved path are directories. A symlink already
+ * in the repository which points outside the repository, or a symlink in a
+ * submodule, can't be checked.
+ */
+export const validateSymlinkTarget = (
+  symlink: Symlink,
+  submodulePaths: Set<string> = new Set(),
+  symlinkPaths: Set<string> = new Set(),
+): void => {
+  const { path: p, target } = symlink;
+  const fail = (reason: string): never => {
+    throw new Error(
+      `the target of a symlink ${reason}: ${JSON.stringify(p)} -> ${JSON.stringify(target)}`,
+    );
+  };
+  const components = target.split("/");
+  let leadingUps = 0;
+  while (components[leadingUps] === "..") {
+    leadingUps++;
+  }
+  const names = components.slice(leadingUps);
+  if (names.length === 0) {
+    fail('must not be only ".."');
+  }
+  for (const name of names) {
+    if (name === "..") {
+      fail('must not contain ".." after a directory name');
+    }
+    if (!targetNamePattern.test(name)) {
+      fail(
+        'must consist of leading ".." and names of alphanumerics, ".", "_", and "-" not ending with "."',
+      );
+    }
+  }
+  const dirs = p.split("/").slice(0, -1);
+  if (leadingUps > dirs.length) {
+    fail("must not be outside the repository");
+  }
+  const resolved = [...dirs.slice(0, dirs.length - leadingUps), ...names];
+  if (resolved.some(isGitDir)) {
+    fail("must not be in .git");
+  }
+  const resolvedPath = resolved.join("/");
+  // The symlink itself or its parent directory makes a loop, e.g.
+  // "a/b/link" -> "../../a", which tools following symlinks recurse into
+  if (resolvedPath === p || p.startsWith(`${resolvedPath}/`)) {
+    fail("must not point to the symlink itself or its parent directory");
+  }
+  // A directory containing a submodule, e.g. "vendor" for a submodule
+  // "vendor/x", would lead to the submodule through the symlink
+  for (const submodulePath of submodulePaths) {
+    if (submodulePath.startsWith(`${resolvedPath}/`)) {
+      fail("must not point to a directory containing a submodule");
+    }
+  }
+  for (let i = 1; i <= resolved.length; i++) {
+    const prefix = resolved.slice(0, i).join("/");
+    if (submodulePaths.has(prefix)) {
+      // Including the submodule itself, whose contents aren't checked
+      fail("must not point to or go through a submodule");
+    }
+    if (i < resolved.length && symlinkPaths.has(prefix)) {
+      fail("must not go through a symlink");
+    }
+  }
+};
 
 const hasGitDir = (p: string): boolean => p.split("/").some(isGitDir);
 
@@ -115,16 +224,18 @@ const hasGitDir = (p: string): boolean => p.split("/").some(isGitDir);
  *
  * - A path must be a normalized relative path (isNormalizedPath) without
  *   .git, and a submodule SHA must be a commit SHA.
- * - A path of a file or a submodule must not be passed twice.
- *   fixed_files includes both, and the commit action excludes the paths of
- *   submodules from it, which must be exact.
+ * - A path of a file, a submodule, or a symlink must not be passed twice.
+ *   fixed_files includes all of them, and the commit action excludes the
+ *   paths of submodules and symlinks from it, which must be exact.
  * - Unless workflow files can be fixed, no path can be at .github,
  *   .github/workflows, or under .github/workflows, in addition to the
  *   permission of the GitHub App installation access token.
+ * - The target of a symlink is validated by validateSymlinkTarget.
  */
 export const validateChanges = (
   files: string[],
   submodules: Submodule[],
+  symlinks: Symlink[],
   allowWorkflowFix: boolean,
   // Returns true if a file is deleted, i.e. it isn't in the artifact
   isFileDeleted: (file: string) => boolean = () => false,
@@ -150,10 +261,10 @@ export const validateChanges = (
     }
   }
   const seen = new Set(files);
-  for (const { path: p, kind } of submodules.map((s) => ({
-    path: s.path,
-    kind: "submodule",
-  }))) {
+  for (const { path: p, kind } of [
+    ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
+    ...symlinks.map((s) => ({ path: s.path, kind: "symlink" })),
+  ]) {
     if (!isNormalizedPath(p)) {
       throw new Error(
         `a path of a ${kind} must be a normalized relative path in the repository: ${q(p)}`,
@@ -161,7 +272,7 @@ export const validateChanges = (
     }
     if (seen.has(p)) {
       throw new Error(
-        `a path of a ${kind} must not be passed with another file or submodule: ${q(p)}`,
+        `a path of a ${kind} must not be passed with another file, submodule, or symlink: ${q(p)}`,
       );
     }
     seen.add(p);
@@ -175,7 +286,7 @@ export const validateChanges = (
     }
   }
   if (!allowWorkflowFix) {
-    for (const p of listChangedPaths(files, submodules)) {
+    for (const p of listChangedPaths(files, submodules, symlinks)) {
       if (
         p === ".github" ||
         p === ".github/workflows" ||
@@ -188,23 +299,34 @@ export const validateChanges = (
     }
   }
   const submodulePaths = new Set(submodules.map((s) => s.path));
-  // A path under a submodule in the request isn't allowed, because the
-  // submodule entry replaces the directory. A deleted file under it is
+  const symlinkPaths = new Set(symlinks.map((s) => s.path));
+  // A path under a symlink or a submodule in the request isn't allowed: a
+  // symlink's target would be resolved from the other symlink's target, and
+  // a submodule's contents aren't checked. A deleted file under them is
   // allowed, because files in a directory are deleted when the directory is
-  // replaced with a submodule.
+  // replaced with a symlink or a submodule.
   for (const { path: p, kind } of [
     ...files.map((f) => ({ path: f, kind: "file" })),
     ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
+    ...symlinks.map((s) => ({ path: s.path, kind: "symlink" })),
   ]) {
     const dirs = p.split("/").slice(0, -1);
     for (let i = 1; i <= dirs.length; i++) {
       const dir = dirs.slice(0, i).join("/");
       // Whether a file is deleted is checked only here, after its path is
       // validated, to avoid accessing the file system for other files
-      if (submodulePaths.has(dir) && !(kind === "file" && isFileDeleted(p))) {
-        throw new Error(`a ${kind} must not be under a submodule: ${q(p)}`);
+      if (
+        (submodulePaths.has(dir) || symlinkPaths.has(dir)) &&
+        !(kind === "file" && isFileDeleted(p))
+      ) {
+        throw new Error(
+          `a ${kind} must not be under a symlink or a submodule: ${q(p)}`,
+        );
       }
     }
+  }
+  for (const symlink of symlinks) {
+    validateSymlinkTarget(symlink, submodulePaths, symlinkPaths);
   }
 };
 
@@ -216,6 +338,7 @@ const MetadataInputs = z.object({
   // They are parsed by readChanges, so that an invalid value is reported to
   // the client's pull request
   submodules: z.unknown().optional(),
+  symlinks: z.unknown().optional(),
 });
 
 const Payload = z.object({
@@ -246,6 +369,7 @@ export const Outputs = z.object({
   workflow_run: z.string(),
   error: z.string().optional(),
   submodules: z.string().optional(),
+  symlinks: z.string().optional(),
   base_sha: z.string().optional(),
   // The directory where the artifact is extracted, from which the commit
   // action reads files
@@ -358,6 +482,13 @@ class Output {
     }
     this.outputs.artifact_dir = artifactDir;
   }
+  setSymlinks(symlinks: string) {
+    core.debug(`output symlinks=${symlinks}`);
+    if (this.isOutput) {
+      core.setOutput("symlinks", symlinks);
+    }
+    this.outputs.symlinks = symlinks;
+  }
   setWorkflowRun(workflowRun: string) {
     core.debug(`output workflow_run=${workflowRun}`);
     if (this.isOutput) {
@@ -389,13 +520,18 @@ const getTokenForDest = async (data: Data): Promise<string> => {
 };
 
 /**
- * Returns the paths of files in _files.txt and submodules, i.e. all changed
- * paths. They are output as fixed_files.
+ * Returns the paths of files in _files.txt, submodules, and symlinks, i.e. all
+ * changed paths. They are output as fixed_files.
  */
 export const listChangedPaths = (
   files: string[],
   submodules: Submodule[],
-): string[] => [...files, ...submodules.map((submodule) => submodule.path)];
+  symlinks: Symlink[],
+): string[] => [
+  ...files,
+  ...submodules.map((submodule) => submodule.path),
+  ...symlinks.map((symlink) => symlink.path),
+];
 
 /**
  * Splits newline-separated files such as _files.txt and fixed_files.
@@ -414,14 +550,15 @@ export const splitFiles = (files: string): string[] => [
 type Changes = {
   files: string[];
   submodules: Submodule[];
-  // An error parsing submodules, which is thrown after the request is
-  // authorized
+  symlinks: Symlink[];
+  // An error parsing submodules or symlinks, which is thrown after the
+  // request is authorized
   error?: Error;
 };
 
 /**
- * Reads the changes in the request: files in _files.txt, and submodules in
- * the metadata file. They aren't validated yet.
+ * Reads the changes in the request: files in _files.txt, and submodules and
+ * symlinks in the metadata file. They aren't validated yet.
  */
 const readChanges = (data: Data): Changes => {
   const { inputs, metadata } = data;
@@ -435,12 +572,19 @@ const readChanges = (data: Data): Changes => {
     .array(Submodule)
     .optional()
     .safeParse(metadata.inputs.submodules);
-  if (!submodules.success) {
+  const symlinks = z
+    .array(Symlink)
+    .optional()
+    .safeParse(metadata.inputs.symlinks);
+  if (!submodules.success || !symlinks.success) {
     return {
       files,
       submodules: [],
+      symlinks: [],
       error: new Error(
-        `submodules in the metadata file are invalid: ${submodules.error.message}`,
+        `submodules or symlinks in the metadata file are invalid: ${
+          (submodules.error ?? symlinks.error)?.message
+        }`,
       ),
     };
   }
@@ -451,22 +595,28 @@ const readChanges = (data: Data): Changes => {
       ...submodule,
       sha: submodule.sha.toLowerCase(),
     })),
+    symlinks: symlinks.data ?? [],
   };
 };
 
 /**
- * Outputs the changes. fixed_files includes the paths of submodules too, so
- * that custom validation of fixed_files checks every changed path. The commit
- * action excludes them from the files to commit.
+ * Outputs the changes. fixed_files includes the paths of submodules and
+ * symlinks too, so that custom validation of fixed_files checks every changed
+ * path. The commit action excludes them from the files to commit.
  *
  * They are output before they are validated, as before, so that steps run
  * on failure can read them. The commit action doesn't run if prepare fails.
  */
 const setChanges = (outputs: Output, changes: Changes): void => {
-  const { files, submodules } = changes;
-  outputs.setFixedFiles(listChangedPaths(files, submodules).join("\n"));
+  const { files, submodules, symlinks } = changes;
+  outputs.setFixedFiles(
+    listChangedPaths(files, submodules, symlinks).join("\n"),
+  );
   if (submodules.length > 0) {
     outputs.setSubmodules(JSON.stringify(submodules));
+  }
+  if (symlinks.length > 0) {
+    outputs.setSymlinks(JSON.stringify(symlinks));
   }
 };
 
@@ -500,6 +650,7 @@ const validateRequestChanges = (data: Data, changes: Changes): void => {
   validateChanges(
     changes.files,
     changes.submodules,
+    changes.symlinks,
     data.inputs.allowWorkflowFix,
     (file) => !fs.existsSync(path.join(data.artifactDir, file)),
   );

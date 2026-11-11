@@ -10,6 +10,7 @@ import {
   isGitDir,
   splitFiles,
   validateChanges,
+  validateSymlinkTarget,
   matchClientBranches,
   matchClientRepositories,
   matchPushBranches,
@@ -374,143 +375,322 @@ describe("isGitDir", () => {
   });
 });
 
+describe("validateSymlinkTarget", () => {
+  it.each([
+    { path: "a", target: "b" },
+    { path: "dir/link", target: "../shared.txt" },
+    { path: "a/b/link", target: "../../c/d" },
+    { path: "dir/link", target: "not-found" },
+    { path: "a", target: ".github/x" },
+    { path: "a", target: ".config" },
+    { path: "a", target: "A_b-c.d1" },
+  ])("allows $path -> $target", (symlink) => {
+    expect(() => validateSymlinkTarget(symlink)).not.toThrow();
+  });
+  it.each([
+    // Not allowed characters or forms
+    "",
+    ".",
+    "./b",
+    "b/",
+    "a//b",
+    "/etc/passwd",
+    "C:/Users/x",
+    "c:",
+    "C:foo",
+    "a:b",
+    "..\\..\\x",
+    "b\nc",
+    "a b",
+    "日本語",
+    "x.",
+    "...",
+    ".. /.. /etc",
+    "GIT~1/config",
+    ".g\u200cit/config",
+  ])("rejects a target with characters or forms not allowed: %o", (target) => {
+    expect(() => validateSymlinkTarget({ path: "a/b/link", target })).toThrow(
+      "the target of a symlink",
+    );
+  });
+  it.each([
+    [{ path: "a", target: "../x" }, "outside"],
+    [{ path: "a", target: ".." }, 'only ".."'],
+    [{ path: "dir/link", target: "../../x" }, "outside"],
+    // ".." after d is resolved from d's target if d is a symlink
+    [{ path: "x", target: "a/b/d/../secret.txt" }, '".." after'],
+    [{ path: "a/b/link", target: "../c/../../../x" }, '".." after'],
+    [{ path: "docs/config", target: "../.git/config" }, ".git"],
+    [{ path: "a", target: ".git" }, ".git"],
+    [{ path: "a/b/link", target: "../../a" }, "parent directory"],
+    [{ path: "a/b/link", target: "link" }, "itself"],
+  ])("rejects %o (%s)", (symlink, reason) => {
+    expect(() => validateSymlinkTarget(symlink)).toThrow(reason);
+  });
+});
+
 describe("validateChanges", () => {
   const sha = "1111111111111111111111111111111111111111";
-  it("allows files and submodules", () => {
+  it("allows separate paths", () => {
     expect(() =>
-      validateChanges(["a.txt", "dir/b.txt"], [{ path: "sub", sha }], false),
+      validateChanges(
+        ["a.txt"],
+        [{ path: "sub", sha }],
+        [{ path: "link", target: "a.txt" }],
+        false,
+      ),
     ).not.toThrow();
   });
-  it.each(["./a.txt", ".github/workflows/../workflows/x.yml"])(
-    "rejects a non-normalized file path: %o",
+  it.each([
+    [["link"], [], [{ path: "link", target: "a" }]],
+    [[], [{ path: "x", sha }], [{ path: "x", target: "a" }]],
+    [
+      [],
+      [],
+      [
+        { path: "x", target: "a" },
+        { path: "x", target: "b" },
+      ],
+    ],
+  ])("rejects a path passed twice: %o %o %o", (files, submodules, symlinks) => {
+    expect(() => validateChanges(files, submodules, symlinks, true)).toThrow(
+      "must not be passed with another",
+    );
+  });
+  it.each(["./a", "a/", "a\nb", "../a"])(
+    "rejects a non-normalized path: %o",
     (p) => {
-      expect(() => validateChanges([p], [], true)).toThrow(
+      expect(() =>
+        validateChanges([], [], [{ path: p, target: "x" }], true),
+      ).toThrow("normalized relative path");
+      expect(() => validateChanges([], [{ path: p, sha }], [], true)).toThrow(
         "normalized relative path",
       );
     },
   );
-  it.each(["./a", "a/", "a\nb", "../a"])(
-    "rejects a non-normalized submodule path: %o",
+  it.each(["./a.txt", ".github/workflows/../workflows/x.yml"])(
+    "rejects a non-normalized file path: %o",
     (p) => {
-      expect(() => validateChanges([], [{ path: p, sha }], true)).toThrow(
+      expect(() => validateChanges([p], [], [], true)).toThrow(
         "normalized relative path",
       );
     },
   );
   it("rejects a SHA-256 submodule SHA", () => {
     expect(() =>
-      validateChanges([], [{ path: "sub", sha: "a".repeat(64) }], true),
+      validateChanges([], [{ path: "sub", sha: "a".repeat(64) }], [], true),
     ).toThrow("commit SHA");
   });
-  it("checks if a file is deleted only under a submodule", () => {
+  it("checks if a file is deleted only under a symlink or a submodule", () => {
     const checked: string[] = [];
     validateChanges(
-      ["a.txt", "sub/b.txt"],
+      ["a.txt", "sub/b.txt", "dir/c.txt"],
       [{ path: "sub", sha }],
+      [{ path: "dir", target: "x" }],
       true,
       (file) => {
         checked.push(file);
         return true;
       },
     );
-    expect(checked).toEqual(["sub/b.txt"]);
-  });
-  it("rejects an invalid submodule SHA", () => {
-    expect(() =>
-      validateChanges([], [{ path: "sub", sha: "main" }], true),
-    ).toThrow("commit SHA");
+    expect(checked).toEqual(["sub/b.txt", "dir/c.txt"]);
   });
   it("allows an uppercase submodule SHA", () => {
     expect(() =>
-      validateChanges([], [{ path: "sub", sha: "A".repeat(40) }], true),
+      validateChanges(
+        [],
+        [{ path: "sub", sha: sha.toUpperCase().replace(/1/g, "A") }],
+        [],
+        true,
+      ),
     ).not.toThrow();
   });
-  it("quotes values from the client in errors", () => {
-    const badSha = "\n```\n# injected\n```";
+  it.each([
+    [
+      { path: "x", target: "sub/up/secret" },
+      "point to or go through a submodule",
+    ],
+    [{ path: "x", target: "link/secret" }, "go through a symlink"],
+  ])("rejects a target going through %o", (symlink, message) => {
     expect(() =>
-      validateChanges([], [{ path: "x", sha: badSha }], true),
-    ).toThrow(JSON.stringify(badSha));
+      validateChanges(
+        [],
+        [{ path: "sub", sha }],
+        [symlink, { path: "link", target: "dir" }],
+        true,
+      ),
+    ).toThrow(message);
   });
   it.each([
-    [["sub"], [{ path: "sub", sha }]],
-    [
-      [],
-      [
-        { path: "sub", sha },
-        { path: "sub", sha },
-      ],
-    ],
-  ])("rejects a path passed twice: %o %o", (files, submodules) => {
-    expect(() => validateChanges(files, submodules, true)).toThrow(
-      "must not be passed with another",
-    );
+    [{ path: "x", target: "sub" }, "point to or go through a submodule"],
+  ])(
+    "rejects a target pointing to a submodule or going through it: %o",
+    (symlink, message) => {
+      expect(() =>
+        validateChanges(
+          [],
+          [{ path: "sub", sha }],
+          [symlink, { path: "link", target: "dir" }],
+          true,
+        ),
+      ).toThrow(message);
+    },
+  );
+  it("allows a target pointing to a symlink itself", () => {
+    expect(() =>
+      validateChanges(
+        [],
+        [],
+        [
+          { path: "x", target: "link" },
+          { path: "link", target: "dir" },
+        ],
+        true,
+      ),
+    ).not.toThrow();
   });
   it.each([".git/config", "a/.git/x"])(
     "rejects a file path containing .git: %o",
     (p) => {
-      expect(() => validateChanges([p], [], true)).toThrow(
+      expect(() => validateChanges([p], [], [], true)).toThrow(
         "must not contain .git",
       );
     },
   );
-  it.each([".git/x", "sub/.git/config"])(
-    "rejects a submodule path containing .git: %o",
-    (p) => {
-      expect(() => validateChanges([], [{ path: p, sha }], true)).toThrow(
-        "must not contain .git",
+  it("quotes values from the client in errors", () => {
+    const sha = "\n```\n# injected\n```";
+    expect(() => validateChanges([], [{ path: "x", sha }], [], true)).toThrow(
+      JSON.stringify(sha),
+    );
+  });
+  it.each([
+    [
+      [],
+      [
+        { path: "docs", target: "x/y" },
+        { path: "docs/l", target: "../z" },
+      ],
+    ],
+    [[{ path: "sub", sha }], [{ path: "sub/l", target: "x" }]],
+  ])(
+    "rejects a symlink under another symlink or a submodule: %o %o",
+    (submodules, symlinks) => {
+      expect(() => validateChanges([], submodules, symlinks, true)).toThrow(
+        "must not be under a symlink or a submodule",
       );
     },
   );
-  it.each([".gitmodules", "a/.gitattributes"])(
-    "rejects a submodule at %s",
-    (p) => {
-      expect(() => validateChanges([], [{ path: p, sha }], true)).toThrow(
-        "must not be .gitmodules",
+  it.each([
+    [["docs/x"], [], [{ path: "docs", target: "x" }]],
+    [[], [{ path: "docs/sub", sha }], [{ path: "docs", target: "x" }]],
+    [["sub/x"], [{ path: "sub", sha }], []],
+  ])(
+    "rejects a file or a submodule under a symlink or a submodule: %o %o %o",
+    (files, submodules, symlinks) => {
+      expect(() => validateChanges(files, submodules, symlinks, true)).toThrow(
+        "must not be under a symlink or a submodule",
       );
+    },
+  );
+  it("allows deleted files under a symlink or a submodule at any depth", () => {
+    expect(() =>
+      validateChanges(
+        ["dir/a.txt", "Dir/b/c.txt", "sub/d.txt"],
+        [{ path: "sub", sha }],
+        [{ path: "dir", target: "other" }],
+        true,
+        () => true,
+      ),
+    ).not.toThrow();
+  });
+  it.each([
+    [["dir/a.txt"], [], [{ path: "dir", target: "other" }]],
+    [["vendor/x/deep/b.go"], [{ path: "vendor/x", sha }], []],
+  ])(
+    "rejects existing files under a symlink or a submodule: %o %o %o",
+    (files, submodules, symlinks) => {
+      expect(() =>
+        validateChanges(files, submodules, symlinks, true, () => false),
+      ).toThrow("must not be under a symlink or a submodule");
+    },
+  );
+  it("allows replacing a deleted file with a symlink differing in case", () => {
+    expect(() =>
+      validateChanges(
+        ["README"],
+        [],
+        [{ path: "readme", target: "x" }],
+        true,
+        (file) => file === "README",
+      ),
+    ).not.toThrow();
+  });
+  it("rejects a target pointing to a directory containing a submodule", () => {
+    expect(() =>
+      validateChanges(
+        [],
+        [{ path: "vendor/evil", sha }],
+        [{ path: "l", target: "vendor" }],
+        true,
+      ),
+    ).toThrow("directory containing a submodule");
+  });
+  it.each([".gitmodules", "a/.gitattributes", ".gitignore", ".mailmap"])(
+    "rejects a symlink at %s",
+    (p) => {
+      expect(() =>
+        validateChanges([], [], [{ path: p, target: "x" }], true),
+      ).toThrow("must not be .gitmodules");
+    },
+  );
+  it("rejects a submodule at .gitmodules", () => {
+    expect(() =>
+      validateChanges([], [{ path: ".gitmodules", sha }], [], true),
+    ).toThrow("must not be .gitmodules");
+  });
+  it("rejects an invalid submodule SHA", () => {
+    expect(() =>
+      validateChanges([], [{ path: "sub", sha: "main" }], [], true),
+    ).toThrow("commit SHA");
+  });
+  it.each([".git/hooks/x", "sub/.git/config"])(
+    "rejects a symlink path containing .git: %s",
+    (p) => {
+      expect(() =>
+        validateChanges([], [], [{ path: p, target: "a" }], true),
+      ).toThrow("must not contain .git");
     },
   );
   it.each([".github", ".github/workflows", ".github/workflows/ci.yaml"])(
-    "rejects a file and a submodule at %s unless allowWorkflowFix",
+    "rejects a symlink and a submodule at %s unless allowWorkflowFix",
     (p) => {
-      expect(() => validateChanges([p], [], false)).toThrow(
+      const symlinks = [{ path: p, target: p === ".github" ? "x" : "a" }];
+      expect(() => validateChanges([], [], symlinks, false)).toThrow(
         /allow_workflow_fix/,
       );
-      expect(() => validateChanges([p], [], true)).not.toThrow();
-      expect(() => validateChanges([], [{ path: p, sha }], false)).toThrow(
+      expect(() => validateChanges([], [], symlinks, true)).not.toThrow();
+      const submodules = [{ path: p, sha }];
+      expect(() => validateChanges([], submodules, [], false)).toThrow(
         /allow_workflow_fix/,
       );
+    },
+  );
+  it.each([".github/workflows/ci.yaml", ".github/workflows", ".github"])(
+    "rejects a file at %s unless allowWorkflowFix",
+    (p) => {
+      expect(() => validateChanges([p], [], [], false)).toThrow(
+        /allow_workflow_fix/,
+      );
+      expect(() => validateChanges([p], [], [], true)).not.toThrow();
     },
   );
   it("allows other files in .github", () => {
     expect(() =>
-      validateChanges([".github/CODEOWNERS"], [], false),
-    ).not.toThrow();
-  });
-  it.each([
-    [["vendor/x/a.go"], [{ path: "vendor/x", sha }]],
-    [["vendor/x/deep/b.go"], [{ path: "vendor/x", sha }]],
-    [
-      [],
-      [
-        { path: "sub", sha },
-        { path: "sub/nested", sha },
-      ],
-    ],
-  ])(
-    "rejects an existing file or a submodule under a submodule: %o %o",
-    (files, submodules) => {
-      expect(() =>
-        validateChanges(files, submodules, true, () => false),
-      ).toThrow("must not be under a submodule");
-    },
-  );
-  it("allows deleted files under a submodule at any depth", () => {
-    expect(() =>
       validateChanges(
-        ["sub/a.txt", "sub/b/c.txt"],
-        [{ path: "sub", sha }],
-        true,
-        () => true,
+        [],
+        [],
+        [{ path: ".github/CODEOWNERS", target: "x" }],
+        false,
       ),
     ).not.toThrow();
   });
@@ -530,13 +710,14 @@ describe("splitFiles", () => {
 });
 
 describe("listChangedPaths", () => {
-  it("includes files and submodules", () => {
+  it("includes files, submodules, and symlinks", () => {
     expect(
       listChangedPaths(
         ["a.txt", "b.txt"],
         [{ path: "sub", sha: "1111111111111111111111111111111111111111" }],
+        [{ path: "link", target: "a.txt" }],
       ),
-    ).toEqual(["a.txt", "b.txt", "sub"]);
+    ).toEqual(["a.txt", "b.txt", "sub", "link"]);
   });
 });
 
