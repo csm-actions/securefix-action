@@ -19,7 +19,7 @@
 
 ### Optional Inputs
 
-- `allow_workflow_fix`: Either `true` or `false`. The default is `false`. If `true`, the action can fix workflow files. You need to grant `workflows:write` permission to the Server GitHub App
+- `allow_workflow_fix`: Either `true` or `false`. The default is `false`. If `true`, the action can fix workflow files. You need to grant `workflows:write` permission to the Server GitHub App. If `false`, a request changing `.github`, `.github/workflows`, or a path under `.github/workflows` is rejected
 - `workflow_name`: An expected client workflow name. If the actual client workflow name is different from this input, the request is denied. The default value is `securefix`. If this is empty, the workflow name is free
 - `pull_request_comment`: A pull request comment template. A comment is posted if server actions fail to create a commit. The default value is `:x: Securefix failed.`
 - `config`: YAML config to push other repositories and branches. Either `config` or `config_file` is required if you want to change repositories and branches where commits are pushed
@@ -91,7 +91,12 @@ If there is no entry matching with source repository and branch and destination 
 - `branch`: A branch where a commit is pushed
 - `client_repository`: A client repository's full name
 - `create_pull_request`: Parameters to create a pull request
-- `fixed_files`: Fixed file paths. Paths are separated with newlines
+- `fixed_files`: Changed paths, separated with newlines: files (including deleted files) and submodules. Custom validation can check every changed path with it.
+  A submodule replacing a directory deletes everything under the directory, while only the directory's path is listed, so match the directory's path itself too when restricting paths (e.g. `protected` as well as `protected/**`)
+- `submodules`: Submodules to update. It's a JSON string such as `[{"path": "foo", "sha": "..."}]`. It's set only when submodules are changed. Their paths are also included in `fixed_files`.
+  The client can point a submodule to any commit, and its contents aren't checked by the server. Validate the SHAs in custom validation if needed, e.g. that the commit is in the submodule's repository.
+  A file or a submodule must not be under a submodule in the request (except deleted files), and a submodule must not be `.gitmodules`, `.gitattributes`, `.gitignore`, or `.mailmap`, which Git's fsck rejects.
+  These rules assume that the repository is checked out on Linux.
 - `github_token`: A GitHub App installation access token to create a commit and a pull request
 - `metadata`: A request's metadata. It's a JSON string.
 

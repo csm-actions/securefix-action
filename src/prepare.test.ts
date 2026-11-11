@@ -2,13 +2,17 @@ import { describe, it, expect, vi } from "vitest";
 import type * as github from "@actions/github";
 import type { Entry } from "./config";
 import {
+  isNormalizedPath,
+  listChangedPaths,
+  isGitDir,
+  splitFiles,
+  validateChanges,
   matchClientBranches,
   matchClientRepositories,
   matchPushBranches,
   matchPushRepositories,
   parseLabelDescription,
   readRequest,
-  splitFiles,
   validateHeadSHA,
   validateRef,
 } from "./prepare";
@@ -318,11 +322,195 @@ describe("validateHeadSHA", () => {
   });
 });
 
+describe("isNormalizedPath", () => {
+  it.each([
+    "a",
+    "a/b",
+    "a.txt",
+    ".github/workflows/ci.yaml",
+    "a..b",
+    "a\tb.txt",
+  ])("%s is normalized", (p) => {
+    expect(isNormalizedPath(p)).toBe(true);
+  });
+  it.each([
+    "",
+    ".",
+    "..",
+    "./a",
+    "a/",
+    "/a",
+    "a//b",
+    "a/./b",
+    "a/../b",
+    "../a",
+    " README.md",
+    "a.txt ",
+    "a\nb",
+    "a\u0000b",
+  ])("%s isn't normalized", (p) => {
+    expect(isNormalizedPath(p)).toBe(false);
+  });
+});
+
+describe("isGitDir", () => {
+  it("matches .git exactly, as on Linux", () => {
+    expect(isGitDir(".git")).toBe(true);
+    for (const c of [
+      ".GIT",
+      ".git.",
+      "GIT~1",
+      ".github",
+      "git",
+      ".gitignore",
+    ]) {
+      expect(isGitDir(c)).toBe(false);
+    }
+  });
+});
+
+describe("validateChanges", () => {
+  const sha = "1111111111111111111111111111111111111111";
+  it("allows files and submodules", () => {
+    expect(() =>
+      validateChanges(["a.txt", "dir/b.txt"], [{ path: "sub", sha }], false),
+    ).not.toThrow();
+  });
+  it.each([
+    "./a.txt",
+    ".github/workflows/../workflows/x.yml",
+    " a.txt",
+    "a.txt ",
+  ])("rejects a non-normalized file path: %o", (p) => {
+    expect(() => validateChanges([p], [], true)).toThrow(
+      "normalized relative path",
+    );
+  });
+  it.each(["./a", "a/", " a", "a\nb", "../a"])(
+    "rejects a non-normalized submodule path: %o",
+    (p) => {
+      expect(() => validateChanges([], [{ path: p, sha }], true)).toThrow(
+        "normalized relative path",
+      );
+    },
+  );
+  it("rejects an invalid submodule SHA", () => {
+    expect(() =>
+      validateChanges([], [{ path: "sub", sha: "main" }], true),
+    ).toThrow("commit SHA");
+  });
+  it("allows an uppercase submodule SHA", () => {
+    expect(() =>
+      validateChanges([], [{ path: "sub", sha: "A".repeat(40) }], true),
+    ).not.toThrow();
+  });
+  it("quotes values from the client in errors", () => {
+    const badSha = "\n```\n# injected\n```";
+    expect(() =>
+      validateChanges([], [{ path: "x", sha: badSha }], true),
+    ).toThrow(JSON.stringify(badSha));
+  });
+  it.each([
+    [["sub"], [{ path: "sub", sha }]],
+    [
+      [],
+      [
+        { path: "sub", sha },
+        { path: "sub", sha },
+      ],
+    ],
+  ])("rejects a path passed twice: %o %o", (files, submodules) => {
+    expect(() => validateChanges(files, submodules, true)).toThrow(
+      "must not be passed with another",
+    );
+  });
+  it.each([".git/config", "a/.git/x"])(
+    "rejects a file path containing .git: %o",
+    (p) => {
+      expect(() => validateChanges([p], [], true)).toThrow(
+        "must not contain .git",
+      );
+    },
+  );
+  it.each([".git/x", "sub/.git/config"])(
+    "rejects a submodule path containing .git: %o",
+    (p) => {
+      expect(() => validateChanges([], [{ path: p, sha }], true)).toThrow(
+        "must not contain .git",
+      );
+    },
+  );
+  it.each([".gitmodules", "a/.gitattributes"])(
+    "rejects a submodule at %s",
+    (p) => {
+      expect(() => validateChanges([], [{ path: p, sha }], true)).toThrow(
+        "must not be .gitmodules",
+      );
+    },
+  );
+  it.each([".github", ".github/workflows", ".github/workflows/ci.yaml"])(
+    "rejects a file and a submodule at %s unless allowWorkflowFix",
+    (p) => {
+      expect(() => validateChanges([p], [], false)).toThrow(
+        /allow_workflow_fix/,
+      );
+      expect(() => validateChanges([p], [], true)).not.toThrow();
+      expect(() => validateChanges([], [{ path: p, sha }], false)).toThrow(
+        /allow_workflow_fix/,
+      );
+    },
+  );
+  it("allows other files in .github", () => {
+    expect(() =>
+      validateChanges([".github/CODEOWNERS"], [], false),
+    ).not.toThrow();
+  });
+  it.each([
+    [["vendor/x/a.go"], [{ path: "vendor/x", sha }]],
+    [["vendor/x/deep/b.go"], [{ path: "vendor/x", sha }]],
+    [
+      [],
+      [
+        { path: "sub", sha },
+        { path: "sub/nested", sha },
+      ],
+    ],
+  ])(
+    "rejects an existing file or a submodule under a submodule: %o %o",
+    (files, submodules) => {
+      expect(() =>
+        validateChanges(files, submodules, true, () => false),
+      ).toThrow("must not be under a submodule");
+    },
+  );
+  it("allows deleted files under a submodule at any depth", () => {
+    expect(() =>
+      validateChanges(
+        ["sub/a.txt", "sub/b/c.txt"],
+        [{ path: "sub", sha }],
+        true,
+        () => true,
+      ),
+    ).not.toThrow();
+  });
+});
+
 describe("splitFiles", () => {
+  it("accepts CRLF", () => {
+    expect(splitFiles("a.txt\r\nb.txt\r\n")).toEqual(["a.txt", "b.txt"]);
+  });
   it("ignores empty and duplicated lines without trimming", () => {
     expect(splitFiles("a.txt\n\nb.txt \na.txt\n")).toEqual(["a.txt", "b.txt "]);
   });
-  it("accepts CRLF", () => {
-    expect(splitFiles("a.txt\r\nb.txt\r\n")).toEqual(["a.txt", "b.txt"]);
+});
+
+describe("listChangedPaths", () => {
+  it("includes files and submodules", () => {
+    expect(
+      listChangedPaths(
+        ["a.txt", "b.txt"],
+        [{ path: "sub", sha: "1111111111111111111111111111111111111111" }],
+      ),
+    ).toEqual(["a.txt", "b.txt", "sub"]);
   });
 });

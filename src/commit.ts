@@ -2,7 +2,7 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { z } from "zod";
 import * as commit from "@suzuki-shunsuke/commit-ts";
-import { Outputs, PullRequest, splitFiles } from "./prepare";
+import { Outputs, PullRequest, splitFiles, Submodule } from "./prepare";
 
 const Metadata = z.object({
   inputs: z.object({
@@ -27,11 +27,38 @@ export const action = async () => {
   });
 };
 
+/**
+ * Returns the files to commit: fixed_files excluding the paths of submodules,
+ * which fixed_files includes for custom validation.
+ * They are committed by the submodules option of commit-ts.
+ */
+export const listFilesToCommit = (
+  fixedFiles: string,
+  submodules: Submodule[],
+): string[] => {
+  // The paths of submodules are validated not to have whitespace around them
+  // and not to be passed with files in prepare, so excluding them is exact.
+  const excluded = new Set(submodules.map((submodule) => submodule.path));
+  // Files under a submodule are excluded too. prepare allows only deleted
+  // files there, which appear when a directory is replaced with the
+  // submodule. The submodule entry replaces the whole directory, and the
+  // Create a tree API fails if only some files in it are deleted along with
+  // it.
+  const submodulePaths = submodules.map((submodule) => `${submodule.path}/`);
+  return splitFiles(fixedFiles).filter(
+    (file) =>
+      !excluded.has(file) && !submodulePaths.some((p) => file.startsWith(p)),
+  );
+};
+
 export const create = async (inputs: Inputs) => {
   const outputs = inputs.outputs;
 
-  const fixedFiles = splitFiles(outputs.fixed_files);
-  if (fixedFiles.length === 0) {
+  const submodules = outputs.submodules
+    ? Submodule.array().parse(JSON.parse(outputs.submodules))
+    : [];
+  const fixedFiles = listFilesToCommit(outputs.fixed_files, submodules);
+  if (fixedFiles.length + submodules.length === 0) {
     core.info("No files to commit");
     return;
   }
@@ -46,9 +73,6 @@ export const create = async (inputs: Inputs) => {
   const [owner, repo] = elems;
 
   const octokit = github.getOctokit(outputs.github_token);
-  const submodules = outputs.submodules
-    ? JSON.parse(outputs.submodules)
-    : undefined;
 
   core.info(`Creating a commit on ${owner}/${repo} ${outputs.branch}`);
   const createdCommit = await commit.createCommit(octokit, {
