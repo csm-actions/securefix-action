@@ -11,6 +11,8 @@
 1. Create a pull request if it is requested
 1. Update the pull request if it is requested
 
+The server action supports only Linux runners. The validation of paths in requests assumes Linux file systems.
+
 ## Inputs
 
 ### Required Inputs

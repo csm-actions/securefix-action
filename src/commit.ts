@@ -2,7 +2,7 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { z } from "zod";
 import * as commit from "@suzuki-shunsuke/commit-ts";
-import { Outputs, PullRequest, splitFiles } from "./prepare";
+import { Outputs, PullRequest, splitFiles, validateFileTypes } from "./prepare";
 
 const Metadata = z.object({
   inputs: z.object({
@@ -31,6 +31,8 @@ export const create = async (inputs: Inputs) => {
   const outputs = inputs.outputs;
 
   const fixedFiles = splitFiles(outputs.fixed_files);
+  // Validated in prepare too, but the commit action can be run separately
+  validateFileTypes(fixedFiles, outputs.artifact_dir);
   if (fixedFiles.length === 0) {
     core.info("No files to commit");
     return;
@@ -52,6 +54,9 @@ export const create = async (inputs: Inputs) => {
 
   core.info(`Creating a commit on ${owner}/${repo} ${outputs.branch}`);
   const createdCommit = await commit.createCommit(octokit, {
+    // Files are read from the directory where the artifact is extracted, not
+    // the workspace, which can have files of the server workflow
+    rootDir: outputs.artifact_dir,
     owner: owner,
     repo: repo,
     branch: outputs.branch,
