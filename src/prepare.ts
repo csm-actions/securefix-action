@@ -533,15 +533,7 @@ export const validateFileTypes = (
   }
   for (const file of files) {
     const q = JSON.stringify(file);
-    if (
-      file === "" ||
-      file === "." ||
-      file === ".." ||
-      file.startsWith("/") ||
-      file.endsWith("/") ||
-      file.startsWith("../") ||
-      path.posix.normalize(file) !== file
-    ) {
+    if (!isNormalizedPath(file)) {
       throw new Error(`a fixed file must be a normalized relative path: ${q}`);
     }
     const components = file.split("/");

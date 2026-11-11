@@ -578,6 +578,7 @@ describe("validateFileTypes", () => {
     "a//b",
     "..",
     "dir/",
+    "a\nb",
   ])("rejects a path outside the directory or not normalized: %o", (p) => {
     expect(() => validateFileTypes([p], dir)).toThrow(
       "must be a normalized relative path",
