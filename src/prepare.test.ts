@@ -319,10 +319,14 @@ describe("validateHeadSHA", () => {
 });
 
 describe("splitFiles", () => {
-  it("ignores empty and duplicated lines without trimming", () => {
-    expect(splitFiles("a.txt\n\nb.txt \na.txt\n")).toEqual(["a.txt", "b.txt "]);
+  it("ignores empty and duplicated lines", () => {
+    expect(splitFiles("a.txt\n\nb.txt\na.txt\n")).toEqual(["a.txt", "b.txt"]);
   });
-  it("accepts CRLF", () => {
-    expect(splitFiles("a.txt\r\nb.txt\r\n")).toEqual(["a.txt", "b.txt"]);
+  it("doesn't remove spaces or carriage returns", () => {
+    expect(splitFiles(" a.txt\nconfig.yaml \nb.txt\r\n")).toEqual([
+      " a.txt",
+      "config.yaml ",
+      "b.txt\r",
+    ]);
   });
 });
