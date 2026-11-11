@@ -235,15 +235,29 @@ const getTokenForDest = async (data: Data): Promise<string> => {
   return token.token;
 };
 
+/**
+ * Splits newline-separated files such as _files.txt and fixed_files.
+ * Empty and duplicated lines are ignored.
+ *
+ * Lines are split only with "\n", and they aren't trimmed: a file name can
+ * have leading or trailing spaces or a carriage return, and removing them
+ * would make another file deleted, e.g. "config.yaml " would be committed as
+ * the deletion of "config.yaml", which isn't in the artifact. The client
+ * writes _files.txt with "\n".
+ */
+export const splitFiles = (files: string): string[] => [
+  ...new Set(files.split("\n").filter((file) => file.length > 0)),
+];
+
 export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
   const outputs = data.outputs;
   const metadata = data.metadata;
   // Read metadata
-  const fixedFiles = fs
-    .readFileSync(`${inputs.artifactName}_files.txt`, "utf8")
-    .trim();
-  outputs.setFixedFiles(fixedFiles);
+  const files = splitFiles(
+    fs.readFileSync(`${inputs.artifactName}_files.txt`, "utf8"),
+  );
+  outputs.setFixedFiles(files.join("\n"));
 
   if (metadata.inputs.submodules && metadata.inputs.submodules.length > 0) {
     outputs.setSubmodules(JSON.stringify(metadata.inputs.submodules));

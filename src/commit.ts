@@ -2,7 +2,7 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { z } from "zod";
 import * as commit from "@suzuki-shunsuke/commit-ts";
-import { Outputs, PullRequest } from "./prepare";
+import { Outputs, PullRequest, splitFiles } from "./prepare";
 
 const Metadata = z.object({
   inputs: z.object({
@@ -30,10 +30,7 @@ export const action = async () => {
 export const create = async (inputs: Inputs) => {
   const outputs = inputs.outputs;
 
-  const fixedFiles = outputs.fixed_files
-    .split("\n")
-    .map((file) => file.trim())
-    .filter((file) => file.length > 0);
+  const fixedFiles = splitFiles(outputs.fixed_files);
   if (fixedFiles.length === 0) {
     core.info("No files to commit");
     return;
