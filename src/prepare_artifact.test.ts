@@ -74,17 +74,26 @@ const mockDownload = (zipPath: string, fileNames = ["artifact.zip"]) => {
 };
 
 describe("downloadArtifact", () => {
-  it("extracts an artifact into the workspace keeping the executable bit", async () => {
+  it("extracts an artifact into a new directory keeping the executable bit", async () => {
     mockDownload(await createZip());
 
-    await downloadArtifact("token", workflowRun, "securefix-1");
+    const artifactDir = await downloadArtifact(
+      "token",
+      workflowRun,
+      "securefix-1",
+    );
 
+    // It's extracted into a new directory, not the workspace, so that files
+    // of the server workflow aren't mixed with files from the client.
+    expect(artifactDir.startsWith(workspace)).toBe(false);
+    expect(fs.readdirSync(workspace)).toEqual([]);
     expect(
-      fs.readFileSync(path.join(workspace, "securefix-1_files.txt"), "utf8"),
+      fs.readFileSync(path.join(artifactDir, "securefix-1_files.txt"), "utf8"),
     ).toBe("securefix-1_files.txt\n");
-    expect(fs.statSync(path.join(workspace, "run.sh")).mode & 0o777).toBe(
+    expect(fs.statSync(path.join(artifactDir, "run.sh")).mode & 0o777).toBe(
       0o755,
     );
+    fs.rmSync(artifactDir, { recursive: true, force: true });
   });
 
   it("downloads an artifact without extracting it", async () => {
@@ -105,20 +114,17 @@ describe("downloadArtifact", () => {
 
   it("fails if the number of downloaded files isn't one", async () => {
     mockDownload(await createZip(), ["artifact.zip", "unexpected.zip"]);
+    process.env.RUNNER_TEMP = fs.mkdtempSync(
+      path.join(os.tmpdir(), "securefix-runner-temp-"),
+    );
 
     await expect(
       downloadArtifact("token", workflowRun, "securefix-1"),
     ).rejects.toThrowError("One downloaded artifact file is expected");
     expect(fs.readdirSync(workspace)).toEqual([]);
-  });
-
-  it("fails if GITHUB_WORKSPACE isn't set", async () => {
-    delete process.env.GITHUB_WORKSPACE;
-    mockDownload(await createZip());
-
-    await expect(
-      downloadArtifact("token", workflowRun, "securefix-1"),
-    ).rejects.toThrowError("Unable to get the GITHUB_WORKSPACE env variable");
-    expect(downloadArtifactMock).not.toHaveBeenCalled();
+    // The artifact directory is removed on failure
+    expect(fs.readdirSync(process.env.RUNNER_TEMP)).toEqual([]);
+    fs.rmSync(process.env.RUNNER_TEMP, { recursive: true, force: true });
+    delete process.env.RUNNER_TEMP;
   });
 });

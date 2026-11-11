@@ -2,7 +2,13 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { z } from "zod";
 import * as commit from "@suzuki-shunsuke/commit-ts";
-import { Outputs, PullRequest, splitFiles, Submodule } from "./prepare";
+import {
+  Outputs,
+  PullRequest,
+  splitFiles,
+  Submodule,
+  validateFileTypes,
+} from "./prepare";
 
 const Metadata = z.object({
   inputs: z.object({
@@ -59,6 +65,8 @@ export const create = async (inputs: Inputs) => {
     ? Submodule.array().parse(JSON.parse(outputs.submodules))
     : [];
   const fixedFiles = listFilesToCommit(outputs.fixed_files, submodules);
+  // Validated in prepare too, but the commit action can be run separately
+  validateFileTypes(fixedFiles, outputs.artifact_dir);
   if (fixedFiles.length + submodules.length === 0) {
     core.info("No files to commit");
     return;
@@ -77,6 +85,9 @@ export const create = async (inputs: Inputs) => {
 
   core.info(`Creating a commit on ${owner}/${repo} ${outputs.branch}`);
   const createdCommit = await commit.createCommit(octokit, {
+    // Files are read from the directory where the artifact is extracted, not
+    // the workspace, which can have files of the server workflow
+    rootDir: outputs.artifact_dir,
     owner: owner,
     repo: repo,
     branch: outputs.branch,

@@ -91,6 +91,7 @@ If there is no entry matching with source repository and branch and destination 
 - `branch`: A branch where a commit is pushed
 - `client_repository`: A client repository's full name
 - `create_pull_request`: Parameters to create a pull request
+- `artifact_dir`: The directory where the artifact from the client is extracted. It's a new empty directory outside the workspace, so files of the server workflow (e.g. its checkout) aren't mixed with files from the client. The commit action reads fixed files from it
 - `fixed_files`: Changed paths, separated with newlines: files (including deleted files) and submodules. Custom validation can check every changed path with it.
   A submodule replacing a directory deletes everything under the directory, while only the directory's path is listed, so match the directory's path itself too when restricting paths (e.g. `protected` as well as `protected/**`)
 - `submodules`: Submodules to update. It's a JSON string such as `[{"path": "foo", "sha": "..."}]`. It's set only when submodules are changed. Their paths are also included in `fixed_files`.
