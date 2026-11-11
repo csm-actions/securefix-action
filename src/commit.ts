@@ -2,7 +2,7 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { z } from "zod";
 import * as commit from "@suzuki-shunsuke/commit-ts";
-import { Outputs, PullRequest, Symlink } from "./prepare";
+import { Outputs, PullRequest, Submodule, Symlink } from "./prepare";
 
 const Metadata = z.object({
   inputs: z.object({
@@ -27,19 +27,40 @@ export const action = async () => {
   });
 };
 
+/**
+ * Returns the files to commit: fixed_files excluding the paths of submodules
+ * and symlinks, which fixed_files includes for custom validation.
+ * They are committed by the submodules and symlinks options of commit-ts.
+ */
+export const listFilesToCommit = (
+  fixedFiles: string,
+  submodules: { path: string }[],
+  symlinks: { path: string }[],
+): string[] => {
+  const excluded = new Set([
+    ...submodules.map((submodule) => submodule.path),
+    ...symlinks.map((symlink) => symlink.path),
+  ]);
+  return fixedFiles
+    .split("\n")
+    .map((file) => file.trim())
+    .filter((file) => file.length > 0 && !excluded.has(file));
+};
+
 export const create = async (inputs: Inputs) => {
   const outputs = inputs.outputs;
 
-  const fixedFiles = outputs.fixed_files
-    .split("\n")
-    .map((file) => file.trim())
-    .filter((file) => file.length > 0);
   const submodules = outputs.submodules
-    ? JSON.parse(outputs.submodules)
+    ? Submodule.array().parse(JSON.parse(outputs.submodules))
     : undefined;
   const symlinks = outputs.symlinks
     ? Symlink.array().parse(JSON.parse(outputs.symlinks))
     : undefined;
+  const fixedFiles = listFilesToCommit(
+    outputs.fixed_files,
+    submodules ?? [],
+    symlinks ?? [],
+  );
   if (fixedFiles.length === 0 && !submodules?.length && !symlinks?.length) {
     core.info("No files to commit");
     return;

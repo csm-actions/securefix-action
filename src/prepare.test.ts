@@ -2,6 +2,11 @@ import { describe, it, expect, vi } from "vitest";
 import type * as github from "@actions/github";
 import type { Entry } from "./config";
 import {
+  isNormalizedPath,
+  listFixedFiles,
+  Submodule,
+  Symlink,
+  validateSymlinks,
   matchClientBranches,
   matchClientRepositories,
   matchPushBranches,
@@ -313,6 +318,98 @@ describe("validateHeadSHA", () => {
   it("rejects an empty commit", () => {
     expect(() => validateHeadSHA("main", "abc", "")).toThrowError(
       "but got (empty)",
+    );
+  });
+});
+
+describe("isNormalizedPath", () => {
+  it.each(["a", "a/b", "a.txt", ".github/workflows/ci.yaml", "a..b"])(
+    "%s is normalized",
+    (p) => {
+      expect(isNormalizedPath(p)).toBe(true);
+    },
+  );
+  it.each([
+    "",
+    ".",
+    "..",
+    "./a",
+    "a/",
+    "/a",
+    "a//b",
+    "a/./b",
+    "a/../b",
+    "../a",
+  ])("%s isn't normalized", (p) => {
+    expect(isNormalizedPath(p)).toBe(false);
+  });
+});
+
+describe("Symlink and Submodule schemas", () => {
+  it("rejects a non-normalized path", () => {
+    expect(() => Symlink.parse({ path: "./a", target: "b" })).toThrow();
+    expect(() =>
+      Submodule.parse({
+        path: "sub/",
+        sha: "1111111111111111111111111111111111111111",
+      }),
+    ).toThrow();
+  });
+  it("rejects an empty target and an invalid sha", () => {
+    expect(() => Symlink.parse({ path: "a", target: "" })).toThrow();
+    expect(() => Submodule.parse({ path: "sub", sha: "main" })).toThrow();
+  });
+});
+
+describe("validateSymlinks", () => {
+  it.each([
+    { path: "a", target: "b" },
+    { path: "dir/link", target: "../shared.txt" },
+    { path: "a/b/link", target: "../../c" },
+    { path: "dir/link", target: "not-found" },
+  ])("allows $path -> $target", (symlink) => {
+    expect(() => validateSymlinks([symlink], false)).not.toThrow();
+  });
+  it.each([
+    { path: "a", target: "/etc/passwd" },
+    { path: "a", target: "../x" },
+    { path: "dir/link", target: "../../x" },
+    { path: "a/b/link", target: "../c/../../../x" },
+  ])("rejects $path -> $target", (symlink) => {
+    expect(() => validateSymlinks([symlink], true)).toThrow(
+      /target of a symlink/,
+    );
+  });
+  it.each([".github", ".github/workflows", ".github/workflows/ci.yaml"])(
+    "rejects %s unless allowWorkflowFix",
+    (p) => {
+      const symlinks = [{ path: p, target: p === ".github" ? "x" : "a" }];
+      expect(() => validateSymlinks(symlinks, false)).toThrow(
+        /allow_workflow_fix/,
+      );
+      expect(() => validateSymlinks(symlinks, true)).not.toThrow();
+    },
+  );
+  it("allows other files in .github", () => {
+    expect(() =>
+      validateSymlinks([{ path: ".github/CODEOWNERS", target: "x" }], false),
+    ).not.toThrow();
+  });
+});
+
+describe("listFixedFiles", () => {
+  it("includes files, submodules, and symlinks", () => {
+    expect(
+      listFixedFiles(
+        "a.txt\nb.txt\n",
+        [{ path: "sub", sha: "1111111111111111111111111111111111111111" }],
+        [{ path: "link", target: "a.txt" }],
+      ),
+    ).toBe("a.txt\nb.txt\nsub\nlink");
+  });
+  it("works with only symlinks", () => {
+    expect(listFixedFiles("", [], [{ path: "link", target: "a" }])).toBe(
+      "link",
     );
   });
 });

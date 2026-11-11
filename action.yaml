@@ -265,18 +265,20 @@ outputs:
       JSON serialized pull request creation parameters.
   fixed_files:
     description: |
-      Newline-separated list of fixed files.
+      Newline-separated list of changed paths: files (including deleted files), submodules, and symlinks.
+      Custom validation can check every changed path with it.
   github_token:
     description: |
       GitHub App installation token for the destination repository.
   submodules:
     description: |
-      JSON serialized list of submodules to update, e.g. [{"path": "foo", "sha": "..."}].
+      JSON serialized list of submodules to update, e.g. [{"path": "foo", "sha": "..."}]. Their paths are also included in fixed_files.
       This is set only when submodules are changed.
   symlinks:
     description: |
       JSON serialized list of symlinks to commit, e.g. [{"path": "dir/link.txt", "target": "../shared.txt"}].
-      Symlinks aren't included in fixed_files. They are committed as tree entries with mode 120000.
+      They are committed as tree entries with mode 120000. Their paths are also included in fixed_files.
+      A target must not be an absolute path or point outside the repository, and a symlink can't be at .github, .github/workflows, or under .github/workflows unless allow_workflow_fix is true.
       This is set only when symlinks are changed.
   metadata:
     description: |

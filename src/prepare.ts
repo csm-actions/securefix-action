@@ -63,9 +63,27 @@ const PayloadPullRequest = z.object({
   number: z.number(),
 });
 
-const Submodule = z.object({
-  path: z.string(),
-  sha: z.string(),
+/**
+ * Returns true if p is a normalized relative path in the repository, which
+ * the Create a tree API accepts: e.g. "a/b", but not "", ".", "./a", "a/",
+ * "/a", "a//b", or "../a".
+ */
+export const isNormalizedPath = (p: string): boolean =>
+  p !== "" &&
+  p !== "." &&
+  p !== ".." &&
+  !p.startsWith("/") &&
+  !p.endsWith("/") &&
+  !p.startsWith("../") &&
+  path.posix.normalize(p) === p;
+
+const RepositoryPath = z.string().refine(isNormalizedPath, {
+  message: "must be a normalized relative path in the repository",
+});
+
+export const Submodule = z.object({
+  path: RepositoryPath,
+  sha: z.string().regex(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
 });
 
 /**
@@ -76,10 +94,51 @@ const Submodule = z.object({
  * and it's never created on disk.
  */
 export const Symlink = z.object({
-  path: z.string().min(1),
+  path: RepositoryPath,
   target: z.string().min(1),
 });
 export type Symlink = z.infer<typeof Symlink>;
+
+/**
+ * Validates symlinks sent by the client, which isn't trusted.
+ *
+ * - A target must not be an absolute path or point outside the repository.
+ *   Otherwise a workflow which checks out the branch and reads the symlink
+ *   would read a file outside the repository, e.g. on the runner.
+ * - Unless workflow files can be fixed, a symlink must not be at .github,
+ *   .github/workflows, or under .github/workflows, in addition to the
+ *   permission of the GitHub App installation access token.
+ */
+export const validateSymlinks = (
+  symlinks: Symlink[],
+  allowWorkflowFix: boolean,
+): void => {
+  for (const symlink of symlinks) {
+    if (symlink.target.startsWith("/")) {
+      throw new Error(
+        `the target of a symlink must not be an absolute path: ${symlink.path} -> ${symlink.target}`,
+      );
+    }
+    const resolved = path.posix.normalize(
+      path.posix.join(path.posix.dirname(symlink.path), symlink.target),
+    );
+    if (resolved === ".." || resolved.startsWith("../")) {
+      throw new Error(
+        `the target of a symlink must not be outside the repository: ${symlink.path} -> ${symlink.target}`,
+      );
+    }
+    if (
+      !allowWorkflowFix &&
+      (symlink.path === ".github" ||
+        symlink.path === ".github/workflows" ||
+        symlink.path.startsWith(".github/workflows/"))
+    ) {
+      throw new Error(
+        `a symlink can't be committed in .github/workflows unless allow_workflow_fix is true: ${symlink.path}`,
+      );
+    }
+  }
+};
 
 const MetadataInputs = z.object({
   repository: z.string().optional(),
@@ -257,21 +316,44 @@ const getTokenForDest = async (data: Data): Promise<string> => {
   return token.token;
 };
 
+/**
+ * Returns the newline-separated paths of files in _files.txt, submodules, and
+ * symlinks, which are output as fixed_files.
+ */
+export const listFixedFiles = (
+  files: string,
+  submodules: z.infer<typeof Submodule>[],
+  symlinks: Symlink[],
+): string =>
+  [
+    ...files.split("\n").map((file) => file.trim()),
+    ...submodules.map((submodule) => submodule.path),
+    ...symlinks.map((symlink) => symlink.path),
+  ]
+    .filter((file) => file.length > 0)
+    .join("\n");
+
 export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
   const outputs = data.outputs;
   const metadata = data.metadata;
   // Read metadata
-  const fixedFiles = fs
+  const files = fs
     .readFileSync(`${inputs.artifactName}_files.txt`, "utf8")
     .trim();
-  outputs.setFixedFiles(fixedFiles);
+  const submodules = metadata.inputs.submodules ?? [];
+  const symlinks = metadata.inputs.symlinks ?? [];
+  validateSymlinks(symlinks, inputs.allowWorkflowFix);
+  // fixed_files includes the paths of submodules and symlinks too, so that
+  // custom validation of fixed_files checks every changed path.
+  // The commit action excludes them from the files to commit.
+  outputs.setFixedFiles(listFixedFiles(files, submodules, symlinks));
 
-  if (metadata.inputs.submodules && metadata.inputs.submodules.length > 0) {
-    outputs.setSubmodules(JSON.stringify(metadata.inputs.submodules));
+  if (submodules.length > 0) {
+    outputs.setSubmodules(JSON.stringify(submodules));
   }
-  if (metadata.inputs.symlinks && metadata.inputs.symlinks.length > 0) {
-    outputs.setSymlinks(JSON.stringify(metadata.inputs.symlinks));
+  if (symlinks.length > 0) {
+    outputs.setSymlinks(JSON.stringify(symlinks));
   }
 
   const token = await getTokenForDest(data);
