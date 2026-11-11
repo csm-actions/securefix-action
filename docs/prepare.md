@@ -103,7 +103,7 @@ If there is no entry matching with source repository and branch and destination 
   - Components are separated by `/`. Empty components and `.` aren't allowed.
   - `..` can only be at the beginning (e.g. `../a/b`, but not `a/../b`), because `..` after a symlink would be resolved from the symlink's target, and it must not go above the repository root.
   - Other components consist of alphanumerics, `.`, `_`, and `-`, and don't end with `.`. A symlink whose target has other characters, such as spaces or non-ASCII characters, can't be committed.
-  - The resolved path must not contain `.git`, point to or go through a submodule, point to a directory containing a submodule, or go through a symlink, in the request. It also must not be the symlink itself or its parent directory (a loop).
+  - The resolved path must not contain `.git`, point to or go through a submodule, point to a directory containing a submodule, or go through a symlink, in the request. It also must not be the symlink itself or its parent directory. Other loops (e.g. two symlinks pointing to each other) aren't checked, because they can also be committed without Securefix and don't bypass any protection.
 
   A file, a submodule, or a symlink must not be under a symlink or a submodule in the request (except deleted files), and a submodule or a symlink must not be `.gitmodules`, `.gitattributes`, `.gitignore`, or `.mailmap`, which Git's fsck rejects.
 

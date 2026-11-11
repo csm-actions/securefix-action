@@ -143,7 +143,8 @@ const targetNamePattern = /^[A-Za-z0-9._-]*[A-Za-z0-9_-]$/;
  * - Other components consist of alphanumerics, ".", "_", and "-", and don't
  *   end with ".".
  * - The resolved path must not contain .git, and must not be the symlink
- *   itself or its parent directory (a loop).
+ *   itself or its parent directory. Other loops (e.g. two symlinks pointing
+ *   to each other) aren't checked.
  * - The resolved path must not point to or go through a submodule, or go
  *   through a symlink, in the request, because their contents aren't
  *   checked.
