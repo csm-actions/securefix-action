@@ -84,19 +84,28 @@ export const isNormalizedPath = (p: string): boolean =>
 const hasControlCharacter = (s: string): boolean =>
   /[\u0000-\u001f\u007f]/.test(s);
 
-// A path component which is .git, case-insensitively for case-insensitive
-// file systems
-const isGitDir = (component: string): boolean =>
-  component.toLowerCase() === ".git";
+/**
+ * Returns true if a path component can refer to .git on some file systems,
+ * like Git's is_ntfs_dotgit and is_hfs_dotgit:
+ * case-insensitively, ignoring trailing dots and spaces (NTFS), the 8.3 short
+ * name GIT~1 (NTFS), and ignorable Unicode code points (HFS+).
+ */
+export const isGitDir = (component: string): boolean => {
+  const c = component
+    .replace(/[\u200c-\u200f\u202a-\u202e\u206a-\u206f\ufeff]/g, "")
+    .replace(/[. ]+$/, "")
+    .toLowerCase();
+  return c === ".git" || /^git~\d+$/.test(c);
+};
 
-const RepositoryPath = z.string().refine(isNormalizedPath, {
-  message: "must be a normalized relative path in the repository",
-});
-
+// Paths and SHAs are validated by validateChanges, not by the schemas, so
+// that an invalid request is reported to the client as a comment.
 export const Submodule = z.object({
-  path: RepositoryPath,
-  sha: z.string().regex(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
+  path: z.string(),
+  sha: z.string(),
 });
+
+const shaPattern = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 
 /**
  * A symlink is sent in the metadata file instead of the artifact, because
@@ -106,7 +115,7 @@ export const Submodule = z.object({
  * and it's never created on disk.
  */
 export const Symlink = z.object({
-  path: RepositoryPath,
+  path: z.string(),
   target: z.string().min(1),
 });
 export type Symlink = z.infer<typeof Symlink>;
@@ -131,7 +140,8 @@ export const validateSymlinkTarget = (symlink: Symlink): void => {
   const fail = (reason: string): never => {
     throw new Error(`the target of a symlink ${reason}: ${p} -> ${target}`);
   };
-  if (target.startsWith("/") || /^[A-Za-z]:/.test(target)) {
+  // "C:" and "C:/a" are absolute on Windows, while "a:b" is a relative path
+  if (target.startsWith("/") || /^[A-Za-z]:(\/|$)/.test(target)) {
     fail("must not be an absolute path");
   }
   if (target.includes("\\") || hasControlCharacter(target)) {
@@ -159,13 +169,14 @@ export const validateSymlinkTarget = (symlink: Symlink): void => {
 /**
  * Validates the changed paths sent by the client, which isn't trusted.
  *
+ * - A path of a submodule or a symlink must be a normalized relative path
+ *   (isNormalizedPath) without .git, and a submodule SHA must be a commit SHA.
  * - A path of a file, a submodule, or a symlink must not be passed twice.
  *   fixed_files includes all of them, and the commit action excludes the
  *   paths of submodules and symlinks from it, which must be exact.
- * - A path of a submodule or a symlink must not contain .git.
- * - Unless workflow files can be fixed, a submodule or a symlink must not be
- *   at .github, .github/workflows, or under .github/workflows, in addition to
- *   the permission of the GitHub App installation access token.
+ * - Unless workflow files can be fixed, no path can be at .github,
+ *   .github/workflows, or under .github/workflows, in addition to the
+ *   permission of the GitHub App installation access token.
  * - The target of a symlink is validated by validateSymlinkTarget.
  */
 export const validateChanges = (
@@ -174,11 +185,23 @@ export const validateChanges = (
   symlinks: Symlink[],
   allowWorkflowFix: boolean,
 ): void => {
+  for (const submodule of submodules) {
+    if (!shaPattern.test(submodule.sha)) {
+      throw new Error(
+        `the SHA of a submodule must be a commit SHA: ${submodule.path} ${submodule.sha}`,
+      );
+    }
+  }
   const seen = new Set(files);
   for (const { path: p, kind } of [
     ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
     ...symlinks.map((s) => ({ path: s.path, kind: "symlink" })),
   ]) {
+    if (!isNormalizedPath(p)) {
+      throw new Error(
+        `a path of a ${kind} must be a normalized relative path in the repository: ${JSON.stringify(p)}`,
+      );
+    }
     if (seen.has(p)) {
       throw new Error(
         `a path of a ${kind} must not be passed with another file, submodule, or symlink: ${p}`,
@@ -188,15 +211,18 @@ export const validateChanges = (
     if (p.split("/").some(isGitDir)) {
       throw new Error(`a path of a ${kind} must not contain .git: ${p}`);
     }
-    if (
-      !allowWorkflowFix &&
-      (p === ".github" ||
+  }
+  if (!allowWorkflowFix) {
+    for (const p of seen) {
+      if (
+        p === ".github" ||
         p === ".github/workflows" ||
-        p.startsWith(".github/workflows/"))
-    ) {
-      throw new Error(
-        `a ${kind} can't be committed in .github/workflows unless allow_workflow_fix is true: ${p}`,
-      );
+        p.startsWith(".github/workflows/")
+      ) {
+        throw new Error(
+          `a path can't be changed in .github/workflows unless allow_workflow_fix is true: ${p}`,
+        );
+      }
     }
   }
   for (const symlink of symlinks) {

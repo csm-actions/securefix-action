@@ -4,8 +4,7 @@ import type { Entry } from "./config";
 import {
   isNormalizedPath,
   listFixedFiles,
-  Submodule,
-  Symlink,
+  isGitDir,
   validateChanges,
   validateSymlinkTarget,
   matchClientBranches,
@@ -350,20 +349,26 @@ describe("isNormalizedPath", () => {
   });
 });
 
-describe("Symlink and Submodule schemas", () => {
-  it("rejects a non-normalized path", () => {
-    expect(() => Symlink.parse({ path: "./a", target: "b" })).toThrow();
-    expect(() =>
-      Submodule.parse({
-        path: "sub/",
-        sha: "1111111111111111111111111111111111111111",
-      }),
-    ).toThrow();
+describe("isGitDir", () => {
+  it.each([
+    ".git",
+    ".GIT",
+    ".git.",
+    ".git ",
+    ".git. .",
+    "GIT~1",
+    "git~12",
+    ".g\u200cit",
+    "\ufeff.git",
+  ])("%s is .git", (c) => {
+    expect(isGitDir(c)).toBe(true);
   });
-  it("rejects an empty target and an invalid sha", () => {
-    expect(() => Symlink.parse({ path: "a", target: "" })).toThrow();
-    expect(() => Submodule.parse({ path: "sub", sha: "main" })).toThrow();
-  });
+  it.each([".github", "git", ".gitignore", "a.git", "git~", ".git2"])(
+    "%s isn't .git",
+    (c) => {
+      expect(isGitDir(c)).toBe(false);
+    },
+  );
 });
 
 describe("validateSymlinkTarget", () => {
@@ -375,12 +380,14 @@ describe("validateSymlinkTarget", () => {
     { path: "dir/link", target: "not-found" },
     { path: "a", target: "b/" },
     { path: "a", target: ".github/x" },
+    { path: "a", target: "a:b" },
   ])("allows $path -> $target", (symlink) => {
     expect(() => validateSymlinkTarget(symlink)).not.toThrow();
   });
   it.each([
     [{ path: "a", target: "/etc/passwd" }, "absolute"],
     [{ path: "a", target: "C:/Users/x" }, "absolute"],
+    [{ path: "a", target: "c:" }, "absolute"],
     [{ path: "a", target: "..\\..\\x" }, "backslashes"],
     [{ path: "a", target: "b\nc" }, "control"],
     [{ path: "a", target: "../x" }, "outside"],
@@ -392,6 +399,8 @@ describe("validateSymlinkTarget", () => {
     [{ path: "docs/config", target: "../.git/config" }, ".git"],
     [{ path: "a", target: "sub/.GIT/config" }, ".git"],
     [{ path: "a", target: ".git" }, ".git"],
+    [{ path: "docs/cfg", target: "../GIT~1/config" }, ".git"],
+    [{ path: "docs/cfg", target: "../.git./config" }, ".git"],
   ])("rejects %o (%s)", (symlink, reason) => {
     expect(() => validateSymlinkTarget(symlink)).toThrow(reason);
   });
@@ -425,7 +434,23 @@ describe("validateChanges", () => {
       "must not be passed with another",
     );
   });
-  it.each([".git/hooks/x", "sub/.Git/config"])(
+  it.each(["./a", "a/", " a", "a\nb", "../a"])(
+    "rejects a non-normalized path: %o",
+    (p) => {
+      expect(() =>
+        validateChanges([], [], [{ path: p, target: "x" }], true),
+      ).toThrow("normalized relative path");
+      expect(() => validateChanges([], [{ path: p, sha }], [], true)).toThrow(
+        "normalized relative path",
+      );
+    },
+  );
+  it("rejects an invalid submodule SHA", () => {
+    expect(() =>
+      validateChanges([], [{ path: "sub", sha: "main" }], [], true),
+    ).toThrow("commit SHA");
+  });
+  it.each([".git/hooks/x", "sub/.Git/config", "GIT~1/config"])(
     "rejects a symlink path containing .git: %s",
     (p) => {
       expect(() =>
@@ -445,6 +470,15 @@ describe("validateChanges", () => {
       expect(() => validateChanges([], submodules, [], false)).toThrow(
         /allow_workflow_fix/,
       );
+    },
+  );
+  it.each([".github/workflows/ci.yaml", ".github/workflows", ".github"])(
+    "rejects a file at %s unless allowWorkflowFix",
+    (p) => {
+      expect(() => validateChanges([p], [], [], false)).toThrow(
+        /allow_workflow_fix/,
+      );
+      expect(() => validateChanges([p], [], [], true)).not.toThrow();
     },
   );
   it("allows other files in .github", () => {
