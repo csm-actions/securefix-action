@@ -46,6 +46,9 @@ describe("codeBlock", () => {
       "\n````\na\n```\n# injected\n```\n````\n",
     );
   });
+  it("doesn't throw with many runs of backticks", () => {
+    expect(codeBlock("`a".repeat(300000)).startsWith("\n```\n")).toBe(true);
+  });
   it("uses three backticks at least", () => {
     expect(codeBlock("error")).toBe("\n```\nerror\n```\n");
   });

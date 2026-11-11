@@ -5,7 +5,6 @@ import {
   isNormalizedPath,
   listChangedPaths,
   isGitDir,
-  isGitSpecialFile,
   splitFiles,
   validateChanges,
   validateSymlinkTarget,
@@ -356,27 +355,19 @@ describe("isNormalizedPath", () => {
 });
 
 describe("isGitDir", () => {
-  it.each([
-    ".git",
-    ".GIT",
-    ".git.",
-    ".git ",
-    ".git. .",
-    "GIT~1",
-    "git~12",
-    ".g\u200cit",
-    "\ufeff.git",
-    ".git::$INDEX_ALLOCATION",
-    ".GIT:stream",
-  ])("%s is .git", (c) => {
-    expect(isGitDir(c)).toBe(true);
-  });
-  it.each([".github", "git", ".gitignore", "a.git", "git~", ".git2"])(
-    "%s isn't .git",
-    (c) => {
+  it("matches .git exactly, as on Linux", () => {
+    expect(isGitDir(".git")).toBe(true);
+    for (const c of [
+      ".GIT",
+      ".git.",
+      "GIT~1",
+      ".github",
+      "git",
+      ".gitignore",
+    ]) {
       expect(isGitDir(c)).toBe(false);
-    },
-  );
+    }
+  });
 });
 
 describe("validateSymlinkTarget", () => {
@@ -412,9 +403,6 @@ describe("validateSymlinkTarget", () => {
     ".. /.. /etc",
     "GIT~1/config",
     ".g\u200cit/config",
-    "CON",
-    "x/nul.txt",
-    "LPT1",
   ])("rejects a target with characters or forms not allowed: %o", (target) => {
     expect(() => validateSymlinkTarget({ path: "a/b/link", target })).toThrow(
       "the target of a symlink",
@@ -428,7 +416,6 @@ describe("validateSymlinkTarget", () => {
     [{ path: "x", target: "a/b/d/../secret.txt" }, '".." after'],
     [{ path: "a/b/link", target: "../c/../../../x" }, '".." after'],
     [{ path: "docs/config", target: "../.git/config" }, ".git"],
-    [{ path: "a", target: "sub/.GIT/config" }, ".git"],
     [{ path: "a", target: ".git" }, ".git"],
   ])("rejects %o (%s)", (symlink, reason) => {
     expect(() => validateSymlinkTarget(symlink)).toThrow(reason);
@@ -512,9 +499,6 @@ describe("validateChanges", () => {
   });
   it.each([
     [{ path: "x", target: "sub" }, "point to or go through a submodule"],
-    [{ path: "x", target: "SUB/evil" }, "point to or go through a submodule"],
-    [{ path: "x", target: "sub./evil" }, "the target of a symlink"],
-    [{ path: "x", target: "LINK/secret" }, "go through a symlink"],
   ])("rejects %o case-insensitively", (symlink, message) => {
     expect(() =>
       validateChanges(
@@ -538,16 +522,8 @@ describe("validateChanges", () => {
       ),
     ).not.toThrow();
   });
-  it.each([".GIT/config", "git~1/hooks/post-checkout", ".git\u200c/config"])(
+  it.each([".git/config", "a/.git/x"])(
     "rejects a file path containing .git: %o",
-    (p) => {
-      expect(() => validateChanges([p], [], [], true)).toThrow(
-        "must not contain .git",
-      );
-    },
-  );
-  it.each(["a\\.git\\x", "a\\GIT~1"])(
-    "rejects a file path containing .git with backslashes: %o",
     (p) => {
       expect(() => validateChanges([p], [], [], true)).toThrow(
         "must not contain .git",
@@ -561,28 +537,10 @@ describe("validateChanges", () => {
     );
   });
   it.each([
-    [["A.txt"], [], [{ path: "a.txt", target: "x" }]],
-    [
-      [],
-      [],
-      [
-        { path: "Docs", target: "x" },
-        { path: "docs", target: "y" },
-      ],
-    ],
-  ])(
-    "rejects paths differing only in case: %o %o %o",
-    (files, submodules, symlinks) => {
-      expect(() => validateChanges(files, submodules, symlinks, true)).toThrow(
-        "must not be passed with another",
-      );
-    },
-  );
-  it.each([
     [
       [],
       [
-        { path: "Docs", target: "x/y" },
+        { path: "docs", target: "x/y" },
         { path: "docs/l", target: "../z" },
       ],
     ],
@@ -596,9 +554,9 @@ describe("validateChanges", () => {
     },
   );
   it.each([
-    [["docs/x"], [], [{ path: "Docs", target: "x" }]],
-    [[], [{ path: "docs/sub", sha }], [{ path: "Docs", target: "x" }]],
-    [["sub/x"], [{ path: "SUB", sha }], []],
+    [["docs/x"], [], [{ path: "docs", target: "x" }]],
+    [[], [{ path: "docs/sub", sha }], [{ path: "docs", target: "x" }]],
+    [["sub/x"], [{ path: "sub", sha }], []],
   ])(
     "rejects a file or a submodule under a symlink or a submodule: %o %o %o",
     (files, submodules, symlinks) => {
@@ -650,22 +608,7 @@ describe("validateChanges", () => {
       ),
     ).toThrow("directory containing a submodule");
   });
-  it("rejects a backslash in a symlink path", () => {
-    expect(() =>
-      validateChanges([], [], [{ path: "a\\b", target: "x" }], true),
-    ).toThrow("without backslashes");
-  });
-  it("compares NFC and NFD paths as the same", () => {
-    expect(() =>
-      validateChanges(
-        [],
-        [{ path: "dir\u00e9", sha }],
-        [{ path: "dire\u0301/link", target: "x" }],
-        true,
-      ),
-    ).toThrow("must not be under a symlink or a submodule");
-  });
-  it.each([".gitmodules", "a/.gitattributes", ".GITIGNORE", "GITMOD~1"])(
+  it.each([".gitmodules", "a/.gitattributes", ".gitignore", ".mailmap"])(
     "rejects a symlink at %s",
     (p) => {
       expect(() =>
@@ -673,12 +616,17 @@ describe("validateChanges", () => {
       ).toThrow("must not be .gitmodules");
     },
   );
+  it("rejects a submodule at .gitmodules", () => {
+    expect(() =>
+      validateChanges([], [{ path: ".gitmodules", sha }], [], true),
+    ).toThrow("must not be .gitmodules");
+  });
   it("rejects an invalid submodule SHA", () => {
     expect(() =>
       validateChanges([], [{ path: "sub", sha: "main" }], [], true),
     ).toThrow("commit SHA");
   });
-  it.each([".git/hooks/x", "sub/.Git/config", "GIT~1/config"])(
+  it.each([".git/hooks/x", "sub/.git/config"])(
     "rejects a symlink path containing .git: %s",
     (p) => {
       expect(() =>
@@ -719,25 +667,6 @@ describe("validateChanges", () => {
       ),
     ).not.toThrow();
   });
-});
-
-describe("isGitSpecialFile", () => {
-  it.each([
-    ".gitmodules",
-    ".GitAttributes",
-    ".gitignore.",
-    ".mailmap",
-    "GITMOD~1",
-    "gitign~2",
-  ])("%s is a special file", (c) => {
-    expect(isGitSpecialFile(c)).toBe(true);
-  });
-  it.each(["gitmodules", ".gitmodules.bak", "a.gitignore"])(
-    "%s isn't a special file",
-    (c) => {
-      expect(isGitSpecialFile(c)).toBe(false);
-    },
-  );
 });
 
 describe("splitFiles", () => {

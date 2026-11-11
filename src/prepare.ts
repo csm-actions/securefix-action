@@ -82,47 +82,20 @@ export const isNormalizedPath = (p: string): boolean =>
   p.trim() === p &&
   !/[\n\r\u0000]/.test(p);
 
-/**
- * Returns true if a path component can refer to .git on some file systems,
- * like Git's is_ntfs_dotgit and is_hfs_dotgit:
- * case-insensitively, ignoring trailing dots and spaces (NTFS), the 8.3 short
- * name GIT~1 (NTFS), and ignorable Unicode code points (HFS+).
- */
-export const isGitDir = (component: string): boolean => {
-  const c = foldComponent(component);
-  return c === ".git" || /^git~\d+$/.test(c);
-};
+// The validation of paths and symlink targets assumes that the repository is
+// checked out on Linux, whose file systems are case-sensitive and don't
+// interpret names specially, unlike Windows (NTFS) and macOS (HFS+, APFS).
 
-/**
- * Folds a path component as case-insensitive file systems may treat it:
- * removes ignorable Unicode code points (HFS+), an NTFS alternate data
- * stream (e.g. "::$INDEX_ALLOCATION"), and trailing dots and spaces (NTFS),
- * and lowercases it.
- */
-const foldComponent = (component: string): string =>
-  component
-    // HFS+ and APFS treat NFC and NFD as the same name
-    .normalize("NFC")
-    .replace(/[\u200c-\u200f\u202a-\u202e\u206a-\u206f\ufeff]/g, "")
-    .replace(/:.*$/, "")
-    .replace(/[. ]+$/, "")
-    .toLowerCase();
+export const isGitDir = (component: string): boolean => component === ".git";
 
-/**
- * Returns true if a path component is .gitmodules, .gitattributes, .gitignore,
- * or .mailmap, including their NTFS short names (e.g. GITMOD~1), which Git's
- * fsck rejects as symlinks.
- */
-export const isGitSpecialFile = (component: string): boolean => {
-  const c = foldComponent(component);
-  return (
-    [".gitmodules", ".gitattributes", ".gitignore", ".mailmap"].includes(c) ||
-    /^(gitmod|gitatt|gitign|mailma)~\d+$/.test(c)
-  );
-};
-
-const foldPath = (p: string): string =>
-  p.split("/").map(foldComponent).join("/");
+// Git's fsck rejects these files as symlinks or submodules (e.g.
+// gitmodulesSymlink)
+const gitSpecialFiles = new Set([
+  ".gitmodules",
+  ".gitattributes",
+  ".gitignore",
+  ".mailmap",
+]);
 
 // Paths and SHAs are validated by validateChanges, not by the schemas, so
 // that an invalid request is reported to the client as a comment.
@@ -151,20 +124,13 @@ export type Submodule = z.infer<typeof Submodule>;
 // and "-", not ending with "."
 const targetNamePattern = /^[A-Za-z0-9._-]*[A-Za-z0-9_-]$/;
 
-// Windows reserved device names, with or without an extension
-const windowsDeviceNamePattern =
-  /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i;
-
 /**
  * Validates a symlink's target sent by the client, which isn't trusted, so
  * that a workflow which checks out the branch and reads the symlink can't be
  * made to read a file outside the repository (e.g. on the runner) or in .git
  * (e.g. the credentials in .git/config).
  *
- * Only safe targets are allowed, instead of rejecting known unsafe ones,
- * because file systems interpret paths differently (e.g. Windows treats
- * "C:a", ".. ", and "GIT~1" specially, and macOS ignores some Unicode code
- * points):
+ * Only safe targets are allowed, instead of rejecting known unsafe ones:
  *
  * - It consists of components separated by "/". Empty components and "."
  *   aren't allowed.
@@ -175,14 +141,15 @@ const windowsDeviceNamePattern =
  *   repository.
  * - Other components consist of alphanumerics, ".", "_", and "-", and don't
  *   end with ".".
- * - The resolved path must not contain .git (case-insensitively).
+ * - The resolved path must not contain .git.
  * - The resolved path must not point to or go through a submodule, or go
  *   through a symlink, in the request, because their contents aren't
- *   checked. Paths are compared case-insensitively.
+ *   checked.
  *
- * It assumes that the other components of the resolved path are
- * directories. A symlink already in the repository which points outside the
- * repository, or a symlink in a submodule, can't be checked.
+ * It assumes that the repository is checked out on Linux, and that the
+ * other components of the resolved path are directories. A symlink already
+ * in the repository which points outside the repository, or a symlink in a
+ * submodule, can't be checked.
  */
 export const validateSymlinkTarget = (
   symlink: Symlink,
@@ -208,9 +175,9 @@ export const validateSymlinkTarget = (
     if (name === "..") {
       fail('must not contain ".." after a directory name');
     }
-    if (!targetNamePattern.test(name) || windowsDeviceNamePattern.test(name)) {
+    if (!targetNamePattern.test(name)) {
       fail(
-        'must consist of leading ".." and names of alphanumerics, ".", "_", and "-" not ending with "." and not Windows device names',
+        'must consist of leading ".." and names of alphanumerics, ".", "_", and "-" not ending with "."',
       );
     }
   }
@@ -222,18 +189,16 @@ export const validateSymlinkTarget = (
   if (resolved.some(isGitDir)) {
     fail("must not be in .git");
   }
-  // submodulePaths and symlinkPaths are folded by foldPath for
-  // case-insensitive file systems
   // A directory containing a submodule, e.g. "vendor" for a submodule
   // "vendor/x", would lead to the submodule through the symlink
-  const resolvedPath = foldPath(resolved.join("/"));
+  const resolvedPath = resolved.join("/");
   for (const submodulePath of submodulePaths) {
     if (submodulePath.startsWith(`${resolvedPath}/`)) {
       fail("must not point to a directory containing a submodule");
     }
   }
   for (let i = 1; i <= resolved.length; i++) {
-    const prefix = foldPath(resolved.slice(0, i).join("/"));
+    const prefix = resolved.slice(0, i).join("/");
     if (submodulePaths.has(prefix)) {
       // Including the submodule itself, whose contents aren't checked
       fail("must not point to or go through a submodule");
@@ -244,9 +209,7 @@ export const validateSymlinkTarget = (
   }
 };
 
-// hasGitDir returns true if a path contains .git, splitting it with "\\" too
-// for Windows.
-const hasGitDir = (p: string): boolean => p.split(/[\\/]/).some(isGitDir);
+const hasGitDir = (p: string): boolean => p.split("/").some(isGitDir);
 
 /**
  * Validates the changed paths sent by the client, which isn't trusted.
@@ -291,39 +254,28 @@ export const validateChanges = (
       throw new Error(`a path of a file must not contain .git: ${q(file)}`);
     }
   }
-  // Paths are compared case-insensitively (foldPath) too, because paths which
-  // differ only in case collide on case-insensitive file systems. A deleted
-  // file doesn't collide, e.g. replacing a file "README" with a symlink
-  // "readme".
-  const exactSeen = new Set(files);
-  const seen = new Set(files.filter((file) => !isDeleted(file)).map(foldPath));
+  const seen = new Set(files);
   for (const { path: p, kind } of [
     ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
     ...symlinks.map((s) => ({ path: s.path, kind: "symlink" })),
   ]) {
-    // A backslash is a path separator on Windows, so checking whether a path
-    // is under another path would be inaccurate
-    if (!isNormalizedPath(p) || p.includes("\\")) {
+    if (!isNormalizedPath(p)) {
       throw new Error(
-        `a path of a ${kind} must be a normalized relative path in the repository without backslashes: ${q(p)}`,
+        `a path of a ${kind} must be a normalized relative path in the repository: ${q(p)}`,
       );
     }
-    if (exactSeen.has(p) || seen.has(foldPath(p))) {
+    if (seen.has(p)) {
       throw new Error(
         `a path of a ${kind} must not be passed with another file, submodule, or symlink: ${q(p)}`,
       );
     }
-    exactSeen.add(p);
-    seen.add(foldPath(p));
+    seen.add(p);
     if (hasGitDir(p)) {
       throw new Error(`a path of a ${kind} must not contain .git: ${q(p)}`);
     }
-  }
-  for (const symlink of symlinks) {
-    // Git's fsck rejects these files as symlinks (e.g. gitmodulesSymlink)
-    if (isGitSpecialFile(symlink.path.split("/").at(-1) ?? "")) {
+    if (gitSpecialFiles.has(p.split("/").at(-1) ?? "")) {
       throw new Error(
-        `a symlink must not be .gitmodules, .gitattributes, .gitignore, or .mailmap: ${q(symlink.path)}`,
+        `a ${kind} must not be .gitmodules, .gitattributes, .gitignore, or .mailmap: ${q(p)}`,
       );
     }
   }
@@ -340,13 +292,13 @@ export const validateChanges = (
       }
     }
   }
-  const submodulePaths = new Set(submodules.map((s) => foldPath(s.path)));
-  const symlinkPaths = new Set(symlinks.map((s) => foldPath(s.path)));
-  // A path under a symlink or a submodule in the request, compared
-  // case-insensitively. e.g. "Docs" and "docs/link" on a case-insensitive
-  // file system: the symlink's target would be resolved from Docs's target.
-  // A deleted file under them is allowed, because files in a directory are
-  // deleted when the directory is replaced with a symlink or a submodule.
+  const submodulePaths = new Set(submodules.map((s) => s.path));
+  const symlinkPaths = new Set(symlinks.map((s) => s.path));
+  // A path under a symlink or a submodule in the request isn't allowed: a
+  // symlink's target would be resolved from the other symlink's target, and
+  // a submodule's contents aren't checked. A deleted file under them is
+  // allowed, because files in a directory are deleted when the directory is
+  // replaced with a symlink or a submodule.
   for (const { path: p, kind } of [
     ...files.map((f) => ({ path: f, kind: "file" })),
     ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
@@ -357,7 +309,7 @@ export const validateChanges = (
     }
     const dirs = p.split("/").slice(0, -1);
     for (let i = 1; i <= dirs.length; i++) {
-      const dir = foldPath(dirs.slice(0, i).join("/"));
+      const dir = dirs.slice(0, i).join("/");
       if (submodulePaths.has(dir) || symlinkPaths.has(dir)) {
         throw new Error(
           `a ${kind} must not be under a symlink or a submodule: ${q(p)}`,

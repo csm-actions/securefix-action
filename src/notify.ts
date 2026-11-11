@@ -115,10 +115,12 @@ The comment was created by [Securefix Action](https://github.com/csm-actions/sec
  * Markdown or mentions into the comment.
  */
 export const codeBlock = (text: string): string => {
-  const longest = Math.max(
-    0,
-    ...(text.match(/`+/g) ?? []).map((run) => run.length),
-  );
+  // A loop instead of Math.max(...runs), which throws a RangeError with too
+  // many runs
+  let longest = 0;
+  for (const run of text.match(/`+/g) ?? []) {
+    longest = Math.max(longest, run.length);
+  }
   const fence = "`".repeat(Math.max(3, longest + 1));
   return `\n${fence}\n${text}\n${fence}\n`;
 };
