@@ -470,6 +470,25 @@ describe("validateChanges", () => {
       );
     },
   );
+  it("rejects a SHA-256 submodule SHA", () => {
+    expect(() =>
+      validateChanges([], [{ path: "sub", sha: "a".repeat(64) }], [], true),
+    ).toThrow("commit SHA");
+  });
+  it("checks if a file is deleted only under a symlink or a submodule", () => {
+    const checked: string[] = [];
+    validateChanges(
+      ["a.txt", "sub/b.txt", "dir/c.txt"],
+      [{ path: "sub", sha }],
+      [{ path: "dir", target: "x" }],
+      true,
+      (file) => {
+        checked.push(file);
+        return true;
+      },
+    );
+    expect(checked).toEqual(["sub/b.txt", "dir/c.txt"]);
+  });
   it("allows an uppercase submodule SHA", () => {
     expect(() =>
       validateChanges(

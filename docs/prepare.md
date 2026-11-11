@@ -94,7 +94,7 @@ If there is no entry matching with source repository and branch and destination 
 - `fixed_files`: Changed paths, separated with newlines: files (including deleted files), submodules, and symlinks. Custom validation can check every changed path with it.
   A symlink or a submodule replacing a directory deletes everything under the directory, while only the directory's path is listed, so match the directory's path itself too when restricting paths (e.g. `protected` as well as `protected/**`)
 - `submodules`: Submodules to update. It's a JSON string such as `[{"path": "foo", "sha": "..."}]`. It's set only when submodules are changed. Their paths are also included in `fixed_files`.
-  The client can point a submodule to any commit, and its contents aren't checked by the server. Validate the SHAs in custom validation if needed, e.g. that the commit is in the submodule's repository
+  The client can point a submodule to any commit, and its contents aren't checked by the server. Validate the SHAs in custom validation if needed, e.g. that the commit is in the submodule's repository. The client can also change `.gitmodules` (e.g. the URL of a submodule) as a regular file, so validate its contents too if `fixed_files` includes it
 - `symlinks`: Symlinks to commit. It's a JSON string such as `[{"path": "dir/link.txt", "target": "../shared.txt"}]`. It's set only when symlinks are changed.
   Symlinks can't be sent as files in the artifact, so the client sends their targets in the metadata.
   They are committed as tree entries with mode `120000`, and they aren't created on disk. Their paths are also included in `fixed_files`.
