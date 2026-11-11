@@ -40,7 +40,15 @@ export const create = async (inputs: Inputs) => {
   const symlinks = outputs.symlinks
     ? Symlink.array().parse(JSON.parse(outputs.symlinks))
     : undefined;
-  if (fixedFiles.length === 0 && !submodules?.length && !symlinks?.length) {
+  const deletedFiles = outputs.deleted_files
+    ? z.string().min(1).array().parse(JSON.parse(outputs.deleted_files))
+    : undefined;
+  if (
+    fixedFiles.length === 0 &&
+    !submodules?.length &&
+    !symlinks?.length &&
+    !deletedFiles?.length
+  ) {
     core.info("No files to commit");
     return;
   }
@@ -67,6 +75,8 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
     deleteIfNotExist: true,
     submodules: submodules,
     symlinks: symlinks,
+    // Paths replaced with directories, which exist on disk but must be deleted
+    deletedFiles: deletedFiles,
     // The ref is updated without force, so the push fails with
     // "Update is not a fast forward" if the branch has been updated since the
     // client workflow run.

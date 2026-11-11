@@ -278,6 +278,11 @@ outputs:
       JSON serialized list of symlinks to commit, e.g. [{"path": "dir/link.txt", "target": "../shared.txt"}].
       Symlinks aren't included in fixed_files. They are committed as tree entries with mode 120000.
       This is set only when symlinks are changed.
+  deleted_files:
+    description: |
+      JSON serialized list of paths to delete explicitly, e.g. ["dir"].
+      They are files or symlinks replaced with directories. They exist as directories on disk, so they can't be deleted by fixed_files.
+      This is set only when such paths exist.
   metadata:
     description: |
       JSON serialized metadata from the client.
