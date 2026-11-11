@@ -103,7 +103,8 @@ export const Submodule = z.object({
   sha: z.string(),
 });
 
-const shaPattern = /^[0-9a-f]{40}([0-9a-f]{24})?$/i;
+// SHA-1. GitHub doesn't support SHA-256 repositories.
+const shaPattern = /^[0-9a-f]{40}$/i;
 
 export type Submodule = z.infer<typeof Submodule>;
 
@@ -128,8 +129,6 @@ export const validateChanges = (
   // Returns true if a file is deleted, i.e. it isn't in the artifact
   isFileDeleted: (file: string) => boolean = () => false,
 ): void => {
-  const deletedFiles = new Set(files.filter(isFileDeleted));
-  const isDeleted = (file: string): boolean => deletedFiles.has(file);
   // Values from the client are quoted with JSON.stringify in errors, which
   // are posted to the client's pull request.
   const q = JSON.stringify;
@@ -197,13 +196,12 @@ export const validateChanges = (
     ...files.map((f) => ({ path: f, kind: "file" })),
     ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
   ]) {
-    if (kind === "file" && isDeleted(p)) {
-      continue;
-    }
     const dirs = p.split("/").slice(0, -1);
     for (let i = 1; i <= dirs.length; i++) {
       const dir = dirs.slice(0, i).join("/");
-      if (submodulePaths.has(dir)) {
+      // Whether a file is deleted is checked only here, after its path is
+      // validated, to avoid accessing the file system for other files
+      if (submodulePaths.has(dir) && !(kind === "file" && isFileDeleted(p))) {
         throw new Error(`a ${kind} must not be under a submodule: ${q(p)}`);
       }
     }
