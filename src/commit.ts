@@ -2,7 +2,13 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { z } from "zod";
 import * as commit from "@suzuki-shunsuke/commit-ts";
-import { Outputs, PullRequest, Submodule, Symlink } from "./prepare";
+import {
+  Outputs,
+  PullRequest,
+  splitFiles,
+  Submodule,
+  Symlink,
+} from "./prepare";
 
 const Metadata = z.object({
   inputs: z.object({
@@ -34,17 +40,17 @@ export const action = async () => {
  */
 export const listFilesToCommit = (
   fixedFiles: string,
-  submodules: { path: string }[],
-  symlinks: { path: string }[],
+  submodules: Submodule[],
+  symlinks: Symlink[],
 ): string[] => {
+  // The paths of submodules and symlinks are validated not to have
+  // whitespace around them and not to be passed with files in prepare, so
+  // excluding them is exact.
   const excluded = new Set([
     ...submodules.map((submodule) => submodule.path),
     ...symlinks.map((symlink) => symlink.path),
   ]);
-  return fixedFiles
-    .split("\n")
-    .map((file) => file.trim())
-    .filter((file) => file.length > 0 && !excluded.has(file));
+  return splitFiles(fixedFiles).filter((file) => !excluded.has(file));
 };
 
 export const create = async (inputs: Inputs) => {

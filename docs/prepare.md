@@ -96,7 +96,7 @@ If there is no entry matching with source repository and branch and destination 
 - `symlinks`: Symlinks to commit. It's a JSON string such as `[{"path": "dir/link.txt", "target": "../shared.txt"}]`. It's set only when symlinks are changed.
   Symlinks can't be sent as files in the artifact, so the client sends their targets in the metadata.
   They are committed as tree entries with mode `120000`, and they aren't created on disk. Their paths are also included in `fixed_files`.
-  The server rejects a symlink whose target is an absolute path or points outside the repository, so that a workflow reading the symlink can't be made to read a file outside the repository. Unless `allow_workflow_fix` is `true`, it also rejects a symlink at `.github`, `.github/workflows`, or under `.github/workflows`
+  The server rejects a symlink whose target isn't a relative path in the repository outside `.git`, so that a workflow reading the symlink can't be made to read a file outside the repository or credentials in `.git`. `..` can only be at the beginning of a target (e.g. `../a/b`, but not `a/../b`), because `..` after a symlink would be resolved from the symlink's target. Unless `allow_workflow_fix` is `true`, the server also rejects a symlink or a submodule at `.github`, `.github/workflows`, or under `.github/workflows`
 - `github_token`: A GitHub App installation access token to create a commit and a pull request
 - `metadata`: A request's metadata. It's a JSON string.
 

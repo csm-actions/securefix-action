@@ -75,7 +75,19 @@ export const isNormalizedPath = (p: string): boolean =>
   !p.startsWith("/") &&
   !p.endsWith("/") &&
   !p.startsWith("../") &&
-  path.posix.normalize(p) === p;
+  path.posix.normalize(p) === p &&
+  // Leading or trailing whitespace and control characters such as newlines
+  // break newline-separated lists like fixed_files
+  p.trim() === p &&
+  !hasControlCharacter(p);
+
+const hasControlCharacter = (s: string): boolean =>
+  /[\u0000-\u001f\u007f]/.test(s);
+
+// A path component which is .git, case-insensitively for case-insensitive
+// file systems
+const isGitDir = (component: string): boolean =>
+  component.toLowerCase() === ".git";
 
 const RepositoryPath = z.string().refine(isNormalizedPath, {
   message: "must be a normalized relative path in the repository",
@@ -98,45 +110,97 @@ export const Symlink = z.object({
   target: z.string().min(1),
 });
 export type Symlink = z.infer<typeof Symlink>;
+export type Submodule = z.infer<typeof Submodule>;
 
 /**
- * Validates symlinks sent by the client, which isn't trusted.
+ * Validates a symlink's target sent by the client, which isn't trusted, so
+ * that a workflow which checks out the branch and reads the symlink can't be
+ * made to read a file outside the repository (e.g. on the runner) or in .git
+ * (e.g. the credentials in .git/config).
  *
- * - A target must not be an absolute path or point outside the repository.
- *   Otherwise a workflow which checks out the branch and reads the symlink
- *   would read a file outside the repository, e.g. on the runner.
- * - Unless workflow files can be fixed, a symlink must not be at .github,
- *   .github/workflows, or under .github/workflows, in addition to the
- *   permission of the GitHub App installation access token.
+ * - It must be a relative POSIX path: not "/a", "C:/a", or "a\\b".
+ * - ".." can only be at the beginning, e.g. "../a/b", but not "a/../b".
+ *   Otherwise ".." after a symlink in the path would be resolved from the
+ *   symlink's target, e.g. "d/../x" where d -> "../..", so the target can't
+ *   be checked by normalizing the path as text.
+ * - The leading ".." must not go above the root of the repository.
+ * - The resolved path must not contain .git.
  */
-export const validateSymlinks = (
+export const validateSymlinkTarget = (symlink: Symlink): void => {
+  const { path: p, target } = symlink;
+  const fail = (reason: string): never => {
+    throw new Error(`the target of a symlink ${reason}: ${p} -> ${target}`);
+  };
+  if (target.startsWith("/") || /^[A-Za-z]:/.test(target)) {
+    fail("must not be an absolute path");
+  }
+  if (target.includes("\\") || hasControlCharacter(target)) {
+    fail("must not contain backslashes or control characters");
+  }
+  const components = target.split("/").filter((c) => c !== "" && c !== ".");
+  const ups = components.findIndex((c) => c !== "..");
+  const leadingUps = ups === -1 ? components.length : ups;
+  if (components.slice(leadingUps).includes("..")) {
+    fail('must not contain ".." after a directory name');
+  }
+  const dirs = p.split("/").slice(0, -1);
+  if (leadingUps > dirs.length) {
+    fail("must not be outside the repository");
+  }
+  const resolved = [
+    ...dirs.slice(0, dirs.length - leadingUps),
+    ...components.slice(leadingUps),
+  ];
+  if (resolved.some(isGitDir)) {
+    fail("must not be in .git");
+  }
+};
+
+/**
+ * Validates the changed paths sent by the client, which isn't trusted.
+ *
+ * - A path of a file, a submodule, or a symlink must not be passed twice.
+ *   fixed_files includes all of them, and the commit action excludes the
+ *   paths of submodules and symlinks from it, which must be exact.
+ * - A path of a submodule or a symlink must not contain .git.
+ * - Unless workflow files can be fixed, a submodule or a symlink must not be
+ *   at .github, .github/workflows, or under .github/workflows, in addition to
+ *   the permission of the GitHub App installation access token.
+ * - The target of a symlink is validated by validateSymlinkTarget.
+ */
+export const validateChanges = (
+  files: string[],
+  submodules: Submodule[],
   symlinks: Symlink[],
   allowWorkflowFix: boolean,
 ): void => {
-  for (const symlink of symlinks) {
-    if (symlink.target.startsWith("/")) {
+  const seen = new Set(files);
+  for (const { path: p, kind } of [
+    ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
+    ...symlinks.map((s) => ({ path: s.path, kind: "symlink" })),
+  ]) {
+    if (seen.has(p)) {
       throw new Error(
-        `the target of a symlink must not be an absolute path: ${symlink.path} -> ${symlink.target}`,
+        `a path of a ${kind} must not be passed with another file, submodule, or symlink: ${p}`,
       );
     }
-    const resolved = path.posix.normalize(
-      path.posix.join(path.posix.dirname(symlink.path), symlink.target),
-    );
-    if (resolved === ".." || resolved.startsWith("../")) {
-      throw new Error(
-        `the target of a symlink must not be outside the repository: ${symlink.path} -> ${symlink.target}`,
-      );
+    seen.add(p);
+    if (p.split("/").some(isGitDir)) {
+      throw new Error(`a path of a ${kind} must not contain .git: ${p}`);
     }
     if (
       !allowWorkflowFix &&
-      (symlink.path === ".github" ||
-        symlink.path === ".github/workflows" ||
-        symlink.path.startsWith(".github/workflows/"))
+      (p === ".github" ||
+        p === ".github/workflows" ||
+        p.startsWith(".github/workflows/"))
     ) {
       throw new Error(
-        `a symlink can't be committed in .github/workflows unless allow_workflow_fix is true: ${symlink.path}`,
+        `a ${kind} can't be committed in .github/workflows unless allow_workflow_fix is true: ${p}`,
       );
     }
+  }
+  for (const symlink of symlinks) {
+    validateSymlinkTarget(symlink);
   }
 };
 
@@ -322,16 +386,24 @@ const getTokenForDest = async (data: Data): Promise<string> => {
  */
 export const listFixedFiles = (
   files: string,
-  submodules: z.infer<typeof Submodule>[],
+  submodules: Submodule[],
   symlinks: Symlink[],
 ): string =>
   [
-    ...files.split("\n").map((file) => file.trim()),
+    ...splitFiles(files),
     ...submodules.map((submodule) => submodule.path),
     ...symlinks.map((symlink) => symlink.path),
-  ]
-    .filter((file) => file.length > 0)
-    .join("\n");
+  ].join("\n");
+
+/**
+ * Splits newline-separated files such as _files.txt and fixed_files.
+ * Lines are trimmed and empty lines are ignored.
+ */
+export const splitFiles = (files: string): string[] =>
+  files
+    .split("\n")
+    .map((file) => file.trim())
+    .filter((file) => file.length > 0);
 
 export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
@@ -343,7 +415,12 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     .trim();
   const submodules = metadata.inputs.submodules ?? [];
   const symlinks = metadata.inputs.symlinks ?? [];
-  validateSymlinks(symlinks, inputs.allowWorkflowFix);
+  validateChanges(
+    splitFiles(files),
+    submodules,
+    symlinks,
+    inputs.allowWorkflowFix,
+  );
   // fixed_files includes the paths of submodules and symlinks too, so that
   // custom validation of fixed_files checks every changed path.
   // The commit action excludes them from the files to commit.

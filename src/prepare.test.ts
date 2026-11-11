@@ -6,7 +6,8 @@ import {
   listFixedFiles,
   Submodule,
   Symlink,
-  validateSymlinks,
+  validateChanges,
+  validateSymlinkTarget,
   matchClientBranches,
   matchClientRepositories,
   matchPushBranches,
@@ -340,6 +341,10 @@ describe("isNormalizedPath", () => {
     "a/./b",
     "a/../b",
     "../a",
+    " README.md",
+    "a.txt ",
+    "a\nb",
+    "a\u0000b",
   ])("%s isn't normalized", (p) => {
     expect(isNormalizedPath(p)).toBe(false);
   });
@@ -361,38 +366,95 @@ describe("Symlink and Submodule schemas", () => {
   });
 });
 
-describe("validateSymlinks", () => {
+describe("validateSymlinkTarget", () => {
   it.each([
     { path: "a", target: "b" },
+    { path: "a", target: "./b" },
     { path: "dir/link", target: "../shared.txt" },
-    { path: "a/b/link", target: "../../c" },
+    { path: "a/b/link", target: "../../c/d" },
     { path: "dir/link", target: "not-found" },
+    { path: "a", target: "b/" },
+    { path: "a", target: ".github/x" },
   ])("allows $path -> $target", (symlink) => {
-    expect(() => validateSymlinks([symlink], false)).not.toThrow();
+    expect(() => validateSymlinkTarget(symlink)).not.toThrow();
   });
   it.each([
-    { path: "a", target: "/etc/passwd" },
-    { path: "a", target: "../x" },
-    { path: "dir/link", target: "../../x" },
-    { path: "a/b/link", target: "../c/../../../x" },
-  ])("rejects $path -> $target", (symlink) => {
-    expect(() => validateSymlinks([symlink], true)).toThrow(
-      /target of a symlink/,
+    [{ path: "a", target: "/etc/passwd" }, "absolute"],
+    [{ path: "a", target: "C:/Users/x" }, "absolute"],
+    [{ path: "a", target: "..\\..\\x" }, "backslashes"],
+    [{ path: "a", target: "b\nc" }, "control"],
+    [{ path: "a", target: "../x" }, "outside"],
+    [{ path: "a", target: ".." }, "outside"],
+    [{ path: "dir/link", target: "../../x" }, "outside"],
+    // ".." after d is resolved from d's target if d is a symlink
+    [{ path: "x", target: "a/b/d/../secret.txt" }, '".." after'],
+    [{ path: "a/b/link", target: "../c/../../../x" }, '".." after'],
+    [{ path: "docs/config", target: "../.git/config" }, ".git"],
+    [{ path: "a", target: "sub/.GIT/config" }, ".git"],
+    [{ path: "a", target: ".git" }, ".git"],
+  ])("rejects %o (%s)", (symlink, reason) => {
+    expect(() => validateSymlinkTarget(symlink)).toThrow(reason);
+  });
+});
+
+describe("validateChanges", () => {
+  const sha = "1111111111111111111111111111111111111111";
+  it("allows separate paths", () => {
+    expect(() =>
+      validateChanges(
+        ["a.txt"],
+        [{ path: "sub", sha }],
+        [{ path: "link", target: "a.txt" }],
+        false,
+      ),
+    ).not.toThrow();
+  });
+  it.each([
+    [["link"], [], [{ path: "link", target: "a" }]],
+    [[], [{ path: "x", sha }], [{ path: "x", target: "a" }]],
+    [
+      [],
+      [],
+      [
+        { path: "x", target: "a" },
+        { path: "x", target: "b" },
+      ],
+    ],
+  ])("rejects a path passed twice: %o %o %o", (files, submodules, symlinks) => {
+    expect(() => validateChanges(files, submodules, symlinks, true)).toThrow(
+      "must not be passed with another",
     );
   });
+  it.each([".git/hooks/x", "sub/.Git/config"])(
+    "rejects a symlink path containing .git: %s",
+    (p) => {
+      expect(() =>
+        validateChanges([], [], [{ path: p, target: "a" }], true),
+      ).toThrow("must not contain .git");
+    },
+  );
   it.each([".github", ".github/workflows", ".github/workflows/ci.yaml"])(
-    "rejects %s unless allowWorkflowFix",
+    "rejects a symlink and a submodule at %s unless allowWorkflowFix",
     (p) => {
       const symlinks = [{ path: p, target: p === ".github" ? "x" : "a" }];
-      expect(() => validateSymlinks(symlinks, false)).toThrow(
+      expect(() => validateChanges([], [], symlinks, false)).toThrow(
         /allow_workflow_fix/,
       );
-      expect(() => validateSymlinks(symlinks, true)).not.toThrow();
+      expect(() => validateChanges([], [], symlinks, true)).not.toThrow();
+      const submodules = [{ path: p, sha }];
+      expect(() => validateChanges([], submodules, [], false)).toThrow(
+        /allow_workflow_fix/,
+      );
     },
   );
   it("allows other files in .github", () => {
     expect(() =>
-      validateSymlinks([{ path: ".github/CODEOWNERS", target: "x" }], false),
+      validateChanges(
+        [],
+        [],
+        [{ path: ".github/CODEOWNERS", target: "x" }],
+        false,
+      ),
     ).not.toThrow();
   });
 });
