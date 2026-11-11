@@ -5,6 +5,7 @@ import {
   isNormalizedPath,
   listFixedFiles,
   isGitDir,
+  isGitSpecialFile,
   splitFiles,
   validateChanges,
   validateSymlinkTarget,
@@ -411,6 +412,9 @@ describe("validateSymlinkTarget", () => {
     ".. /.. /etc",
     "GIT~1/config",
     ".g\u200cit/config",
+    "CON",
+    "x/nul.txt",
+    "LPT1",
   ])("rejects a target with characters or forms not allowed: %o", (target) => {
     expect(() => validateSymlinkTarget({ path: "a/b/link", target })).toThrow(
       "the target of a symlink",
@@ -548,6 +552,55 @@ describe("validateChanges", () => {
       ).toThrow("must not contain .git");
     },
   );
+  it("quotes values from the client in errors", () => {
+    const sha = "\n```\n# injected\n```";
+    expect(() => validateChanges([], [{ path: "x", sha }], [], true)).toThrow(
+      JSON.stringify(sha),
+    );
+  });
+  it.each([
+    [["A.txt"], [], [{ path: "a.txt", target: "x" }]],
+    [
+      [],
+      [],
+      [
+        { path: "Docs", target: "x" },
+        { path: "docs", target: "y" },
+      ],
+    ],
+  ])(
+    "rejects paths differing only in case: %o %o %o",
+    (files, submodules, symlinks) => {
+      expect(() => validateChanges(files, submodules, symlinks, true)).toThrow(
+        "must not be passed with another",
+      );
+    },
+  );
+  it.each([
+    [
+      [],
+      [
+        { path: "Docs", target: "x/y" },
+        { path: "docs/l", target: "../z" },
+      ],
+    ],
+    [[{ path: "sub", sha }], [{ path: "sub/l", target: "x" }]],
+  ])(
+    "rejects a symlink under another symlink or a submodule: %o %o",
+    (submodules, symlinks) => {
+      expect(() => validateChanges([], submodules, symlinks, true)).toThrow(
+        "must not be under another symlink or a submodule",
+      );
+    },
+  );
+  it.each([".gitmodules", "a/.gitattributes", ".GITIGNORE", "GITMOD~1"])(
+    "rejects a symlink at %s",
+    (p) => {
+      expect(() =>
+        validateChanges([], [], [{ path: p, target: "x" }], true),
+      ).toThrow("must not be .gitmodules");
+    },
+  );
   it("rejects an invalid submodule SHA", () => {
     expect(() =>
       validateChanges([], [{ path: "sub", sha: "main" }], [], true),
@@ -594,6 +647,25 @@ describe("validateChanges", () => {
       ),
     ).not.toThrow();
   });
+});
+
+describe("isGitSpecialFile", () => {
+  it.each([
+    ".gitmodules",
+    ".GitAttributes",
+    ".gitignore.",
+    ".mailmap",
+    "GITMOD~1",
+    "gitign~2",
+  ])("%s is a special file", (c) => {
+    expect(isGitSpecialFile(c)).toBe(true);
+  });
+  it.each(["gitmodules", ".gitmodules.bak", "a.gitignore"])(
+    "%s isn't a special file",
+    (c) => {
+      expect(isGitSpecialFile(c)).toBe(false);
+    },
+  );
 });
 
 describe("splitFiles", () => {

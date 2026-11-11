@@ -106,6 +106,19 @@ const foldComponent = (component: string): string =>
     .replace(/[. ]+$/, "")
     .toLowerCase();
 
+/**
+ * Returns true if a path component is .gitmodules, .gitattributes, .gitignore,
+ * or .mailmap, including their NTFS short names (e.g. GITMOD~1), which Git's
+ * fsck rejects as symlinks.
+ */
+export const isGitSpecialFile = (component: string): boolean => {
+  const c = foldComponent(component);
+  return (
+    [".gitmodules", ".gitattributes", ".gitignore", ".mailmap"].includes(c) ||
+    /^(gitmod|gitatt|gitign|mailma)~\d+$/.test(c)
+  );
+};
+
 const foldPath = (p: string): string =>
   p.split("/").map(foldComponent).join("/");
 
@@ -135,6 +148,10 @@ export type Submodule = z.infer<typeof Submodule>;
 // A component of a symlink target other than "..": alphanumerics, ".", "_",
 // and "-", not ending with "."
 const targetNamePattern = /^[A-Za-z0-9._-]*[A-Za-z0-9_-]$/;
+
+// Windows reserved device names, with or without an extension
+const windowsDeviceNamePattern =
+  /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i;
 
 /**
  * Validates a symlink's target sent by the client, which isn't trusted, so
@@ -189,9 +206,9 @@ export const validateSymlinkTarget = (
     if (name === "..") {
       fail('must not contain ".." after a directory name');
     }
-    if (!targetNamePattern.test(name)) {
+    if (!targetNamePattern.test(name) || windowsDeviceNamePattern.test(name)) {
       fail(
-        'must consist of leading ".." and names of alphanumerics, ".", "_", and "-" not ending with "."',
+        'must consist of leading ".." and names of alphanumerics, ".", "_", and "-" not ending with "." and not Windows device names',
       );
     }
   }
@@ -240,10 +257,13 @@ export const validateChanges = (
   symlinks: Symlink[],
   allowWorkflowFix: boolean,
 ): void => {
+  // Values from the client are quoted with JSON.stringify in errors, which
+  // are posted to the client's pull request.
+  const q = JSON.stringify;
   for (const submodule of submodules) {
     if (!shaPattern.test(submodule.sha)) {
       throw new Error(
-        `the SHA of a submodule must be a commit SHA: ${submodule.path} ${submodule.sha}`,
+        `the SHA of a submodule must be a commit SHA: ${q(submodule.path)} ${q(submodule.sha)}`,
       );
     }
   }
@@ -254,10 +274,12 @@ export const validateChanges = (
       );
     }
     if (hasGitDir(file)) {
-      throw new Error(`a path of a file must not contain .git: ${file}`);
+      throw new Error(`a path of a file must not contain .git: ${q(file)}`);
     }
   }
-  const seen = new Set(files);
+  // Paths are compared case-insensitively (foldPath), because paths which
+  // differ only in case collide on case-insensitive file systems.
+  const seen = new Set(files.map(foldPath));
   for (const { path: p, kind } of [
     ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
     ...symlinks.map((s) => ({ path: s.path, kind: "symlink" })),
@@ -267,25 +289,37 @@ export const validateChanges = (
         `a path of a ${kind} must be a normalized relative path in the repository: ${JSON.stringify(p)}`,
       );
     }
-    if (seen.has(p)) {
+    if (seen.has(foldPath(p))) {
       throw new Error(
-        `a path of a ${kind} must not be passed with another file, submodule, or symlink: ${p}`,
+        `a path of a ${kind} must not be passed with another file, submodule, or symlink: ${q(p)}`,
       );
     }
-    seen.add(p);
+    seen.add(foldPath(p));
     if (hasGitDir(p)) {
-      throw new Error(`a path of a ${kind} must not contain .git: ${p}`);
+      throw new Error(`a path of a ${kind} must not contain .git: ${q(p)}`);
+    }
+  }
+  for (const symlink of symlinks) {
+    // Git's fsck rejects these files as symlinks (e.g. gitmodulesSymlink)
+    if (isGitSpecialFile(symlink.path.split("/").at(-1) ?? "")) {
+      throw new Error(
+        `a symlink must not be .gitmodules, .gitattributes, .gitignore, or .mailmap: ${q(symlink.path)}`,
+      );
     }
   }
   if (!allowWorkflowFix) {
-    for (const p of seen) {
+    for (const p of [
+      ...files,
+      ...submodules.map((s) => s.path),
+      ...symlinks.map((s) => s.path),
+    ]) {
       if (
         p === ".github" ||
         p === ".github/workflows" ||
         p.startsWith(".github/workflows/")
       ) {
         throw new Error(
-          `a path can't be changed in .github/workflows unless allow_workflow_fix is true: ${p}`,
+          `a path can't be changed in .github/workflows unless allow_workflow_fix is true: ${q(p)}`,
         );
       }
     }
@@ -293,6 +327,18 @@ export const validateChanges = (
   const submodulePaths = new Set(submodules.map((s) => foldPath(s.path)));
   const symlinkPaths = new Set(symlinks.map((s) => foldPath(s.path)));
   for (const symlink of symlinks) {
+    // A symlink under another symlink or a submodule in the request (e.g.
+    // "Docs" and "docs/link" on a case-insensitive file system) would resolve
+    // its target from the other symlink's target or in the submodule.
+    const dirs = symlink.path.split("/").slice(0, -1);
+    for (let i = 1; i <= dirs.length; i++) {
+      const dir = foldPath(dirs.slice(0, i).join("/"));
+      if (submodulePaths.has(dir) || symlinkPaths.has(dir)) {
+        throw new Error(
+          `a symlink must not be under another symlink or a submodule: ${q(symlink.path)}`,
+        );
+      }
+    }
     validateSymlinkTarget(symlink, submodulePaths, symlinkPaths);
   }
 };
@@ -547,7 +593,11 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   const files = splitFiles(
     fs.readFileSync(`${inputs.artifactName}_files.txt`, "utf8"),
   );
-  const submodules = metadata.inputs.submodules ?? [];
+  // A SHA is lowercased, which the Create a tree API expects
+  const submodules = (metadata.inputs.submodules ?? []).map((submodule) => ({
+    ...submodule,
+    sha: submodule.sha.toLowerCase(),
+  }));
   const symlinks = metadata.inputs.symlinks ?? [];
   validateChanges(files, submodules, symlinks, inputs.allowWorkflowFix);
   // fixed_files includes the paths of submodules and symlinks too, so that

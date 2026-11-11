@@ -100,9 +100,12 @@ If there is no entry matching with source repository and branch and destination 
   The server allows only safe symlink targets, so that a workflow reading the symlink can't be made to read a file outside the repository or credentials in `.git`. Instead of rejecting known unsafe targets, only the following form is allowed, because file systems interpret paths differently (e.g. Windows treats `C:a`, `.. `, and `GIT~1` specially, and macOS ignores some Unicode code points):
   - Components are separated by `/`. Empty components and `.` aren't allowed.
   - `..` can only be at the beginning (e.g. `../a/b`, but not `a/../b`), because `..` after a symlink would be resolved from the symlink's target, and it must not go above the repository root.
-  - Other components consist of alphanumerics, `.`, `_`, and `-`, and don't end with `.`. A symlink whose target has other characters, such as spaces or non-ASCII characters, can't be committed.
+  - Other components consist of alphanumerics, `.`, `_`, and `-`, don't end with `.`, and aren't Windows device names (e.g. `CON`, `nul.txt`). A symlink whose target has other characters, such as spaces or non-ASCII characters, can't be committed.
   - The resolved path must not contain `.git` (case-insensitively), point to or go through a submodule, or go through a symlink, in the request (compared case-insensitively).
-    The server assumes that the other components of a target are directories: a symlink already in the repository which points outside the repository, or a symlink in a submodule, can't be checked.
+
+  A symlink must not be under another symlink or a submodule in the request, and must not be `.gitmodules`, `.gitattributes`, `.gitignore`, or `.mailmap`, which Git's fsck rejects as symlinks. Paths which differ only in case can't be passed together.
+  The server assumes that the other components of a target are directories: a symlink already in the repository which points outside the repository, or a symlink in a submodule, can't be checked.
+
 - `github_token`: A GitHub App installation access token to create a commit and a pull request
 - `metadata`: A request's metadata. It's a JSON string.
 
