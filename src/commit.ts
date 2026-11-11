@@ -36,8 +36,9 @@ export const listFilesToCommit = (
   fixedFiles: string,
   submodules: Submodule[],
 ): string[] => {
-  // The paths of submodules are validated not to have whitespace around them
-  // and not to be passed with files in prepare, so excluding them is exact.
+  // Paths aren't trimmed in prepare or here, and the paths of submodules are
+  // validated not to be passed with files in prepare, so excluding them is
+  // exact.
   const excluded = new Set(submodules.map((submodule) => submodule.path));
   // Files under a submodule are excluded too. prepare allows only deleted
   // files there, which appear when a directory is replaced with the

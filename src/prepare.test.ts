@@ -330,6 +330,9 @@ describe("isNormalizedPath", () => {
     ".github/workflows/ci.yaml",
     "a..b",
     "a\tb.txt",
+    " README.md",
+    "config.yaml ",
+    "a\r",
   ])("%s is normalized", (p) => {
     expect(isNormalizedPath(p)).toBe(true);
   });
@@ -344,8 +347,6 @@ describe("isNormalizedPath", () => {
     "a/./b",
     "a/../b",
     "../a",
-    " README.md",
-    "a.txt ",
     "a\nb",
     "a\u0000b",
   ])("%s isn't normalized", (p) => {
@@ -376,17 +377,15 @@ describe("validateChanges", () => {
       validateChanges(["a.txt", "dir/b.txt"], [{ path: "sub", sha }], false),
     ).not.toThrow();
   });
-  it.each([
-    "./a.txt",
-    ".github/workflows/../workflows/x.yml",
-    " a.txt",
-    "a.txt ",
-  ])("rejects a non-normalized file path: %o", (p) => {
-    expect(() => validateChanges([p], [], true)).toThrow(
-      "normalized relative path",
-    );
-  });
-  it.each(["./a", "a/", " a", "a\nb", "../a"])(
+  it.each(["./a.txt", ".github/workflows/../workflows/x.yml"])(
+    "rejects a non-normalized file path: %o",
+    (p) => {
+      expect(() => validateChanges([p], [], true)).toThrow(
+        "normalized relative path",
+      );
+    },
+  );
+  it.each(["./a", "a/", "a\nb", "../a"])(
     "rejects a non-normalized submodule path: %o",
     (p) => {
       expect(() => validateChanges([], [{ path: p, sha }], true)).toThrow(
@@ -496,11 +495,15 @@ describe("validateChanges", () => {
 });
 
 describe("splitFiles", () => {
-  it("accepts CRLF", () => {
-    expect(splitFiles("a.txt\r\nb.txt\r\n")).toEqual(["a.txt", "b.txt"]);
+  it("ignores empty and duplicated lines", () => {
+    expect(splitFiles("a.txt\n\nb.txt\na.txt\n")).toEqual(["a.txt", "b.txt"]);
   });
-  it("ignores empty and duplicated lines without trimming", () => {
-    expect(splitFiles("a.txt\n\nb.txt \na.txt\n")).toEqual(["a.txt", "b.txt "]);
+  it("doesn't remove spaces or carriage returns", () => {
+    expect(splitFiles(" a.txt\nconfig.yaml \nb.txt\r\n")).toEqual([
+      " a.txt",
+      "config.yaml ",
+      "b.txt\r",
+    ]);
   });
 });
 
