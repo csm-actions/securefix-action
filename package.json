@@ -47,6 +47,9 @@
       "glob": "$glob"
     },
     "@azure/storage-blob": "12.34.0",
-    "@azure/storage-common": "12.5.0"
+    "@azure/storage-common": "12.5.0",
+    "readdir-glob@3": {
+      "minimatch": "^11.0.1"
+    }
   }
 }
