@@ -1,3 +1,5 @@
+import * as fs from "fs";
+import * as path from "path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { z } from "zod";
@@ -7,6 +9,8 @@ import {
   PullRequest,
   splitFiles,
   Submodule,
+  Symlink,
+  validateChanges,
   validateFileTypes,
 } from "./prepare";
 
@@ -34,27 +38,30 @@ export const action = async () => {
 };
 
 /**
- * Returns the files to commit: fixed_files excluding the paths of submodules,
- * which fixed_files includes for custom validation.
- * They are committed by the submodules option of commit-ts.
+ * Returns the files to commit: fixed_files excluding the paths of submodules
+ * and symlinks, which fixed_files includes for custom validation.
+ * They are committed by the submodules and symlinks options of commit-ts.
  */
 export const listFilesToCommit = (
   fixedFiles: string,
   submodules: Submodule[],
+  symlinks: Symlink[],
 ): string[] => {
-  // Paths aren't trimmed in prepare or here, and the paths of submodules are
-  // validated not to be passed with files in prepare, so excluding them is
-  // exact.
-  const excluded = new Set(submodules.map((submodule) => submodule.path));
-  // Files under a submodule are excluded too. prepare allows only deleted
-  // files there, which appear when a directory is replaced with the
-  // submodule. The submodule entry replaces the whole directory, and the
-  // Create a tree API fails if only some files in it are deleted along with
-  // it.
-  const submodulePaths = submodules.map((submodule) => `${submodule.path}/`);
+  // Paths aren't trimmed in prepare or here, and the paths of submodules and
+  // symlinks are validated not to be passed with files in prepare, so
+  // excluding them is exact.
+  const excluded = new Set([
+    ...submodules.map((submodule) => submodule.path),
+    ...symlinks.map((symlink) => symlink.path),
+  ]);
+  // Files under a submodule or a symlink are excluded too. prepare allows
+  // only deleted files there, which appear when a directory is replaced with
+  // the submodule or the symlink. The entry replaces the whole directory, and
+  // the Create a tree API fails if only some files in it are deleted along
+  // with it.
+  const prefixes = [...excluded].map((p) => `${p}/`);
   return splitFiles(fixedFiles).filter(
-    (file) =>
-      !excluded.has(file) && !submodulePaths.some((p) => file.startsWith(p)),
+    (file) => !excluded.has(file) && !prefixes.some((p) => file.startsWith(p)),
   );
 };
 
@@ -64,10 +71,36 @@ export const create = async (inputs: Inputs) => {
   const submodules = outputs.submodules
     ? Submodule.array().parse(JSON.parse(outputs.submodules))
     : [];
-  const fixedFiles = listFilesToCommit(outputs.fixed_files, submodules);
-  // Validated in prepare too, but the commit action can be run separately
-  validateFileTypes(fixedFiles, outputs.artifact_dir);
-  if (fixedFiles.length + submodules.length === 0) {
+  const symlinks = outputs.symlinks
+    ? Symlink.array().parse(JSON.parse(outputs.symlinks))
+    : [];
+  // Validated in prepare too, but the commit action can be run separately.
+  // Files are validated before deleted files under submodules and symlinks
+  // are excluded, so that an existing file under them is rejected instead of
+  // being dropped silently.
+  const entryPaths = new Set([
+    ...submodules.map((submodule) => submodule.path),
+    ...symlinks.map((symlink) => symlink.path),
+  ]);
+  const files = splitFiles(outputs.fixed_files).filter(
+    (file) => !entryPaths.has(file),
+  );
+  validateFileTypes(files, outputs.artifact_dir);
+  validateChanges(
+    files,
+    submodules,
+    symlinks,
+    // allow_workflow_fix isn't an input of the commit action. It's checked in
+    // prepare, and the token doesn't have the workflows permission without it.
+    true,
+    (file) => !fs.existsSync(path.join(outputs.artifact_dir, file)),
+  );
+  const fixedFiles = listFilesToCommit(
+    outputs.fixed_files,
+    submodules,
+    symlinks,
+  );
+  if (fixedFiles.length + submodules.length + symlinks.length === 0) {
     core.info("No files to commit");
     return;
   }
@@ -96,6 +129,7 @@ ${github.context.serverUrl}/${github.context.repo.owner}/${github.context.repo.r
     files: fixedFiles,
     deleteIfNotExist: true,
     submodules: submodules,
+    symlinks: symlinks,
     // The ref is updated without force, so the push fails with
     // "Update is not a fast forward" if the branch has been updated since the
     // client workflow run.

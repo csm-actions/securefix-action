@@ -265,7 +265,7 @@ outputs:
       JSON serialized pull request creation parameters.
   fixed_files:
     description: |
-      Newline-separated list of changed paths: files (including deleted files) and submodules.
+      Newline-separated list of changed paths: files (including deleted files), submodules, and symlinks.
       Custom validation can check every changed path with it.
   github_token:
     description: |
@@ -274,6 +274,12 @@ outputs:
     description: |
       JSON serialized list of submodules to update, e.g. [{"path": "foo", "sha": "..."}]. Their paths are also included in fixed_files.
       This is set only when submodules are changed.
+  symlinks:
+    description: |
+      JSON serialized list of symlinks to commit, e.g. [{"path": "dir/link.txt", "target": "../shared.txt"}].
+      They are committed as tree entries with mode 120000. Their paths are also included in fixed_files.
+      Only safe targets are allowed: ".." only at the beginning without going above the repository root, followed by names of alphanumerics, ".", "_", and "-" not ending with ".", outside .git, and not pointing to or going through a submodule, pointing to a directory containing a submodule, or going through a symlink, in the request, and not the symlink itself or its parent directory.
+      This is set only when symlinks are changed.
   metadata:
     description: |
       JSON serialized metadata from the client.

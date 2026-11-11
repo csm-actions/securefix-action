@@ -92,12 +92,23 @@ If there is no entry matching with source repository and branch and destination 
 - `client_repository`: A client repository's full name
 - `create_pull_request`: Parameters to create a pull request
 - `artifact_dir`: The directory where the artifact from the client is extracted. It's a new empty directory outside the workspace, so files of the server workflow (e.g. its checkout) aren't mixed with files from the client. The commit action reads fixed files from it
-- `fixed_files`: Changed paths, separated with newlines: files (including deleted files) and submodules. Custom validation can check every changed path with it.
-  A submodule replacing a directory deletes everything under the directory, while only the directory's path is listed, so match the directory's path itself too when restricting paths (e.g. `protected` as well as `protected/**`)
+- `fixed_files`: Changed paths, separated with newlines: files (including deleted files), submodules, and symlinks. Custom validation can check every changed path with it.
+  A symlink or a submodule replacing a directory deletes everything under the directory, while only the directory's path is listed, so match the directory's path itself too when restricting paths (e.g. `protected` as well as `protected/**`)
 - `submodules`: Submodules to update. It's a JSON string such as `[{"path": "foo", "sha": "..."}]`. It's set only when submodules are changed. Their paths are also included in `fixed_files`.
-  The client can point a submodule to any commit, and its contents aren't checked by the server. Validate the SHAs in custom validation if needed, e.g. that the commit is in the submodule's repository. The client can also change `.gitmodules` (e.g. the URL of a submodule) as a regular file, so validate its contents too if `fixed_files` includes it.
-  A file or a submodule must not be under a submodule in the request (except deleted files), and a submodule must not be `.gitmodules`, `.gitattributes`, `.gitignore`, or `.mailmap`, which Git's fsck rejects.
-  These rules assume that the repository is checked out on Linux.
+  The client can point a submodule to any commit, and its contents aren't checked by the server. Validate the SHAs in custom validation if needed, e.g. that the commit is in the submodule's repository. The client can also change `.gitmodules` (e.g. the URL of a submodule) as a regular file, so validate its contents too if `fixed_files` includes it
+- `symlinks`: Symlinks to commit. It's a JSON string such as `[{"path": "dir/link.txt", "target": "../shared.txt"}]`. It's set only when symlinks are changed.
+  Symlinks can't be sent as files in the artifact, so the client sends their targets in the metadata.
+  They are committed as tree entries with mode `120000`, and they aren't created on disk. Their paths are also included in `fixed_files`.
+  The server allows only safe symlink targets, so that a workflow reading the symlink can't be made to read a file outside the repository or credentials in `.git`. Instead of rejecting known unsafe targets, only the following form is allowed:
+  - Components are separated by `/`. Empty components and `.` aren't allowed.
+  - `..` can only be at the beginning (e.g. `../a/b`, but not `a/../b`), because `..` after a symlink would be resolved from the symlink's target, and it must not go above the repository root.
+  - Other components consist of alphanumerics, `.`, `_`, and `-`, and don't end with `.`. A symlink whose target has other characters, such as spaces or non-ASCII characters, can't be committed.
+  - The resolved path must not contain `.git`, point to or go through a submodule, point to a directory containing a submodule, or go through a symlink, in the request. It also must not be the symlink itself or its parent directory. Other loops (e.g. two symlinks pointing to each other) aren't checked, because they can also be committed without Securefix and don't bypass any protection.
+
+  A file, a submodule, or a symlink must not be under a symlink or a submodule in the request (except deleted files), and a submodule or a symlink must not be `.gitmodules`, `.gitattributes`, `.gitignore`, or `.mailmap`, which Git's fsck rejects.
+
+  These rules assume that the repository is checked out on Linux. Windows and macOS file systems interpret some names specially (e.g. case-insensitivity), which isn't taken into account. The server doesn't read the destination's tree, and assumes that the other components of a target are directories: a symlink or a submodule already in the repository isn't checked, e.g. a symlink which points outside the repository, a symlink in a submodule, or an existing symlink whose target resolves differently after a directory is replaced with a symlink in the request.
+
 - `github_token`: A GitHub App installation access token to create a commit and a pull request
 - `metadata`: A request's metadata. It's a JSON string.
 
