@@ -45,7 +45,7 @@ export const action = async () => {
       pr_number: data.metadata.context.payload.pull_request?.number ?? 0,
       githubToken: data.token,
       sha: data.sha,
-      comment: [notify.readComment(), "\n## Error", "\n```", msg, "```\n"].join(
+      comment: [notify.readComment(), "\n## Error", notify.codeBlock(msg)].join(
         "\n",
       ),
     });

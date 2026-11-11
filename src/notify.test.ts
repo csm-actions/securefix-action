@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { isIgnoredErrorMessage, readComment } from "./notify";
+import { codeBlock, isIgnoredErrorMessage, readComment } from "./notify";
 
 describe("isIgnoredErrorMessage", () => {
   it("returns true if the message contains an ignored error message", () => {
@@ -37,5 +37,19 @@ describe("readComment", () => {
 
   it("returns the default comment if the input is empty", () => {
     expect(readComment()).toBe("## :x: Securefix Action failed.");
+  });
+});
+
+describe("codeBlock", () => {
+  it("uses a fence longer than backticks in the text", () => {
+    expect(codeBlock("a\n```\n# injected\n```")).toBe(
+      "\n````\na\n```\n# injected\n```\n````\n",
+    );
+  });
+  it("uses three backticks at least", () => {
+    expect(codeBlock("error")).toBe("\n```\nerror\n```\n");
+  });
+  it("doesn't throw with many runs of backticks", () => {
+    expect(codeBlock("`a".repeat(300000)).startsWith("\n```\n")).toBe(true);
   });
 });
