@@ -63,17 +63,159 @@ const PayloadPullRequest = z.object({
   number: z.number(),
 });
 
-const Submodule = z.object({
+/**
+ * Returns true if p is a normalized relative path in the repository, which
+ * the Create a tree API accepts: e.g. "a/b", but not "", ".", "./a", "a/",
+ * "/a", "a//b", or "../a".
+ */
+export const isNormalizedPath = (p: string): boolean =>
+  p !== "" &&
+  p !== "." &&
+  p !== ".." &&
+  !p.startsWith("/") &&
+  !p.endsWith("/") &&
+  !p.startsWith("../") &&
+  path.posix.normalize(p) === p &&
+  // A newline breaks newline-separated lists like fixed_files. Other
+  // characters such as spaces, tabs, and carriage returns are allowed,
+  // because Git and the Create a tree API allow them, and paths aren't
+  // trimmed.
+  !/[\n\u0000]/.test(p);
+
+// The validation of paths assumes that the repository is
+// checked out on Linux, whose file systems are case-sensitive and don't
+// interpret names specially, unlike Windows (NTFS) and macOS (HFS+, APFS).
+
+export const isGitDir = (component: string): boolean => component === ".git";
+
+// Git's fsck rejects these files as submodules (e.g. gitmodulesBlob)
+const gitSpecialFiles = new Set([
+  ".gitmodules",
+  ".gitattributes",
+  ".gitignore",
+  ".mailmap",
+]);
+
+// Paths and SHAs are validated by validateChanges, not by the schemas, so
+// that an invalid request is reported to the client as a comment.
+export const Submodule = z.object({
   path: z.string(),
   sha: z.string(),
 });
+
+// SHA-1. GitHub doesn't support SHA-256 repositories.
+const shaPattern = /^[0-9a-f]{40}$/i;
+
+export type Submodule = z.infer<typeof Submodule>;
+
+const hasGitDir = (p: string): boolean => p.split("/").some(isGitDir);
+
+/**
+ * Validates the changed paths sent by the client, which isn't trusted.
+ *
+ * - A path must be a normalized relative path (isNormalizedPath) without
+ *   .git, and a submodule SHA must be a commit SHA.
+ * - A path of a file or a submodule must not be passed twice.
+ *   fixed_files includes both, and the commit action excludes the paths of
+ *   submodules from it, which must be exact.
+ * - Unless workflow files can be fixed, no path can be at .github,
+ *   .github/workflows, or under .github/workflows, in addition to the
+ *   permission of the GitHub App installation access token.
+ */
+export const validateChanges = (
+  files: string[],
+  submodules: Submodule[],
+  allowWorkflowFix: boolean,
+  // Returns true if a file is deleted, i.e. it isn't in the artifact
+  isFileDeleted: (file: string) => boolean = () => false,
+): void => {
+  // Values from the client are quoted with JSON.stringify in errors, which
+  // are posted to the client's pull request.
+  const q = JSON.stringify;
+  for (const submodule of submodules) {
+    if (!shaPattern.test(submodule.sha)) {
+      throw new Error(
+        `the SHA of a submodule must be a commit SHA: ${q(submodule.path)} ${q(submodule.sha)}`,
+      );
+    }
+  }
+  for (const file of files) {
+    if (!isNormalizedPath(file)) {
+      throw new Error(
+        `a path of a file must be a normalized relative path in the repository: ${q(file)}`,
+      );
+    }
+    if (hasGitDir(file)) {
+      throw new Error(`a path of a file must not contain .git: ${q(file)}`);
+    }
+  }
+  const seen = new Set(files);
+  for (const { path: p, kind } of submodules.map((s) => ({
+    path: s.path,
+    kind: "submodule",
+  }))) {
+    if (!isNormalizedPath(p)) {
+      throw new Error(
+        `a path of a ${kind} must be a normalized relative path in the repository: ${q(p)}`,
+      );
+    }
+    if (seen.has(p)) {
+      throw new Error(
+        `a path of a ${kind} must not be passed with another file or submodule: ${q(p)}`,
+      );
+    }
+    seen.add(p);
+    if (hasGitDir(p)) {
+      throw new Error(`a path of a ${kind} must not contain .git: ${q(p)}`);
+    }
+    if (gitSpecialFiles.has(p.split("/").at(-1) ?? "")) {
+      throw new Error(
+        `a ${kind} must not be .gitmodules, .gitattributes, .gitignore, or .mailmap: ${q(p)}`,
+      );
+    }
+  }
+  if (!allowWorkflowFix) {
+    for (const p of listChangedPaths(files, submodules)) {
+      if (
+        p === ".github" ||
+        p === ".github/workflows" ||
+        p.startsWith(".github/workflows/")
+      ) {
+        throw new Error(
+          `a path can't be changed in .github/workflows unless allow_workflow_fix is true: ${q(p)}`,
+        );
+      }
+    }
+  }
+  const submodulePaths = new Set(submodules.map((s) => s.path));
+  // A path under a submodule in the request isn't allowed, because the
+  // submodule entry replaces the directory. A deleted file under it is
+  // allowed, because files in a directory are deleted when the directory is
+  // replaced with a submodule.
+  for (const { path: p, kind } of [
+    ...files.map((f) => ({ path: f, kind: "file" })),
+    ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
+  ]) {
+    const dirs = p.split("/").slice(0, -1);
+    for (let i = 1; i <= dirs.length; i++) {
+      const dir = dirs.slice(0, i).join("/");
+      // Whether a file is deleted is checked only here, after its path is
+      // validated, to avoid accessing the file system for other files
+      if (submodulePaths.has(dir) && !(kind === "file" && isFileDeleted(p))) {
+        throw new Error(`a ${kind} must not be under a submodule: ${q(p)}`);
+      }
+    }
+  }
+};
 
 const MetadataInputs = z.object({
   repository: z.string().optional(),
   branch: z.string().optional(),
   pull_request: PullRequest.optional(),
   custom: z.record(z.string(), z.unknown()).optional(),
-  submodules: z.array(Submodule).optional(),
+  // They are parsed by readChanges, so that an invalid value is reported to
+  // the client's pull request
+  submodules: z.unknown().optional(),
 });
 
 const Payload = z.object({
@@ -247,6 +389,15 @@ const getTokenForDest = async (data: Data): Promise<string> => {
 };
 
 /**
+ * Returns the paths of files in _files.txt and submodules, i.e. all changed
+ * paths. They are output as fixed_files.
+ */
+export const listChangedPaths = (
+  files: string[],
+  submodules: Submodule[],
+): string[] => [...files, ...submodules.map((submodule) => submodule.path)];
+
+/**
  * Splits newline-separated files such as _files.txt and fixed_files.
  * Empty and duplicated lines are ignored.
  *
@@ -259,6 +410,100 @@ const getTokenForDest = async (data: Data): Promise<string> => {
 export const splitFiles = (files: string): string[] => [
   ...new Set(files.split("\n").filter((file) => file.length > 0)),
 ];
+
+type Changes = {
+  files: string[];
+  submodules: Submodule[];
+  // An error parsing submodules, which is thrown after the request is
+  // authorized
+  error?: Error;
+};
+
+/**
+ * Reads the changes in the request: files in _files.txt, and submodules in
+ * the metadata file. They aren't validated yet.
+ */
+const readChanges = (data: Data): Changes => {
+  const { inputs, metadata } = data;
+  const files = splitFiles(
+    fs.readFileSync(
+      path.join(data.artifactDir, `${inputs.artifactName}_files.txt`),
+      "utf8",
+    ),
+  );
+  const submodules = z
+    .array(Submodule)
+    .optional()
+    .safeParse(metadata.inputs.submodules);
+  if (!submodules.success) {
+    return {
+      files,
+      submodules: [],
+      error: new Error(
+        `submodules in the metadata file are invalid: ${submodules.error.message}`,
+      ),
+    };
+  }
+  return {
+    files,
+    // A SHA is lowercased, which the Create a tree API expects
+    submodules: (submodules.data ?? []).map((submodule) => ({
+      ...submodule,
+      sha: submodule.sha.toLowerCase(),
+    })),
+  };
+};
+
+/**
+ * Outputs the changes. fixed_files includes the paths of submodules too, so
+ * that custom validation of fixed_files checks every changed path. The commit
+ * action excludes them from the files to commit.
+ *
+ * They are output before they are validated, as before, so that steps run
+ * on failure can read them. The commit action doesn't run if prepare fails.
+ */
+const setChanges = (outputs: Output, changes: Changes): void => {
+  const { files, submodules } = changes;
+  outputs.setFixedFiles(listChangedPaths(files, submodules).join("\n"));
+  if (submodules.length > 0) {
+    outputs.setSubmodules(JSON.stringify(submodules));
+  }
+};
+
+/**
+ * Validates the changes in the request.
+ *
+ * It's called after the request is authorized (e.g. the workflow name, the
+ * protected branch, and the config), so that an unauthorized request is
+ * reported as such, and after the pull_request output is set, so that the
+ * notify action can post the error to the client's pull request.
+ */
+const validateRequestChanges = (data: Data, changes: Changes): void => {
+  if (changes.error) {
+    throw changes.error;
+  }
+  const artifactName = data.inputs.artifactName;
+  // The metadata files in the artifact aren't fixed files
+  for (const file of changes.files) {
+    if (
+      file === `${artifactName}_files.txt` ||
+      file === `${artifactName}.json`
+    ) {
+      throw new Error(
+        `a fixed file must not be a metadata file: ${JSON.stringify(file)}`,
+      );
+    }
+  }
+  validateFileTypes(changes.files, data.artifactDir);
+  // The commit action reads files from artifactDir, where the artifact is
+  // extracted, and deletes a file which doesn't exist (deleteIfNotExist)
+  validateChanges(
+    changes.files,
+    changes.submodules,
+    data.inputs.allowWorkflowFix,
+    (file) => !fs.existsSync(path.join(data.artifactDir, file)),
+  );
+};
 
 /**
  * Validates fixed files sent by the client, which isn't trusted, before they
@@ -288,15 +533,7 @@ export const validateFileTypes = (
   }
   for (const file of files) {
     const q = JSON.stringify(file);
-    if (
-      file === "" ||
-      file === "." ||
-      file === ".." ||
-      file.startsWith("/") ||
-      file.endsWith("/") ||
-      file.startsWith("../") ||
-      path.posix.normalize(file) !== file
-    ) {
+    if (!isNormalizedPath(file)) {
       throw new Error(`a fixed file must be a normalized relative path: ${q}`);
     }
     const components = file.split("/");
@@ -330,33 +567,8 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
   const outputs = data.outputs;
   const metadata = data.metadata;
-  // Read metadata
-  const files = splitFiles(
-    fs.readFileSync(
-      path.join(data.artifactDir, `${inputs.artifactName}_files.txt`),
-      "utf8",
-    ),
-  );
-  // The metadata files in the artifact aren't fixed files
-  for (const file of files) {
-    if (
-      file === `${inputs.artifactName}_files.txt` ||
-      file === `${inputs.artifactName}.json`
-    ) {
-      throw new Error(
-        `a fixed file must not be a metadata file: ${JSON.stringify(file)}`,
-      );
-    }
-  }
-  // fixed_files is output before the validation as before, so that steps run
-  // on failure can read it. The commit action doesn't run if prepare fails.
-  outputs.setFixedFiles(files.join("\n"));
-  validateFileTypes(files, data.artifactDir);
-
-  if (metadata.inputs.submodules && metadata.inputs.submodules.length > 0) {
-    outputs.setSubmodules(JSON.stringify(metadata.inputs.submodules));
-  }
-
+  const changes = readChanges(data);
+  setChanges(outputs, changes);
   const token = await getTokenForDest(data);
   outputs.setGitHubToken(token);
   const octokit = github.getOctokit(token);
@@ -415,6 +627,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     // workflow run failed, in which case data.branch is also empty and the
     // check above fails.
     outputs.setBaseSHA(data.sha);
+    validateRequestChanges(data, changes);
     return outputs;
   }
 
@@ -460,6 +673,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     if (!entry.pull_request) {
       throw new Error("Creating a pull request isn't allowed for this entry");
     }
+    validateRequestChanges(data, changes);
     return outputs;
   }
 

@@ -265,10 +265,15 @@ outputs:
       JSON serialized pull request creation parameters.
   fixed_files:
     description: |
-      Newline-separated list of fixed files.
+      Newline-separated list of changed paths: files (including deleted files) and submodules.
+      Custom validation can check every changed path with it.
   github_token:
     description: |
       GitHub App installation token for the destination repository.
+  submodules:
+    description: |
+      JSON serialized list of submodules to update, e.g. [{"path": "foo", "sha": "..."}]. Their paths are also included in fixed_files.
+      This is set only when submodules are changed.
   metadata:
     description: |
       JSON serialized metadata from the client.
