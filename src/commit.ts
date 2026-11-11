@@ -50,7 +50,16 @@ export const listFilesToCommit = (
     ...submodules.map((submodule) => submodule.path),
     ...symlinks.map((symlink) => symlink.path),
   ]);
-  return splitFiles(fixedFiles).filter((file) => !excluded.has(file));
+  // Files under a submodule are excluded too. prepare allows only deleted
+  // files there, which appear when a directory is replaced with the
+  // submodule. The submodule entry replaces the whole directory, and the
+  // Create a tree API fails if only some files in it are deleted along with
+  // it. commit-ts removes deletions under symlinks in the same way.
+  const submodulePaths = submodules.map((submodule) => `${submodule.path}/`);
+  return splitFiles(fixedFiles).filter(
+    (file) =>
+      !excluded.has(file) && !submodulePaths.some((p) => file.startsWith(p)),
+  );
 };
 
 export const create = async (inputs: Inputs) => {

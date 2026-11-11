@@ -267,8 +267,10 @@ export const validateChanges = (
   symlinks: Symlink[],
   allowWorkflowFix: boolean,
   // Returns true if a file is deleted, i.e. it isn't in the artifact
-  isDeleted: (file: string) => boolean = () => false,
+  isFileDeleted: (file: string) => boolean = () => false,
 ): void => {
+  const deletedFiles = new Set(files.filter(isFileDeleted));
+  const isDeleted = (file: string): boolean => deletedFiles.has(file);
   // Values from the client are quoted with JSON.stringify in errors, which
   // are posted to the client's pull request.
   const q = JSON.stringify;
@@ -373,8 +375,10 @@ const MetadataInputs = z.object({
   branch: z.string().optional(),
   pull_request: PullRequest.optional(),
   custom: z.record(z.string(), z.unknown()).optional(),
-  submodules: z.array(Submodule).optional(),
-  symlinks: z.array(Symlink).optional(),
+  // They are parsed by readChanges, so that an invalid value is reported to
+  // the client's pull request
+  submodules: z.unknown().optional(),
+  symlinks: z.unknown().optional(),
 });
 
 const Payload = z.object({
@@ -572,38 +576,65 @@ export const splitFiles = (files: string): string[] => [
   ...new Set(files.split(/\r?\n/).filter((file) => file.length > 0)),
 ];
 
+type Changes = {
+  files: string[];
+  submodules: Submodule[];
+  symlinks: Symlink[];
+  // An error parsing submodules or symlinks, which is thrown after the
+  // request is authorized
+  error?: Error;
+};
+
 /**
- * Validates the changes in the request and outputs them.
- *
- * It's called after the request is authorized (e.g. the workflow name, the
- * protected branch, and the config), so that an unauthorized request is
- * reported as such, and after the pull_request output is set, so that the
- * notify action can post the error to the client's pull request.
+ * Reads the changes in the request: files in _files.txt, and submodules and
+ * symlinks in the metadata file. They aren't validated yet.
  */
-const validateAndSetChanges = (data: Data): void => {
-  const { inputs, outputs, metadata } = data;
+const readChanges = (data: Data): Changes => {
+  const { inputs, metadata } = data;
   const files = splitFiles(
     fs.readFileSync(`${inputs.artifactName}_files.txt`, "utf8"),
   );
-  // A SHA is lowercased, which the Create a tree API expects
-  const submodules = (metadata.inputs.submodules ?? []).map((submodule) => ({
-    ...submodule,
-    sha: submodule.sha.toLowerCase(),
-  }));
-  const symlinks = metadata.inputs.symlinks ?? [];
-  // The artifact is extracted into the workspace, and a file which isn't in it
-  // is deleted by the commit action (deleteIfNotExist)
-  const workspace = process.env.GITHUB_WORKSPACE ?? "";
-  validateChanges(
+  const submodules = z
+    .array(Submodule)
+    .optional()
+    .safeParse(metadata.inputs.submodules);
+  const symlinks = z
+    .array(Symlink)
+    .optional()
+    .safeParse(metadata.inputs.symlinks);
+  if (!submodules.success || !symlinks.success) {
+    return {
+      files,
+      submodules: [],
+      symlinks: [],
+      error: new Error(
+        `submodules or symlinks in the metadata file are invalid: ${
+          (submodules.error ?? symlinks.error)?.message
+        }`,
+      ),
+    };
+  }
+  return {
     files,
-    submodules,
-    symlinks,
-    inputs.allowWorkflowFix,
-    (file) => !fs.existsSync(path.join(workspace, file)),
-  );
-  // fixed_files includes the paths of submodules and symlinks too, so that
-  // custom validation of fixed_files checks every changed path.
-  // The commit action excludes them from the files to commit.
+    // A SHA is lowercased, which the Create a tree API expects
+    submodules: (submodules.data ?? []).map((submodule) => ({
+      ...submodule,
+      sha: submodule.sha.toLowerCase(),
+    })),
+    symlinks: symlinks.data ?? [],
+  };
+};
+
+/**
+ * Outputs the changes. fixed_files includes the paths of submodules and
+ * symlinks too, so that custom validation of fixed_files checks every changed
+ * path. The commit action excludes them from the files to commit.
+ *
+ * They are output before they are validated, as before, so that steps run
+ * on failure can read them. The commit action doesn't run if prepare fails.
+ */
+const setChanges = (outputs: Output, changes: Changes): void => {
+  const { files, submodules, symlinks } = changes;
   outputs.setFixedFiles(
     listChangedPaths(files, submodules, symlinks).join("\n"),
   );
@@ -615,10 +646,36 @@ const validateAndSetChanges = (data: Data): void => {
   }
 };
 
+/**
+ * Validates the changes in the request.
+ *
+ * It's called after the request is authorized (e.g. the workflow name, the
+ * protected branch, and the config), so that an unauthorized request is
+ * reported as such, and after the pull_request output is set, so that the
+ * notify action can post the error to the client's pull request.
+ */
+const validateRequestChanges = (data: Data, changes: Changes): void => {
+  if (changes.error) {
+    throw changes.error;
+  }
+  // The commit action reads files relative to the current directory, where
+  // the artifact is extracted (GITHUB_WORKSPACE), and deletes a file which
+  // doesn't exist (deleteIfNotExist)
+  validateChanges(
+    changes.files,
+    changes.submodules,
+    changes.symlinks,
+    data.inputs.allowWorkflowFix,
+    (file) => !fs.existsSync(file),
+  );
+};
+
 export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
   const outputs = data.outputs;
   const metadata = data.metadata;
+  const changes = readChanges(data);
+  setChanges(outputs, changes);
   const token = await getTokenForDest(data);
   outputs.setGitHubToken(token);
   const octokit = github.getOctokit(token);
@@ -677,7 +734,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     // workflow run failed, in which case data.branch is also empty and the
     // check above fails.
     outputs.setBaseSHA(data.sha);
-    validateAndSetChanges(data);
+    validateRequestChanges(data, changes);
     return outputs;
   }
 
@@ -723,7 +780,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     if (!entry.pull_request) {
       throw new Error("Creating a pull request isn't allowed for this entry");
     }
-    validateAndSetChanges(data);
+    validateRequestChanges(data, changes);
     return outputs;
   }
 

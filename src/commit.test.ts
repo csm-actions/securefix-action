@@ -13,6 +13,15 @@ describe("listFilesToCommit", () => {
       ),
     ).toEqual(["a.txt", "b.txt"]);
   });
+  it("excludes deleted files under a submodule", () => {
+    expect(
+      listFilesToCommit(
+        "vendor/x/a.txt\nvendor/x/b/c.txt\nvendor/x\nvendor/xy.txt",
+        [{ path: "vendor/x", sha }],
+        [],
+      ),
+    ).toEqual(["vendor/xy.txt"]);
+  });
   it("returns an empty list if only submodules and symlinks are changed", () => {
     expect(
       listFilesToCommit(
