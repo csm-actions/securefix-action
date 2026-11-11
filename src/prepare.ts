@@ -91,14 +91,25 @@ const hasControlCharacter = (s: string): boolean =>
  * name GIT~1 (NTFS), and ignorable Unicode code points (HFS+).
  */
 export const isGitDir = (component: string): boolean => {
-  const c = component
+  const c = foldComponent(component);
+  return c === ".git" || /^git~\d+$/.test(c);
+};
+
+/**
+ * Folds a path component as case-insensitive file systems may treat it:
+ * removes ignorable Unicode code points (HFS+), an NTFS alternate data
+ * stream (e.g. "::$INDEX_ALLOCATION"), and trailing dots and spaces (NTFS),
+ * and lowercases it.
+ */
+const foldComponent = (component: string): string =>
+  component
     .replace(/[\u200c-\u200f\u202a-\u202e\u206a-\u206f\ufeff]/g, "")
-    // NTFS alternate data streams, e.g. .git::$INDEX_ALLOCATION
     .replace(/:.*$/, "")
     .replace(/[. ]+$/, "")
     .toLowerCase();
-  return c === ".git" || /^git~\d+$/.test(c);
-};
+
+const foldPath = (p: string): string =>
+  p.split("/").map(foldComponent).join("/");
 
 // Paths and SHAs are validated by validateChanges, not by the schemas, so
 // that an invalid request is reported to the client as a comment.
@@ -118,7 +129,7 @@ const shaPattern = /^[0-9a-f]{40}([0-9a-f]{24})?$/i;
  */
 export const Symlink = z.object({
   path: z.string(),
-  target: z.string().min(1),
+  target: z.string(),
 });
 export type Symlink = z.infer<typeof Symlink>;
 export type Submodule = z.infer<typeof Submodule>;
@@ -136,8 +147,10 @@ export type Submodule = z.infer<typeof Submodule>;
  *   be checked by normalizing the path as text.
  * - The leading ".." must not go above the root of the repository.
  * - The resolved path must not contain .git.
- * - The resolved path must not go through a submodule or a symlink in the
- *   request (opaquePaths), because their contents aren't checked.
+ * - The resolved path must not point to or go through a submodule, or go
+ *   through a symlink, in the request, because their contents aren't
+ *   checked. Paths are compared case-insensitively (foldComponent).
+ * - A component must not be ambiguous on Windows, e.g. ".. " or "...".
  *
  * It assumes that the other components of the resolved path are
  * directories. A symlink already in the repository which points outside the
@@ -145,20 +158,34 @@ export type Submodule = z.infer<typeof Submodule>;
  */
 export const validateSymlinkTarget = (
   symlink: Symlink,
-  opaquePaths: Set<string> = new Set(),
+  submodulePaths: string[] = [],
+  symlinkPaths: string[] = [],
 ): void => {
   const { path: p, target } = symlink;
   const fail = (reason: string): never => {
     throw new Error(`the target of a symlink ${reason}: ${p} -> ${target}`);
   };
-  // "C:" and "C:/a" are absolute on Windows, while "a:b" is a relative path
-  if (target.startsWith("/") || /^[A-Za-z]:(\/|$)/.test(target)) {
+  if (target === "") {
+    fail("must not be empty");
+  }
+  // "C:", "C:/a", and the drive-relative "C:a" aren't in the repository on
+  // Windows
+  if (target.startsWith("/") || /^[A-Za-z]:/.test(target)) {
     fail("must not be an absolute path");
   }
   if (target.includes("\\") || hasControlCharacter(target)) {
     fail("must not contain backslashes or control characters");
   }
   const components = target.split("/").filter((c) => c !== "" && c !== ".");
+  // e.g. ".. " and "..." are ".." or "." on Windows, which strips trailing
+  // dots and spaces
+  if (
+    components.some(
+      (c) => c !== ".." && ["", ".", ".."].includes(foldComponent(c)),
+    )
+  ) {
+    fail("must not contain a component which is ambiguous on Windows");
+  }
   const ups = components.findIndex((c) => c !== "..");
   const leadingUps = ups === -1 ? components.length : ups;
   if (components.slice(leadingUps).includes("..")) {
@@ -175,9 +202,17 @@ export const validateSymlinkTarget = (
   if (resolved.some(hasGitDir)) {
     fail("must not be in .git");
   }
-  for (let i = 1; i < resolved.length; i++) {
-    if (opaquePaths.has(resolved.slice(0, i).join("/"))) {
-      fail("must not go through a submodule or a symlink");
+  // Compare folded paths for case-insensitive file systems
+  const submodules = new Set(submodulePaths.map(foldPath));
+  const symlinks = new Set(symlinkPaths.map(foldPath));
+  for (let i = 1; i <= resolved.length; i++) {
+    const prefix = foldPath(resolved.slice(0, i).join("/"));
+    if (submodules.has(prefix)) {
+      // Including the submodule itself, whose contents aren't checked
+      fail("must not point to or go through a submodule");
+    }
+    if (i < resolved.length && symlinks.has(prefix)) {
+      fail("must not go through a symlink");
     }
   }
 };
@@ -189,9 +224,8 @@ const hasGitDir = (p: string): boolean => p.split(/[\\/]/).some(isGitDir);
 /**
  * Validates the changed paths sent by the client, which isn't trusted.
  *
- * - A path must be a normalized relative path (isNormalizedPath), a path of
- *   a submodule or a symlink must not contain .git, and a submodule SHA must
- *   be a commit SHA.
+ * - A path must be a normalized relative path (isNormalizedPath) without
+ *   .git, and a submodule SHA must be a commit SHA.
  * - A path of a file, a submodule, or a symlink must not be passed twice.
  *   fixed_files includes all of them, and the commit action excludes the
  *   paths of submodules and symlinks from it, which must be exact.
@@ -218,6 +252,9 @@ export const validateChanges = (
       throw new Error(
         `a path of a file must be a normalized relative path in the repository: ${JSON.stringify(file)}`,
       );
+    }
+    if (hasGitDir(file)) {
+      throw new Error(`a path of a file must not contain .git: ${file}`);
     }
   }
   const seen = new Set(files);
@@ -253,12 +290,10 @@ export const validateChanges = (
       }
     }
   }
-  const opaquePaths = new Set([
-    ...submodules.map((submodule) => submodule.path),
-    ...symlinks.map((symlink) => symlink.path),
-  ]);
+  const submodulePaths = submodules.map((submodule) => submodule.path);
+  const symlinkPaths = symlinks.map((symlink) => symlink.path);
   for (const symlink of symlinks) {
-    validateSymlinkTarget(symlink, opaquePaths);
+    validateSymlinkTarget(symlink, submodulePaths, symlinkPaths);
   }
 };
 

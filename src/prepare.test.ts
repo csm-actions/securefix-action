@@ -382,7 +382,6 @@ describe("validateSymlinkTarget", () => {
     { path: "dir/link", target: "not-found" },
     { path: "a", target: "b/" },
     { path: "a", target: ".github/x" },
-    { path: "a", target: "a:b" },
   ])("allows $path -> $target", (symlink) => {
     expect(() => validateSymlinkTarget(symlink)).not.toThrow();
   });
@@ -390,6 +389,11 @@ describe("validateSymlinkTarget", () => {
     [{ path: "a", target: "/etc/passwd" }, "absolute"],
     [{ path: "a", target: "C:/Users/x" }, "absolute"],
     [{ path: "a", target: "c:" }, "absolute"],
+    [{ path: "a", target: "C:foo" }, "absolute"],
+    [{ path: "a", target: "a:b" }, "absolute"],
+    [{ path: "a", target: "" }, "empty"],
+    [{ path: "a/b/link", target: ".. /.. /etc/passwd" }, "ambiguous"],
+    [{ path: "a/link", target: "x/.../y" }, "ambiguous"],
     [{ path: "a", target: "..\\..\\x" }, "backslashes"],
     [{ path: "a", target: "b\nc" }, "control"],
     [{ path: "a", target: "../x" }, "outside"],
@@ -466,8 +470,11 @@ describe("validateChanges", () => {
     ).not.toThrow();
   });
   it.each([
-    [{ path: "x", target: "sub/up/secret" }, "through a submodule"],
-    [{ path: "x", target: "link/secret" }, "through a submodule or a symlink"],
+    [
+      { path: "x", target: "sub/up/secret" },
+      "point to or go through a submodule",
+    ],
+    [{ path: "x", target: "link/secret" }, "go through a symlink"],
   ])("rejects a target going through %o", (symlink, message) => {
     expect(() =>
       validateChanges(
@@ -478,16 +485,42 @@ describe("validateChanges", () => {
       ),
     ).toThrow(message);
   });
-  it("allows a target pointing to a submodule itself", () => {
+  it.each([
+    [{ path: "x", target: "sub" }, "point to or go through a submodule"],
+    [{ path: "x", target: "SUB/evil" }, "point to or go through a submodule"],
+    [{ path: "x", target: "sub./evil" }, "point to or go through a submodule"],
+    [{ path: "x", target: "LINK/secret" }, "go through a symlink"],
+  ])("rejects %o case-insensitively", (symlink, message) => {
     expect(() =>
       validateChanges(
         [],
         [{ path: "sub", sha }],
-        [{ path: "x", target: "sub" }],
+        [symlink, { path: "link", target: "dir" }],
+        true,
+      ),
+    ).toThrow(message);
+  });
+  it("allows a target pointing to a symlink itself", () => {
+    expect(() =>
+      validateChanges(
+        [],
+        [],
+        [
+          { path: "x", target: "link" },
+          { path: "link", target: "dir" },
+        ],
         true,
       ),
     ).not.toThrow();
   });
+  it.each([".GIT/config", "git~1/hooks/post-checkout", ".git\u200c/config"])(
+    "rejects a file path containing .git: %o",
+    (p) => {
+      expect(() => validateChanges([p], [], [], true)).toThrow(
+        "must not contain .git",
+      );
+    },
+  );
   it.each(["a\\.git\\x", "a\\GIT~1"])(
     "rejects a symlink path containing .git with backslashes: %o",
     (p) => {
