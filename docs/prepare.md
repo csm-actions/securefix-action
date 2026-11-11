@@ -97,8 +97,12 @@ If there is no entry matching with source repository and branch and destination 
 - `symlinks`: Symlinks to commit. It's a JSON string such as `[{"path": "dir/link.txt", "target": "../shared.txt"}]`. It's set only when symlinks are changed.
   Symlinks can't be sent as files in the artifact, so the client sends their targets in the metadata.
   They are committed as tree entries with mode `120000`, and they aren't created on disk. Their paths are also included in `fixed_files`.
-  The server rejects a symlink whose target isn't a relative path in the repository outside `.git`, so that a workflow reading the symlink can't be made to read a file outside the repository or credentials in `.git`. `..` can only be at the beginning of a target (e.g. `../a/b`, but not `a/../b`), because `..` after a symlink would be resolved from the symlink's target. A target must not point to or go through a submodule, or go through a symlink, in the request either (compared case-insensitively), and a component which is ambiguous on Windows (e.g. `.. `) and drive letters (e.g. `C:a`) are rejected.
-  The server assumes that the other components of a target are directories: a symlink already in the repository which points outside the repository, or a symlink in a submodule, can't be checked.
+  The server allows only safe symlink targets, so that a workflow reading the symlink can't be made to read a file outside the repository or credentials in `.git`. Instead of rejecting known unsafe targets, only the following form is allowed, because file systems interpret paths differently (e.g. Windows treats `C:a`, `.. `, and `GIT~1` specially, and macOS ignores some Unicode code points):
+  - Components are separated by `/`. Empty components and `.` aren't allowed.
+  - `..` can only be at the beginning (e.g. `../a/b`, but not `a/../b`), because `..` after a symlink would be resolved from the symlink's target, and it must not go above the repository root.
+  - Other components consist of alphanumerics, `.`, `_`, and `-`, and don't end with `.`. A symlink whose target has other characters, such as spaces or non-ASCII characters, can't be committed.
+  - The resolved path must not contain `.git` (case-insensitively), point to or go through a submodule, or go through a symlink, in the request (compared case-insensitively).
+    The server assumes that the other components of a target are directories: a symlink already in the repository which points outside the repository, or a symlink in a submodule, can't be checked.
 - `github_token`: A GitHub App installation access token to create a commit and a pull request
 - `metadata`: A request's metadata. It's a JSON string.
 

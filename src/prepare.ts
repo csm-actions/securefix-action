@@ -134,23 +134,34 @@ export const Symlink = z.object({
 export type Symlink = z.infer<typeof Symlink>;
 export type Submodule = z.infer<typeof Submodule>;
 
+// A component of a symlink target other than "..": alphanumerics, ".", "_",
+// and "-", not ending with "."
+const targetNamePattern = /^[A-Za-z0-9._-]*[A-Za-z0-9_-]$/;
+
 /**
  * Validates a symlink's target sent by the client, which isn't trusted, so
  * that a workflow which checks out the branch and reads the symlink can't be
  * made to read a file outside the repository (e.g. on the runner) or in .git
  * (e.g. the credentials in .git/config).
  *
- * - It must be a relative POSIX path: not "/a", "C:/a", or "a\\b".
+ * Only safe targets are allowed, instead of rejecting known unsafe ones,
+ * because file systems interpret paths differently (e.g. Windows treats
+ * "C:a", ".. ", and "GIT~1" specially, and macOS ignores some Unicode code
+ * points):
+ *
+ * - It consists of components separated by "/". Empty components and "."
+ *   aren't allowed.
  * - ".." can only be at the beginning, e.g. "../a/b", but not "a/../b".
  *   Otherwise ".." after a symlink in the path would be resolved from the
  *   symlink's target, e.g. "d/../x" where d -> "../..", so the target can't
- *   be checked by normalizing the path as text.
- * - The leading ".." must not go above the root of the repository.
- * - The resolved path must not contain .git.
+ *   be checked as text. The leading ".." must not go above the root of the
+ *   repository.
+ * - Other components consist of alphanumerics, ".", "_", and "-", and don't
+ *   end with ".".
+ * - The resolved path must not contain .git (case-insensitively).
  * - The resolved path must not point to or go through a submodule, or go
  *   through a symlink, in the request, because their contents aren't
- *   checked. Paths are compared case-insensitively (foldComponent).
- * - A component must not be ambiguous on Windows, e.g. ".. " or "...".
+ *   checked. Paths are compared case-insensitively.
  *
  * It assumes that the other components of the resolved path are
  * directories. A symlink already in the repository which points outside the
@@ -163,42 +174,32 @@ export const validateSymlinkTarget = (
 ): void => {
   const { path: p, target } = symlink;
   const fail = (reason: string): never => {
-    throw new Error(`the target of a symlink ${reason}: ${p} -> ${target}`);
+    throw new Error(
+      `the target of a symlink ${reason}: ${p} -> ${JSON.stringify(target)}`,
+    );
   };
-  if (target === "") {
-    fail("must not be empty");
-  }
-  // "C:", "C:/a", and the drive-relative "C:a" aren't in the repository on
-  // Windows
-  if (target.startsWith("/") || /^[A-Za-z]:/.test(target)) {
-    fail("must not be an absolute path");
-  }
-  if (target.includes("\\") || hasControlCharacter(target)) {
-    fail("must not contain backslashes or control characters");
-  }
-  const components = target.split("/").filter((c) => c !== "" && c !== ".");
-  // e.g. ".. " and "..." are ".." or "." on Windows, which strips trailing
-  // dots and spaces
-  if (
-    components.some(
-      (c) => c !== ".." && ["", ".", ".."].includes(foldComponent(c)),
-    )
-  ) {
-    fail("must not contain a component which is ambiguous on Windows");
-  }
+  const components = target.split("/");
   const ups = components.findIndex((c) => c !== "..");
   const leadingUps = ups === -1 ? components.length : ups;
-  if (components.slice(leadingUps).includes("..")) {
-    fail('must not contain ".." after a directory name');
+  const names = components.slice(leadingUps);
+  if (names.length === 0) {
+    fail('must not be only ".."');
+  }
+  for (const name of names) {
+    if (name === "..") {
+      fail('must not contain ".." after a directory name');
+    }
+    if (!targetNamePattern.test(name)) {
+      fail(
+        'must consist of leading ".." and names of alphanumerics, ".", "_", and "-" not ending with "."',
+      );
+    }
   }
   const dirs = p.split("/").slice(0, -1);
   if (leadingUps > dirs.length) {
     fail("must not be outside the repository");
   }
-  const resolved = [
-    ...dirs.slice(0, dirs.length - leadingUps),
-    ...components.slice(leadingUps),
-  ];
+  const resolved = [...dirs.slice(0, dirs.length - leadingUps), ...names];
   if (resolved.some(hasGitDir)) {
     fail("must not be in .git");
   }

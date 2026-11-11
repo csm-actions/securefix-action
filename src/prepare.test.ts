@@ -376,28 +376,44 @@ describe("isGitDir", () => {
 describe("validateSymlinkTarget", () => {
   it.each([
     { path: "a", target: "b" },
-    { path: "a", target: "./b" },
     { path: "dir/link", target: "../shared.txt" },
     { path: "a/b/link", target: "../../c/d" },
     { path: "dir/link", target: "not-found" },
-    { path: "a", target: "b/" },
     { path: "a", target: ".github/x" },
+    { path: "a", target: ".config" },
+    { path: "a", target: "A_b-c.d1" },
   ])("allows $path -> $target", (symlink) => {
     expect(() => validateSymlinkTarget(symlink)).not.toThrow();
   });
   it.each([
-    [{ path: "a", target: "/etc/passwd" }, "absolute"],
-    [{ path: "a", target: "C:/Users/x" }, "absolute"],
-    [{ path: "a", target: "c:" }, "absolute"],
-    [{ path: "a", target: "C:foo" }, "absolute"],
-    [{ path: "a", target: "a:b" }, "absolute"],
-    [{ path: "a", target: "" }, "empty"],
-    [{ path: "a/b/link", target: ".. /.. /etc/passwd" }, "ambiguous"],
-    [{ path: "a/link", target: "x/.../y" }, "ambiguous"],
-    [{ path: "a", target: "..\\..\\x" }, "backslashes"],
-    [{ path: "a", target: "b\nc" }, "control"],
+    // Not allowed characters or forms
+    "",
+    ".",
+    "./b",
+    "b/",
+    "a//b",
+    "/etc/passwd",
+    "C:/Users/x",
+    "c:",
+    "C:foo",
+    "a:b",
+    "..\\..\\x",
+    "b\nc",
+    "a b",
+    "日本語",
+    "x.",
+    "...",
+    ".. /.. /etc",
+    "GIT~1/config",
+    ".g\u200cit/config",
+  ])("rejects a target with characters or forms not allowed: %o", (target) => {
+    expect(() => validateSymlinkTarget({ path: "a/b/link", target })).toThrow(
+      "the target of a symlink",
+    );
+  });
+  it.each([
     [{ path: "a", target: "../x" }, "outside"],
-    [{ path: "a", target: ".." }, "outside"],
+    [{ path: "a", target: ".." }, 'only ".."'],
     [{ path: "dir/link", target: "../../x" }, "outside"],
     // ".." after d is resolved from d's target if d is a symlink
     [{ path: "x", target: "a/b/d/../secret.txt" }, '".." after'],
@@ -405,8 +421,6 @@ describe("validateSymlinkTarget", () => {
     [{ path: "docs/config", target: "../.git/config" }, ".git"],
     [{ path: "a", target: "sub/.GIT/config" }, ".git"],
     [{ path: "a", target: ".git" }, ".git"],
-    [{ path: "docs/cfg", target: "../GIT~1/config" }, ".git"],
-    [{ path: "docs/cfg", target: "../.git./config" }, ".git"],
   ])("rejects %o (%s)", (symlink, reason) => {
     expect(() => validateSymlinkTarget(symlink)).toThrow(reason);
   });
@@ -488,7 +502,7 @@ describe("validateChanges", () => {
   it.each([
     [{ path: "x", target: "sub" }, "point to or go through a submodule"],
     [{ path: "x", target: "SUB/evil" }, "point to or go through a submodule"],
-    [{ path: "x", target: "sub./evil" }, "point to or go through a submodule"],
+    [{ path: "x", target: "sub./evil" }, "the target of a symlink"],
     [{ path: "x", target: "LINK/secret" }, "go through a symlink"],
   ])("rejects %o case-insensitively", (symlink, message) => {
     expect(() =>
