@@ -91,7 +91,8 @@ If there is no entry matching with source repository and branch and destination 
 - `branch`: A branch where a commit is pushed
 - `client_repository`: A client repository's full name
 - `create_pull_request`: Parameters to create a pull request
-- `fixed_files`: Changed paths, separated with newlines: files (including deleted files), submodules, and symlinks. Custom validation can check every changed path with it
+- `fixed_files`: Changed paths, separated with newlines: files (including deleted files), submodules, and symlinks. Custom validation can check every changed path with it.
+  A symlink or a submodule replacing a directory deletes everything under the directory, while only the directory's path is listed, so match the directory's path itself too when restricting paths (e.g. `protected` as well as `protected/**`)
 - `submodules`: Submodules to update. It's a JSON string such as `[{"path": "foo", "sha": "..."}]`. It's set only when submodules are changed. Their paths are also included in `fixed_files`.
   The client can point a submodule to any commit, and its contents aren't checked by the server. Validate the SHAs in custom validation if needed, e.g. that the commit is in the submodule's repository
 - `symlinks`: Symlinks to commit. It's a JSON string such as `[{"path": "dir/link.txt", "target": "../shared.txt"}]`. It's set only when symlinks are changed.
@@ -103,7 +104,7 @@ If there is no entry matching with source repository and branch and destination 
   - Other components consist of alphanumerics, `.`, `_`, and `-`, don't end with `.`, and aren't Windows device names (e.g. `CON`, `nul.txt`). A symlink whose target has other characters, such as spaces or non-ASCII characters, can't be committed.
   - The resolved path must not contain `.git` (case-insensitively), point to or go through a submodule, or go through a symlink, in the request (compared case-insensitively).
 
-  A symlink must not be under another symlink or a submodule in the request, and must not be `.gitmodules`, `.gitattributes`, `.gitignore`, or `.mailmap`, which Git's fsck rejects as symlinks. Paths which differ only in case can't be passed together.
+  A symlink must not be under another symlink or a submodule in the request, and must not be `.gitmodules`, `.gitattributes`, `.gitignore`, or `.mailmap`, which Git's fsck rejects as symlinks. A symlink or a submodule can't be passed with another path which differs only in case.
   The server assumes that the other components of a target are directories: a symlink already in the repository which points outside the repository, or a symlink in a submodule, can't be checked.
 
 - `github_token`: A GitHub App installation access token to create a commit and a pull request

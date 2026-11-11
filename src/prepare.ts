@@ -101,6 +101,8 @@ export const isGitDir = (component: string): boolean => {
  */
 const foldComponent = (component: string): string =>
   component
+    // HFS+ and APFS treat NFC and NFD as the same name
+    .normalize("NFC")
     .replace(/[\u200c-\u200f\u202a-\u202e\u206a-\u206f\ufeff]/g, "")
     .replace(/:.*$/, "")
     .replace(/[. ]+$/, "")
@@ -190,7 +192,7 @@ export const validateSymlinkTarget = (
   const { path: p, target } = symlink;
   const fail = (reason: string): never => {
     throw new Error(
-      `the target of a symlink ${reason}: ${p} -> ${JSON.stringify(target)}`,
+      `the target of a symlink ${reason}: ${JSON.stringify(p)} -> ${JSON.stringify(target)}`,
     );
   };
   const components = target.split("/");
@@ -536,15 +538,15 @@ export const listFixedFiles = (
 
 /**
  * Splits newline-separated files such as _files.txt and fixed_files.
- * Lines are trimmed, and empty and duplicated lines are ignored.
+ * Empty and duplicated lines are ignored.
+ *
+ * Lines aren't trimmed: a file name can have leading or trailing spaces, and
+ * trimming it would make another file deleted, e.g. "config.yaml " would be
+ * committed as the deletion of "config.yaml". Such paths are rejected by
+ * isNormalizedPath instead.
  */
 export const splitFiles = (files: string): string[] => [
-  ...new Set(
-    files
-      .split("\n")
-      .map((file) => file.trim())
-      .filter((file) => file.length > 0),
-  ),
+  ...new Set(files.split("\n").filter((file) => file.length > 0)),
 ];
 
 export const validateRepository = async (data: Data): Promise<Output> => {

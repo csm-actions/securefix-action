@@ -474,14 +474,16 @@ describe("validateChanges", () => {
       );
     },
   );
-  it.each(["./a.txt", ".github/workflows/../workflows/x.yml", " a.txt"])(
-    "rejects a non-normalized file path: %o",
-    (p) => {
-      expect(() => validateChanges([p], [], [], true)).toThrow(
-        "normalized relative path",
-      );
-    },
-  );
+  it.each([
+    "./a.txt",
+    ".github/workflows/../workflows/x.yml",
+    " a.txt",
+    "config.yaml ",
+  ])("rejects a non-normalized file path: %o", (p) => {
+    expect(() => validateChanges([p], [], [], true)).toThrow(
+      "normalized relative path",
+    );
+  });
   it("allows an uppercase submodule SHA", () => {
     expect(() =>
       validateChanges(
@@ -593,6 +595,16 @@ describe("validateChanges", () => {
       );
     },
   );
+  it("compares NFC and NFD paths as the same", () => {
+    expect(() =>
+      validateChanges(
+        [],
+        [{ path: "caf\u00e9", sha }],
+        [{ path: "cafe\u0301/link", target: "x" }],
+        true,
+      ),
+    ).toThrow("must not be under another symlink or a submodule");
+  });
   it.each([".gitmodules", "a/.gitattributes", ".GITIGNORE", "GITMOD~1"])(
     "rejects a symlink at %s",
     (p) => {
@@ -669,8 +681,8 @@ describe("isGitSpecialFile", () => {
 });
 
 describe("splitFiles", () => {
-  it("trims lines and ignores empty and duplicated lines", () => {
-    expect(splitFiles(" a.txt\n\nb.txt\na.txt\n")).toEqual(["a.txt", "b.txt"]);
+  it("ignores empty and duplicated lines without trimming", () => {
+    expect(splitFiles("a.txt\n\nb.txt \na.txt\n")).toEqual(["a.txt", "b.txt "]);
   });
 });
 
