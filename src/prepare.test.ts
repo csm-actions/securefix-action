@@ -1,4 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type * as github from "@actions/github";
 import type { Entry } from "./config";
 import {
@@ -14,6 +17,7 @@ import {
   matchPushRepositories,
   parseLabelDescription,
   readRequest,
+  validateFileTypes,
   validateHeadSHA,
   validateRef,
 } from "./prepare";
@@ -709,5 +713,61 @@ describe("listChangedPaths", () => {
         [{ path: "link", target: "a.txt" }],
       ),
     ).toEqual(["a.txt", "b.txt", "sub", "link"]);
+  });
+});
+
+describe("validateFileTypes", () => {
+  let dir = "";
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "securefix-filetypes-test-"));
+    fs.writeFileSync(path.join(dir, "file.txt"), "");
+    fs.mkdirSync(path.join(dir, "dir"));
+    fs.writeFileSync(path.join(dir, "dir", ".git"), "gitdir: ./g\n");
+    fs.writeFileSync(path.join(dir, "dir", "a.txt"), "");
+    fs.symlinkSync("file.txt", path.join(dir, "link"));
+    fs.symlinkSync("dir", path.join(dir, "linkdir"));
+  });
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  it("allows regular files and deleted files in the directory", () => {
+    expect(() =>
+      validateFileTypes(
+        ["file.txt", "deleted.txt", "file.txt/x", "dir/a.txt"],
+        dir,
+      ),
+    ).not.toThrow();
+  });
+  it("reads files relative to the directory, not the current directory", () => {
+    // package.json exists in the current directory, but not in dir
+    expect(() => validateFileTypes(["package.json"], dir)).not.toThrow();
+    expect(() => validateFileTypes(["src"], dir)).not.toThrow();
+  });
+  it.each(["dir", "link"])("rejects %s, which isn't a regular file", (p) => {
+    expect(() => validateFileTypes([p], dir)).toThrow("must be a regular file");
+  });
+  it.each([
+    "/etc/passwd",
+    "../x",
+    "a/../../x",
+    "./file.txt",
+    "a//b",
+    "..",
+    "dir/",
+    "a\nb",
+  ])("rejects a path outside the directory or not normalized: %o", (p) => {
+    expect(() => validateFileTypes([p], dir)).toThrow(
+      "must be a normalized relative path",
+    );
+  });
+  it("rejects an empty artifact directory", () => {
+    expect(() => validateFileTypes(["file.txt"], "")).toThrow(
+      "the artifact directory is empty",
+    );
+  });
+  it("rejects a file under a symlinked directory", () => {
+    expect(() => validateFileTypes(["linkdir/x"], dir)).toThrow(
+      "parent directory of a fixed file must not be a symlink",
+    );
   });
 });

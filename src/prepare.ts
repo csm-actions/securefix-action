@@ -364,6 +364,9 @@ export const Outputs = z.object({
   submodules: z.string().optional(),
   symlinks: z.string().optional(),
   base_sha: z.string().optional(),
+  // The directory where the artifact is extracted, from which the commit
+  // action reads files
+  artifact_dir: z.string(),
 });
 export type Outputs = z.infer<typeof Outputs>;
 
@@ -382,6 +385,7 @@ class Output {
       custom: "",
       push_repository: "",
       workflow_run: "",
+      artifact_dir: "",
     };
   }
   setBranch(branch: string) {
@@ -464,6 +468,13 @@ class Output {
     }
     this.outputs.submodules = submodules;
   }
+  setArtifactDir(artifactDir: string) {
+    core.debug(`output artifact_dir=${artifactDir}`);
+    if (this.isOutput) {
+      core.setOutput("artifact_dir", artifactDir);
+    }
+    this.outputs.artifact_dir = artifactDir;
+  }
   setSymlinks(symlinks: string) {
     core.debug(`output symlinks=${symlinks}`);
     if (this.isOutput) {
@@ -545,7 +556,10 @@ type Changes = {
 const readChanges = (data: Data): Changes => {
   const { inputs, metadata } = data;
   const files = splitFiles(
-    fs.readFileSync(`${inputs.artifactName}_files.txt`, "utf8"),
+    fs.readFileSync(
+      path.join(data.artifactDir, `${inputs.artifactName}_files.txt`),
+      "utf8",
+    ),
   );
   const submodules = z
     .array(Submodule)
@@ -611,16 +625,86 @@ const validateRequestChanges = (data: Data, changes: Changes): void => {
   if (changes.error) {
     throw changes.error;
   }
-  // The commit action reads files relative to the current directory, where
-  // the artifact is extracted (GITHUB_WORKSPACE), and deletes a file which
-  // doesn't exist (deleteIfNotExist)
+  const artifactName = data.inputs.artifactName;
+  // The metadata files in the artifact aren't fixed files
+  for (const file of changes.files) {
+    if (
+      file === `${artifactName}_files.txt` ||
+      file === `${artifactName}.json`
+    ) {
+      throw new Error(
+        `a fixed file must not be a metadata file: ${JSON.stringify(file)}`,
+      );
+    }
+  }
+  validateFileTypes(changes.files, data.artifactDir);
+  // The commit action reads files from artifactDir, where the artifact is
+  // extracted, and deletes a file which doesn't exist (deleteIfNotExist)
   validateChanges(
     changes.files,
     changes.submodules,
     changes.symlinks,
     data.inputs.allowWorkflowFix,
-    (file) => !fs.existsSync(file),
+    (file) => !fs.existsSync(path.join(data.artifactDir, file)),
   );
+};
+
+/**
+ * Validates fixed files sent by the client, which isn't trusted, before they
+ * are read by commit-ts from artifactDir, where the artifact is extracted.
+ *
+ * - A path must be a normalized relative path, e.g. not "/a", "../a",
+ *   "a/../../b", or "./a". Otherwise a file outside artifactDir would be read.
+ * - A path must be a regular file or must not exist (a deleted file). A
+ *   directory or a symlink mustn't be passed to commit-ts, which reads files
+ *   from it (e.g. it reads a directory as a submodule).
+ * - No parent directory of a path can be a symlink, which would be followed.
+ *
+ * artifactDir is a new empty directory, so it has only files from the
+ * artifact, not files of the server workflow (e.g. its checkout).
+ *
+ * The checks assume POSIX paths, because the server supports only Linux
+ * runners.
+ */
+export const validateFileTypes = (
+  files: string[],
+  // The directory where the artifact is extracted
+  artifactDir: string,
+): void => {
+  if (!artifactDir) {
+    // Files would be read from the current directory (the workspace)
+    throw new Error("the artifact directory is empty");
+  }
+  for (const file of files) {
+    const q = JSON.stringify(file);
+    if (!isNormalizedPath(file)) {
+      throw new Error(`a fixed file must be a normalized relative path: ${q}`);
+    }
+    const components = file.split("/");
+    for (let i = 1; i <= components.length; i++) {
+      const p = components.slice(0, i).join("/");
+      let stats: fs.Stats;
+      try {
+        stats = fs.lstatSync(path.join(artifactDir, p));
+      } catch (error: unknown) {
+        const code = (error as NodeJS.ErrnoException)?.code;
+        if (code === "ENOENT" || code === "ENOTDIR") {
+          // The file is deleted
+          break;
+        }
+        throw error;
+      }
+      if (i < components.length) {
+        if (stats.isSymbolicLink()) {
+          throw new Error(
+            `a parent directory of a fixed file must not be a symlink: ${q}`,
+          );
+        }
+      } else if (!stats.isFile()) {
+        throw new Error(`a fixed file must be a regular file: ${q}`);
+      }
+    }
+  }
 };
 
 export const validateRepository = async (data: Data): Promise<Output> => {
@@ -1047,7 +1131,7 @@ export const downloadArtifact = async (
   token: string,
   workflowRun: WorkflowRun,
   artifactName: string,
-): Promise<void> => {
+): Promise<string> => {
   // Download a GitHub Actions Artifact
   const artifact = new DefaultArtifactClient();
   core.info(`Getting an artifact`);
@@ -1064,17 +1148,19 @@ export const downloadArtifact = async (
     artifactOpts,
   );
   if (!targetArtifact) {
-    core.setFailed(`Artifact '${artifactName}' not found`);
-    return;
+    throw new Error(`Artifact '${artifactName}' not found`);
   }
   // The artifact is downloaded as a zip file and extracted by unzip.extract()
   // instead of being extracted by `@actions/artifact`, which doesn't restore
   // file modes.
-  const workspace = process.env.GITHUB_WORKSPACE;
-  if (!workspace) {
-    throw new Error("Unable to get the GITHUB_WORKSPACE env variable");
-  }
+  // It's extracted into a new empty directory, not the workspace, so that
+  // files of the server workflow (e.g. its checkout) are never mixed with
+  // files from the client, which isn't trusted.
+  const artifactDir = fs.mkdtempSync(
+    path.join(process.env.RUNNER_TEMP || os.tmpdir(), "securefix-artifact-"),
+  );
   const downloadDir = fs.mkdtempSync(path.join(os.tmpdir(), "securefix-"));
+  let extracted = false;
   try {
     core.info(`Downloading an artifact`);
     await artifact.downloadArtifact(targetArtifact.id, {
@@ -1090,10 +1176,16 @@ export const downloadArtifact = async (
         `One downloaded artifact file is expected, but got ${files.length} files: ${files.join(", ")}`,
       );
     }
-    core.info(`Extracting the artifact into ${workspace}`);
-    await unzip.extract(path.join(downloadDir, files[0]), workspace);
+    core.info(`Extracting the artifact into ${artifactDir}`);
+    await unzip.extract(path.join(downloadDir, files[0]), artifactDir);
+    extracted = true;
+    return artifactDir;
   } finally {
     fs.rmSync(downloadDir, { recursive: true, force: true });
+    if (!extracted) {
+      // Don't leave files from the client, which isn't trusted
+      fs.rmSync(artifactDir, { recursive: true, force: true });
+    }
   }
 };
 
@@ -1108,6 +1200,8 @@ type Data = {
   runId: number;
   outputs: Output;
   metadata: Metadata;
+  /** The directory where the artifact is extracted */
+  artifactDir: string;
 };
 
 export const prepare = async (
@@ -1128,9 +1222,17 @@ export const prepare = async (
   core.saveState("token", token.token);
   core.saveState("expires_at", token.expiresAt);
   outputs.setGitHubToken(token.token);
-  await downloadArtifact(token.token, workflowRun, inputs.artifactName);
+  const artifactDir = await downloadArtifact(
+    token.token,
+    workflowRun,
+    inputs.artifactName,
+  );
 
-  const metadataS = fs.readFileSync(`${inputs.artifactName}.json`, "utf8");
+  outputs.setArtifactDir(artifactDir);
+  const metadataS = fs.readFileSync(
+    path.join(artifactDir, `${inputs.artifactName}.json`),
+    "utf8",
+  );
   const metadata = Metadata.parse(JSON.parse(metadataS));
   outputs.setMetadata(metadataS);
   outputs.setCustom(metadata.inputs.custom ?? {});
@@ -1159,6 +1261,7 @@ export const prepare = async (
       workflowName: wr.name ?? "",
       outputs,
       metadata,
+      artifactDir,
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : JSON.stringify(e);
@@ -1173,6 +1276,7 @@ export const prepare = async (
       workflowName: "",
       outputs,
       metadata,
+      artifactDir,
     };
   }
 };

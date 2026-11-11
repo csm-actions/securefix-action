@@ -298,6 +298,10 @@ outputs:
   workflow_run:
     description: |
       JSON serialized workflow run data.
+  artifact_dir:
+    description: |
+      The directory where the artifact from the client is extracted.
+      It's a new empty directory outside the workspace, and the commit action reads fixed files from it.
   base_sha:
     description: |
       The head commit of the client workflow run (head_sha).
