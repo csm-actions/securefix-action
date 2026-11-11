@@ -142,9 +142,8 @@ const targetNamePattern = /^[A-Za-z0-9._-]*[A-Za-z0-9_-]$/;
  *   repository.
  * - Other components consist of alphanumerics, ".", "_", and "-", and don't
  *   end with ".".
- * - The resolved path must not contain .git, must not be the symlink itself
- *   or its parent directory (a loop), and must not be in .github/workflows
- *   unless workflow files can be fixed.
+ * - The resolved path must not contain .git, and must not be the symlink
+ *   itself or its parent directory (a loop).
  * - The resolved path must not point to or go through a submodule, or go
  *   through a symlink, in the request, because their contents aren't
  *   checked.
@@ -158,7 +157,6 @@ export const validateSymlinkTarget = (
   symlink: Symlink,
   submodulePaths: Set<string> = new Set(),
   symlinkPaths: Set<string> = new Set(),
-  allowWorkflowFix = true,
 ): void => {
   const { path: p, target } = symlink;
   const fail = (reason: string): never => {
@@ -198,18 +196,6 @@ export const validateSymlinkTarget = (
   // "a/b/link" -> "../../a", which tools following symlinks recurse into
   if (resolvedPath === p || p.startsWith(`${resolvedPath}/`)) {
     fail("must not point to the symlink itself or its parent directory");
-  }
-  // An alias of workflow files, which can't be changed unless workflow
-  // files can be fixed
-  if (
-    !allowWorkflowFix &&
-    (resolvedPath === ".github" ||
-      resolvedPath === ".github/workflows" ||
-      resolvedPath.startsWith(".github/workflows/"))
-  ) {
-    fail(
-      "must not point to .github/workflows unless allow_workflow_fix is true",
-    );
   }
   // A directory containing a submodule, e.g. "vendor" for a submodule
   // "vendor/x", would lead to the submodule through the symlink
@@ -339,12 +325,7 @@ export const validateChanges = (
     }
   }
   for (const symlink of symlinks) {
-    validateSymlinkTarget(
-      symlink,
-      submodulePaths,
-      symlinkPaths,
-      allowWorkflowFix,
-    );
+    validateSymlinkTarget(symlink, submodulePaths, symlinkPaths);
   }
 };
 

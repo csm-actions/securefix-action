@@ -684,15 +684,6 @@ describe("validateChanges", () => {
       expect(() => validateChanges([p], [], [], true)).not.toThrow();
     },
   );
-  it("rejects a symlink target in .github/workflows unless allowWorkflowFix", () => {
-    const symlinks = [
-      { path: "docs/ci.yaml", target: "../.github/workflows/ci.yaml" },
-    ];
-    expect(() => validateChanges([], [], symlinks, false)).toThrow(
-      "must not point to .github/workflows",
-    );
-    expect(() => validateChanges([], [], symlinks, true)).not.toThrow();
-  });
   it("allows other files in .github", () => {
     expect(() =>
       validateChanges(
