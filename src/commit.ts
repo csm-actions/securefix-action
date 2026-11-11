@@ -9,6 +9,7 @@ import {
   Submodule,
   Symlink,
   validateFileTypes,
+  validateSymlinkTarget,
 } from "./prepare";
 
 const Metadata = z.object({
@@ -51,15 +52,14 @@ export const listFilesToCommit = (
     ...submodules.map((submodule) => submodule.path),
     ...symlinks.map((symlink) => symlink.path),
   ]);
-  // Files under a submodule are excluded too. prepare allows only deleted
-  // files there, which appear when a directory is replaced with the
-  // submodule. The submodule entry replaces the whole directory, and the
-  // Create a tree API fails if only some files in it are deleted along with
-  // it. commit-ts removes deletions under symlinks in the same way.
-  const submodulePaths = submodules.map((submodule) => `${submodule.path}/`);
+  // Files under a submodule or a symlink are excluded too. prepare allows
+  // only deleted files there, which appear when a directory is replaced with
+  // the submodule or the symlink. The entry replaces the whole directory, and
+  // the Create a tree API fails if only some files in it are deleted along
+  // with it.
+  const prefixes = [...excluded].map((p) => `${p}/`);
   return splitFiles(fixedFiles).filter(
-    (file) =>
-      !excluded.has(file) && !submodulePaths.some((p) => file.startsWith(p)),
+    (file) => !excluded.has(file) && !prefixes.some((p) => file.startsWith(p)),
   );
 };
 
@@ -79,6 +79,11 @@ export const create = async (inputs: Inputs) => {
   );
   // Validated in prepare too, but the commit action can be run separately
   validateFileTypes(fixedFiles, outputs.artifact_dir);
+  const submodulePaths = new Set(submodules.map((s) => s.path));
+  const symlinkPaths = new Set(symlinks.map((s) => s.path));
+  for (const symlink of symlinks) {
+    validateSymlinkTarget(symlink, submodulePaths, symlinkPaths);
+  }
   if (fixedFiles.length + submodules.length + symlinks.length === 0) {
     core.info("No files to commit");
     return;
