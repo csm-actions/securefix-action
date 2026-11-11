@@ -93,6 +93,8 @@ const hasControlCharacter = (s: string): boolean =>
 export const isGitDir = (component: string): boolean => {
   const c = component
     .replace(/[\u200c-\u200f\u202a-\u202e\u206a-\u206f\ufeff]/g, "")
+    // NTFS alternate data streams, e.g. .git::$INDEX_ALLOCATION
+    .replace(/:.*$/, "")
     .replace(/[. ]+$/, "")
     .toLowerCase();
   return c === ".git" || /^git~\d+$/.test(c);
@@ -105,7 +107,7 @@ export const Submodule = z.object({
   sha: z.string(),
 });
 
-const shaPattern = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
+const shaPattern = /^[0-9a-f]{40}([0-9a-f]{24})?$/i;
 
 /**
  * A symlink is sent in the metadata file instead of the artifact, because
@@ -134,8 +136,17 @@ export type Submodule = z.infer<typeof Submodule>;
  *   be checked by normalizing the path as text.
  * - The leading ".." must not go above the root of the repository.
  * - The resolved path must not contain .git.
+ * - The resolved path must not go through a submodule or a symlink in the
+ *   request (opaquePaths), because their contents aren't checked.
+ *
+ * It assumes that the other components of the resolved path are
+ * directories. A symlink already in the repository which points outside the
+ * repository, or a symlink in a submodule, can't be checked.
  */
-export const validateSymlinkTarget = (symlink: Symlink): void => {
+export const validateSymlinkTarget = (
+  symlink: Symlink,
+  opaquePaths: Set<string> = new Set(),
+): void => {
   const { path: p, target } = symlink;
   const fail = (reason: string): never => {
     throw new Error(`the target of a symlink ${reason}: ${p} -> ${target}`);
@@ -161,16 +172,26 @@ export const validateSymlinkTarget = (symlink: Symlink): void => {
     ...dirs.slice(0, dirs.length - leadingUps),
     ...components.slice(leadingUps),
   ];
-  if (resolved.some(isGitDir)) {
+  if (resolved.some(hasGitDir)) {
     fail("must not be in .git");
   }
+  for (let i = 1; i < resolved.length; i++) {
+    if (opaquePaths.has(resolved.slice(0, i).join("/"))) {
+      fail("must not go through a submodule or a symlink");
+    }
+  }
 };
+
+// hasGitDir returns true if a path contains .git, splitting it with "\\" too
+// for Windows.
+const hasGitDir = (p: string): boolean => p.split(/[\\/]/).some(isGitDir);
 
 /**
  * Validates the changed paths sent by the client, which isn't trusted.
  *
- * - A path of a submodule or a symlink must be a normalized relative path
- *   (isNormalizedPath) without .git, and a submodule SHA must be a commit SHA.
+ * - A path must be a normalized relative path (isNormalizedPath), a path of
+ *   a submodule or a symlink must not contain .git, and a submodule SHA must
+ *   be a commit SHA.
  * - A path of a file, a submodule, or a symlink must not be passed twice.
  *   fixed_files includes all of them, and the commit action excludes the
  *   paths of submodules and symlinks from it, which must be exact.
@@ -192,6 +213,13 @@ export const validateChanges = (
       );
     }
   }
+  for (const file of files) {
+    if (!isNormalizedPath(file)) {
+      throw new Error(
+        `a path of a file must be a normalized relative path in the repository: ${JSON.stringify(file)}`,
+      );
+    }
+  }
   const seen = new Set(files);
   for (const { path: p, kind } of [
     ...submodules.map((s) => ({ path: s.path, kind: "submodule" })),
@@ -208,7 +236,7 @@ export const validateChanges = (
       );
     }
     seen.add(p);
-    if (p.split("/").some(isGitDir)) {
+    if (hasGitDir(p)) {
       throw new Error(`a path of a ${kind} must not contain .git: ${p}`);
     }
   }
@@ -225,8 +253,12 @@ export const validateChanges = (
       }
     }
   }
+  const opaquePaths = new Set([
+    ...submodules.map((submodule) => submodule.path),
+    ...symlinks.map((symlink) => symlink.path),
+  ]);
   for (const symlink of symlinks) {
-    validateSymlinkTarget(symlink);
+    validateSymlinkTarget(symlink, opaquePaths);
   }
 };
 
@@ -411,12 +443,12 @@ const getTokenForDest = async (data: Data): Promise<string> => {
  * symlinks, which are output as fixed_files.
  */
 export const listFixedFiles = (
-  files: string,
+  files: string[],
   submodules: Submodule[],
   symlinks: Symlink[],
 ): string =>
   [
-    ...splitFiles(files),
+    ...files,
     ...submodules.map((submodule) => submodule.path),
     ...symlinks.map((symlink) => symlink.path),
   ].join("\n");
@@ -436,17 +468,12 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   const outputs = data.outputs;
   const metadata = data.metadata;
   // Read metadata
-  const files = fs
-    .readFileSync(`${inputs.artifactName}_files.txt`, "utf8")
-    .trim();
+  const files = splitFiles(
+    fs.readFileSync(`${inputs.artifactName}_files.txt`, "utf8"),
+  );
   const submodules = metadata.inputs.submodules ?? [];
   const symlinks = metadata.inputs.symlinks ?? [];
-  validateChanges(
-    splitFiles(files),
-    submodules,
-    symlinks,
-    inputs.allowWorkflowFix,
-  );
+  validateChanges(files, submodules, symlinks, inputs.allowWorkflowFix);
   // fixed_files includes the paths of submodules and symlinks too, so that
   // custom validation of fixed_files checks every changed path.
   // The commit action excludes them from the files to commit.

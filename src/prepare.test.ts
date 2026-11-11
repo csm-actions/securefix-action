@@ -360,6 +360,8 @@ describe("isGitDir", () => {
     "git~12",
     ".g\u200cit",
     "\ufeff.git",
+    ".git::$INDEX_ALLOCATION",
+    ".GIT:stream",
   ])("%s is .git", (c) => {
     expect(isGitDir(c)).toBe(true);
   });
@@ -445,6 +447,55 @@ describe("validateChanges", () => {
       );
     },
   );
+  it.each(["./a.txt", ".github/workflows/../workflows/x.yml", " a.txt"])(
+    "rejects a non-normalized file path: %o",
+    (p) => {
+      expect(() => validateChanges([p], [], [], true)).toThrow(
+        "normalized relative path",
+      );
+    },
+  );
+  it("allows an uppercase submodule SHA", () => {
+    expect(() =>
+      validateChanges(
+        [],
+        [{ path: "sub", sha: sha.toUpperCase().replace(/1/g, "A") }],
+        [],
+        true,
+      ),
+    ).not.toThrow();
+  });
+  it.each([
+    [{ path: "x", target: "sub/up/secret" }, "through a submodule"],
+    [{ path: "x", target: "link/secret" }, "through a submodule or a symlink"],
+  ])("rejects a target going through %o", (symlink, message) => {
+    expect(() =>
+      validateChanges(
+        [],
+        [{ path: "sub", sha }],
+        [symlink, { path: "link", target: "dir" }],
+        true,
+      ),
+    ).toThrow(message);
+  });
+  it("allows a target pointing to a submodule itself", () => {
+    expect(() =>
+      validateChanges(
+        [],
+        [{ path: "sub", sha }],
+        [{ path: "x", target: "sub" }],
+        true,
+      ),
+    ).not.toThrow();
+  });
+  it.each(["a\\.git\\x", "a\\GIT~1"])(
+    "rejects a symlink path containing .git with backslashes: %o",
+    (p) => {
+      expect(() =>
+        validateChanges([], [], [{ path: p, target: "x" }], true),
+      ).toThrow("must not contain .git");
+    },
+  );
   it("rejects an invalid submodule SHA", () => {
     expect(() =>
       validateChanges([], [{ path: "sub", sha: "main" }], [], true),
@@ -497,14 +548,14 @@ describe("listFixedFiles", () => {
   it("includes files, submodules, and symlinks", () => {
     expect(
       listFixedFiles(
-        "a.txt\nb.txt\n",
+        ["a.txt", "b.txt"],
         [{ path: "sub", sha: "1111111111111111111111111111111111111111" }],
         [{ path: "link", target: "a.txt" }],
       ),
     ).toBe("a.txt\nb.txt\nsub\nlink");
   });
   it("works with only symlinks", () => {
-    expect(listFixedFiles("", [], [{ path: "link", target: "a" }])).toBe(
+    expect(listFixedFiles([], [], [{ path: "link", target: "a" }])).toBe(
       "link",
     );
   });

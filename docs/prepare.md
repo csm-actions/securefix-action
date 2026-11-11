@@ -92,11 +92,13 @@ If there is no entry matching with source repository and branch and destination 
 - `client_repository`: A client repository's full name
 - `create_pull_request`: Parameters to create a pull request
 - `fixed_files`: Changed paths, separated with newlines: files (including deleted files), submodules, and symlinks. Custom validation can check every changed path with it
-- `submodules`: Submodules to update. It's a JSON string such as `[{"path": "foo", "sha": "..."}]`. It's set only when submodules are changed. Their paths are also included in `fixed_files`
+- `submodules`: Submodules to update. It's a JSON string such as `[{"path": "foo", "sha": "..."}]`. It's set only when submodules are changed. Their paths are also included in `fixed_files`.
+  The client can point a submodule to any commit, and its contents aren't checked by the server. Validate the SHAs in custom validation if needed, e.g. that the commit is in the submodule's repository
 - `symlinks`: Symlinks to commit. It's a JSON string such as `[{"path": "dir/link.txt", "target": "../shared.txt"}]`. It's set only when symlinks are changed.
   Symlinks can't be sent as files in the artifact, so the client sends their targets in the metadata.
   They are committed as tree entries with mode `120000`, and they aren't created on disk. Their paths are also included in `fixed_files`.
-  The server rejects a symlink whose target isn't a relative path in the repository outside `.git`, so that a workflow reading the symlink can't be made to read a file outside the repository or credentials in `.git`. `..` can only be at the beginning of a target (e.g. `../a/b`, but not `a/../b`), because `..` after a symlink would be resolved from the symlink's target.
+  The server rejects a symlink whose target isn't a relative path in the repository outside `.git`, so that a workflow reading the symlink can't be made to read a file outside the repository or credentials in `.git`. `..` can only be at the beginning of a target (e.g. `../a/b`, but not `a/../b`), because `..` after a symlink would be resolved from the symlink's target. A target must not go through a submodule or a symlink in the request either.
+  The server assumes that the other components of a target are directories: a symlink already in the repository which points outside the repository, or a symlink in a submodule, can't be checked.
 - `github_token`: A GitHub App installation access token to create a commit and a pull request
 - `metadata`: A request's metadata. It's a JSON string.
 
