@@ -43,8 +43,8 @@ export const listFilesToCommit = (
   submodules: Submodule[],
   symlinks: Symlink[],
 ): string[] => {
-  // The paths of submodules and symlinks are validated not to have
-  // whitespace around them and not to be passed with files in prepare, so
+  // Paths aren't trimmed in prepare or here, and the paths of submodules and
+  // symlinks are validated not to be passed with files in prepare, so
   // excluding them is exact.
   const excluded = new Set([
     ...submodules.map((submodule) => submodule.path),

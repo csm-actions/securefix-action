@@ -76,11 +76,11 @@ export const isNormalizedPath = (p: string): boolean =>
   !p.endsWith("/") &&
   !p.startsWith("../") &&
   path.posix.normalize(p) === p &&
-  // Leading or trailing whitespace and newlines break newline-separated
-  // lists like fixed_files. Other characters such as tabs are allowed,
-  // because Git and the Create a tree API allow them.
-  p.trim() === p &&
-  !/[\n\r\u0000]/.test(p);
+  // A newline breaks newline-separated lists like fixed_files. Other
+  // characters such as spaces, tabs, and carriage returns are allowed,
+  // because Git and the Create a tree API allow them, and paths aren't
+  // trimmed.
+  !/[\n\u0000]/.test(p);
 
 // The validation of paths and symlink targets assumes that the repository is
 // checked out on Linux, whose file systems are case-sensitive and don't
@@ -518,14 +518,14 @@ export const listChangedPaths = (
  * Splits newline-separated files such as _files.txt and fixed_files.
  * Empty and duplicated lines are ignored.
  *
- * Lines aren't trimmed: a file name can have leading or trailing spaces, and
- * trimming it would make another file deleted, e.g. "config.yaml " would be
- * committed as the deletion of "config.yaml". Such paths are rejected by
- * isNormalizedPath instead.
+ * Lines are split only with "\n", and they aren't trimmed: a file name can
+ * have leading or trailing spaces or a carriage return, and removing them
+ * would make another file deleted, e.g. "config.yaml " would be committed as
+ * the deletion of "config.yaml", which isn't in the artifact. The client
+ * writes _files.txt with "\n".
  */
 export const splitFiles = (files: string): string[] => [
-  // CRLF is accepted too
-  ...new Set(files.split(/\r?\n/).filter((file) => file.length > 0)),
+  ...new Set(files.split("\n").filter((file) => file.length > 0)),
 ];
 
 type Changes = {
