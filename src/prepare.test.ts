@@ -18,7 +18,9 @@ import {
   parseLabelDescription,
   readRequest,
   validateFileTypes,
+  validateHeadRepository,
   validateHeadSHA,
+  validateMetadataRepository,
   validateRef,
 } from "./prepare";
 
@@ -323,6 +325,58 @@ describe("validateHeadSHA", () => {
   it("rejects an empty commit", () => {
     expect(() => validateHeadSHA("main", "abc", "")).toThrowError(
       "but got (empty)",
+    );
+  });
+});
+
+describe("validateHeadRepository", () => {
+  it("accepts a workflow run in the same repository", () => {
+    expect(() =>
+      validateHeadRepository("example/client", "example/client"),
+    ).not.toThrow();
+  });
+
+  it("ignores the case", () => {
+    expect(() =>
+      validateHeadRepository("example/client", "Example/Client"),
+    ).not.toThrow();
+  });
+
+  it("rejects a workflow run for a pull request from a fork", () => {
+    expect(() =>
+      validateHeadRepository("example/client", "attacker/client"),
+    ).toThrowError(
+      "The head repository of the client workflow run must be example/client, but got attacker/client",
+    );
+  });
+
+  it("rejects an empty head repository", () => {
+    expect(() => validateHeadRepository("example/client", "")).toThrowError(
+      "but got (empty)",
+    );
+  });
+});
+
+describe("validateMetadataRepository", () => {
+  const workflowRun = { owner: "example", repo: "client" };
+
+  it("accepts the repository of the workflow run", () => {
+    expect(() =>
+      validateMetadataRepository(workflowRun, "example/client"),
+    ).not.toThrow();
+  });
+
+  it("ignores the case", () => {
+    expect(() =>
+      validateMetadataRepository(workflowRun, "Example/Client"),
+    ).not.toThrow();
+  });
+
+  it("rejects another repository", () => {
+    expect(() =>
+      validateMetadataRepository(workflowRun, "example/other"),
+    ).toThrowError(
+      "The repository in the metadata file must be example/client, but got example/other",
     );
   });
 });

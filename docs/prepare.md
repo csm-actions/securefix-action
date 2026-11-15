@@ -9,6 +9,9 @@
 1. Validate the request
 1. Output data for custom validation and creating a commit
 
+A request from a client workflow run for a pull request from a fork is rejected.
+The commit is pushed to the branch of the workflow run, which is a branch of the fork, so it would otherwise be pushed to a different branch with the same name in the base repository.
+
 ## Inputs
 
 ### Required Inputs

@@ -499,21 +499,17 @@ class Output {
 }
 
 const getTokenForDest = async (data: Data): Promise<string> => {
+  const { owner, repo } = data.workflowRun;
   if (
     !data.metadata.inputs.repository ||
-    data.metadata.context.payload.repository.full_name ===
-      data.metadata.inputs.repository
+    `${owner}/${repo}` === data.metadata.inputs.repository
   ) {
     return data.token;
   }
-  const token = await createToken(
-    data.inputs,
-    data.metadata.context.payload.repository.owner.login,
-    [
-      data.metadata.inputs.repository?.split("/")[1],
-      data.metadata.context.payload.repository.name,
-    ],
-  );
+  const token = await createToken(data.inputs, owner, [
+    data.metadata.inputs.repository?.split("/")[1],
+    repo,
+  ]);
   core.saveState("dest_token", token.token);
   core.saveState("dest_expires_at", token.expiresAt);
   return token.token;
@@ -724,9 +720,12 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   outputs.setGitHubToken(token);
   const octokit = github.getOctokit(token);
 
-  const clientRepo = metadata.context.payload.repository.full_name;
-  const clientOwner = metadata.context.payload.repository.owner.login;
-  const clientRepoName = metadata.context.payload.repository.name;
+  // The client repository is the repository of the client workflow run,
+  // where the artifact is downloaded from, not the one in the metadata file,
+  // which the client writes
+  const clientOwner = data.workflowRun.owner;
+  const clientRepoName = data.workflowRun.repo;
+  const clientRepo = `${clientOwner}/${clientRepoName}`;
 
   const destRepo = metadata.inputs.repository || clientRepo;
   outputs.setPushRepository(destRepo);
@@ -760,6 +759,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   if (!data.branch) {
     throw new Error("workflowRun.head_branch is not set");
   }
+  validateHeadRepository(clientRepo, data.headRepository);
 
   // Validate workflow name
   if (inputs.workflowName && data.workflowName !== inputs.workflowName) {
@@ -927,6 +927,49 @@ export const validateRef = (
   if (ref !== `refs/heads/${defaultBranch}`) {
     throw new Error(
       `The server workflow must run on the default branch ${defaultBranch}, but got ${ref}`,
+    );
+  }
+};
+
+/**
+ * Fails unless the head repository of the client workflow run is the
+ * repository of the workflow run, i.e. the workflow run isn't for a pull
+ * request from a fork.
+ *
+ * The commit is pushed to head_branch of the workflow run in its repository.
+ * For a pull request from a fork, head_branch is a branch of the fork, so the
+ * commit would be pushed to a different branch with the same name in the base
+ * repository, on top of head_sha, a commit of the fork. As the commit is a
+ * fast-forward of the branch if the fork's branch is created from it, a fork
+ * could push any commit to the branch, which no pull request would show.
+ */
+export const validateHeadRepository = (
+  repository: string,
+  headRepository: string,
+): void => {
+  if (
+    !headRepository ||
+    headRepository.toLowerCase() !== repository.toLowerCase()
+  ) {
+    throw new Error(
+      `The head repository of the client workflow run must be ${repository}, but got ${headRepository || "(empty)"}. A workflow run for a pull request from a fork isn't supported`,
+    );
+  }
+};
+
+/**
+ * Fails unless the repository in the metadata file, which the client writes,
+ * is the repository of the client workflow run, where the artifact is
+ * downloaded from.
+ */
+export const validateMetadataRepository = (
+  workflowRun: { owner: string; repo: string },
+  metadataRepository: string,
+): void => {
+  const repository = `${workflowRun.owner}/${workflowRun.repo}`;
+  if (metadataRepository.toLowerCase() !== repository.toLowerCase()) {
+    throw new Error(
+      `The repository in the metadata file must be ${repository}, but got ${metadataRepository}`,
     );
   }
 };
@@ -1203,6 +1246,8 @@ type Data = {
   sha: string;
   /** The branch where the workflow run was triggered */
   branch: string;
+  /** The full name of the repository of head_branch */
+  headRepository: string;
   workflowName: string;
   runId: number;
   outputs: Output;
@@ -1241,6 +1286,10 @@ export const prepare = async (
     "utf8",
   );
   const metadata = Metadata.parse(JSON.parse(metadataS));
+  validateMetadataRepository(
+    workflowRun,
+    metadata.context.payload.repository.full_name,
+  );
   outputs.setMetadata(metadataS);
   outputs.setCustom(metadata.inputs.custom ?? {});
 
@@ -1253,8 +1302,8 @@ export const prepare = async (
   try {
     const octokit = github.getOctokit(token.token);
     const { data: wr } = await octokit.rest.actions.getWorkflowRun({
-      owner: metadata.context.payload.repository.owner.login,
-      repo: metadata.context.payload.repository.name,
+      owner: workflowRun.owner,
+      repo: workflowRun.repo,
       run_id: workflowRun.runId,
     });
     outputs.setWorkflowRun(JSON.stringify(wr));
@@ -1265,6 +1314,7 @@ export const prepare = async (
       runId: workflowRun.runId,
       sha: wr.head_sha,
       branch: wr.head_branch ?? "",
+      headRepository: wr.head_repository?.full_name ?? "",
       workflowName: wr.name ?? "",
       outputs,
       metadata,
@@ -1280,6 +1330,7 @@ export const prepare = async (
       runId: workflowRun.runId,
       sha: "",
       branch: "",
+      headRepository: "",
       workflowName: "",
       outputs,
       metadata,
