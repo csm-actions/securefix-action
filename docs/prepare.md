@@ -9,6 +9,18 @@
 1. Validate the request
 1. Output data for custom validation and creating a commit
 
+## Pull requests from forks
+
+A request from a client workflow run of a `pull_request` event from a fork is rejected, regardless of the repository and branch where a commit is pushed.
+By default, a commit is pushed to the branch of the workflow run in its repository.
+For a pull request from a fork, the branch of the workflow run is a branch of the fork, so the commit would be pushed to a different branch with the same name in the base repository, without appearing in any pull request.
+
+Usually a pull request from a fork can't request the server at all, because secrets aren't passed to its workflows, so the client can't use the client GitHub App.
+But in a private repository, secrets are passed to them if "Send secrets to workflows from fork pull requests" is enabled, so the server rejects them.
+
+A workflow run of a `pull_request_target` event isn't rejected, because its workflow file and branch are of the base repository.
+Don't run code of a pull request from a fork in it, which could read secrets including the client GitHub App's.
+
 ## Inputs
 
 ### Required Inputs
