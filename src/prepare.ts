@@ -748,6 +748,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   if (!data.branch) {
     throw new Error("workflowRun.head_branch is not set");
   }
+  validateHeadRepository(data.repository, data.headRepository);
 
   // Validate workflow name
   if (inputs.workflowName && data.workflowName !== inputs.workflowName) {
@@ -915,6 +916,37 @@ export const validateRef = (
   if (ref !== `refs/heads/${defaultBranch}`) {
     throw new Error(
       `The server workflow must run on the default branch ${defaultBranch}, but got ${ref}`,
+    );
+  }
+};
+
+/**
+ * Fails unless the head repository of the client workflow run is the
+ * repository of the workflow run, i.e. the workflow run isn't for a
+ * pull_request event from a fork.
+ *
+ * Both are full names returned by the Get a workflow run API, so they are
+ * compared exactly.
+ *
+ * The commit is pushed to head_branch of the workflow run in its repository.
+ * For a pull request from a fork, head_branch is a branch of the fork, so the
+ * commit would be pushed to a different branch with the same name in the base
+ * repository, on top of head_sha, a commit of the fork. As the commit is a
+ * fast-forward of the branch if the fork's branch is created from it, a fork
+ * could push any commit to the branch, which no pull request would show.
+ */
+export const validateHeadRepository = (
+  repository: string,
+  headRepository: string,
+): void => {
+  if (!headRepository) {
+    // e.g. the head repository was deleted
+    throw new Error("workflowRun.head_repository is not set");
+  }
+  // An empty repository doesn't match either
+  if (headRepository !== repository) {
+    throw new Error(
+      `The head repository of the client workflow run must be ${repository}, but got ${headRepository}. A workflow run for a pull request from a fork isn't supported`,
     );
   }
 };
@@ -1204,6 +1236,8 @@ type Data = {
    * workflow run API, which is the client repository
    */
   repository: string;
+  /** The full name of the repository of head_branch */
+  headRepository: string;
   workflowName: string;
   runId: number;
   outputs: Output;
@@ -1267,6 +1301,7 @@ export const prepare = async (
       sha: wr.head_sha,
       branch: wr.head_branch ?? "",
       repository: wr.repository.full_name,
+      headRepository: wr.head_repository?.full_name ?? "",
       workflowName: wr.name ?? "",
       outputs,
       metadata,
@@ -1285,6 +1320,7 @@ export const prepare = async (
       // The request fails because the branch is empty, after the pull request
       // is fetched from this repository to post the error
       repository: `${workflowRun.owner}/${workflowRun.repo}`,
+      headRepository: "",
       workflowName: "",
       outputs,
       metadata,
