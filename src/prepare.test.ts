@@ -9,6 +9,7 @@ import {
   listChangedPaths,
   isGitDir,
   splitFiles,
+  splitRepository,
   validateChanges,
   validateSymlinkTarget,
   matchClientBranches,
@@ -325,6 +326,24 @@ describe("validateHeadSHA", () => {
       "but got (empty)",
     );
   });
+});
+
+describe("splitRepository", () => {
+  it("splits a full name", () => {
+    expect(splitRepository("example/client")).toEqual({
+      owner: "example",
+      repo: "client",
+    });
+  });
+
+  it.each(["", "example", "example/", "/client", "example/client/x"])(
+    "rejects %j",
+    (fullName) => {
+      expect(() => splitRepository(fullName)).toThrowError(
+        "Invalid repository full name",
+      );
+    },
+  );
 });
 
 describe("isNormalizedPath", () => {

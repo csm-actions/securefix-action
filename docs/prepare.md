@@ -111,6 +111,7 @@ If there is no entry matching with source repository and branch and destination 
 
 - `github_token`: A GitHub App installation access token to create a commit and a pull request
 - `metadata`: A request's metadata. It's a JSON string.
+  The client writes it, so don't trust it. For example, use `client_repository` instead of `context.payload.repository`, which the server doesn't read. The client repository is the repository of the client workflow run.
 
 ```json
 {

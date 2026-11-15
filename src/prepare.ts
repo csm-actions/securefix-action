@@ -25,10 +25,6 @@ type Inputs = {
   allowOrganizationProjectsWrite: boolean;
 };
 
-const User = z.object({
-  login: z.string(),
-});
-
 export const AutomergeMethod = z.enum(["", "merge", "squash", "rebase"]);
 export type AutomergeMethod = z.infer<typeof AutomergeMethod>;
 
@@ -51,12 +47,6 @@ export const PullRequest = z.object({
     })
     .nullish(),
   milestone_number: z.number().optional(),
-});
-
-const Repository = z.object({
-  name: z.string(),
-  full_name: z.string(),
-  owner: User,
 });
 
 const PayloadPullRequest = z.object({
@@ -341,9 +331,11 @@ const MetadataInputs = z.object({
   symlinks: z.unknown().optional(),
 });
 
+// The client also sends the repository (payload.repository), but it isn't
+// read. The client repository is the repository of the client workflow run,
+// returned by the Get a workflow run API.
 const Payload = z.object({
   pull_request: PayloadPullRequest.optional(),
-  repository: Repository,
 });
 
 const Context = z.object({
@@ -501,19 +493,15 @@ class Output {
 const getTokenForDest = async (data: Data): Promise<string> => {
   if (
     !data.metadata.inputs.repository ||
-    data.metadata.context.payload.repository.full_name ===
-      data.metadata.inputs.repository
+    data.repository === data.metadata.inputs.repository
   ) {
     return data.token;
   }
-  const token = await createToken(
-    data.inputs,
-    data.metadata.context.payload.repository.owner.login,
-    [
-      data.metadata.inputs.repository?.split("/")[1],
-      data.metadata.context.payload.repository.name,
-    ],
-  );
+  const { owner, repo } = splitRepository(data.repository);
+  const token = await createToken(data.inputs, owner, [
+    data.metadata.inputs.repository?.split("/")[1],
+    repo,
+  ]);
   core.saveState("dest_token", token.token);
   core.saveState("dest_expires_at", token.expiresAt);
   return token.token;
@@ -724,9 +712,9 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   outputs.setGitHubToken(token);
   const octokit = github.getOctokit(token);
 
-  const clientRepo = metadata.context.payload.repository.full_name;
-  const clientOwner = metadata.context.payload.repository.owner.login;
-  const clientRepoName = metadata.context.payload.repository.name;
+  const clientRepo = data.repository;
+  const { owner: clientOwner, repo: clientRepoName } =
+    splitRepository(clientRepo);
 
   const destRepo = metadata.inputs.repository || clientRepo;
   outputs.setPushRepository(destRepo);
@@ -1097,9 +1085,17 @@ export const parseLabelDescription = (
   };
 };
 
-type Repository = {
-  owner: string;
-  repo: string;
+/**
+ * Splits a repository full name into the owner and the repository name.
+ */
+export const splitRepository = (
+  fullName: string,
+): { owner: string; repo: string } => {
+  const elems = fullName.split("/");
+  if (elems.length !== 2 || !elems[0] || !elems[1]) {
+    throw new Error(`Invalid repository full name: ${fullName}`);
+  }
+  return { owner: elems[0], repo: elems[1] };
 };
 
 const createToken = async (
@@ -1203,6 +1199,11 @@ type Data = {
   sha: string;
   /** The branch where the workflow run was triggered */
   branch: string;
+  /**
+   * The full name of the repository of the workflow run, returned by the Get a
+   * workflow run API, which is the client repository
+   */
+  repository: string;
   workflowName: string;
   runId: number;
   outputs: Output;
@@ -1246,15 +1247,15 @@ export const prepare = async (
 
   if (metadata.context.payload.pull_request?.number) {
     core.notice(
-      `client pr: ${github.context.serverUrl}/${metadata.context.payload.repository.owner.login}/${metadata.context.payload.repository.name}/pull/${metadata.context.payload.pull_request.number}`,
+      `client pr: ${github.context.serverUrl}/${workflowRun.owner}/${workflowRun.repo}/pull/${metadata.context.payload.pull_request.number}`,
     );
   }
 
   try {
     const octokit = github.getOctokit(token.token);
     const { data: wr } = await octokit.rest.actions.getWorkflowRun({
-      owner: metadata.context.payload.repository.owner.login,
-      repo: metadata.context.payload.repository.name,
+      owner: workflowRun.owner,
+      repo: workflowRun.repo,
       run_id: workflowRun.runId,
     });
     outputs.setWorkflowRun(JSON.stringify(wr));
@@ -1265,6 +1266,7 @@ export const prepare = async (
       runId: workflowRun.runId,
       sha: wr.head_sha,
       branch: wr.head_branch ?? "",
+      repository: wr.repository.full_name,
       workflowName: wr.name ?? "",
       outputs,
       metadata,
@@ -1280,6 +1282,9 @@ export const prepare = async (
       runId: workflowRun.runId,
       sha: "",
       branch: "",
+      // The request fails because the branch is empty, after the pull request
+      // is fetched from this repository to post the error
+      repository: `${workflowRun.owner}/${workflowRun.repo}`,
       workflowName: "",
       outputs,
       metadata,
