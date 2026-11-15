@@ -967,14 +967,30 @@ export const validateHeadRepository = (
  * client repository as the one of the workflow run: custom validation would
  * check it, e.g. its labels or author, and errors would be posted to it.
  */
+export type AssociatedPullRequest = {
+  number: number;
+  base: { repo: { id: number } };
+  head: { repo: { id: number } };
+};
+
 export const resolvePullRequestNumber = (
   claimed: number | undefined,
-  associated: number[],
+  repositoryId: number,
+  associated: AssociatedPullRequest[],
 ): number => {
-  if (!claimed || !associated.includes(claimed)) {
+  if (!claimed) {
     return 0;
   }
-  return claimed;
+  // pull_requests can include pull requests in other repositories of the fork
+  // network whose head is a branch of the client repository. Their numbers
+  // mean other pull requests in the client repository, so ignore them.
+  const found = associated.some(
+    (pr) =>
+      pr.number === claimed &&
+      pr.base.repo.id === repositoryId &&
+      pr.head.repo.id === repositoryId,
+  );
+  return found ? claimed : 0;
 };
 
 /**
@@ -1339,9 +1355,18 @@ export const prepare = async (
       run_id: workflowRun.runId,
     });
     outputs.setWorkflowRun(JSON.stringify(wr));
+    const claimedPullRequestNumber =
+      metadata.context.payload.pull_request?.number;
+    if (claimedPullRequestNumber) {
+      // Not validated yet. Logged to diagnose a rejected request
+      core.info(
+        `pull request number in the metadata file: ${claimedPullRequestNumber}`,
+      );
+    }
     const pullRequestNumber = resolvePullRequestNumber(
-      metadata.context.payload.pull_request?.number,
-      wr.pull_requests?.map((pr) => pr.number) ?? [],
+      claimedPullRequestNumber,
+      wr.repository.id,
+      wr.pull_requests ?? [],
     );
     if (pullRequestNumber) {
       core.notice(

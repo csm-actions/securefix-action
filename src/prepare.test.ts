@@ -372,20 +372,34 @@ describe("validateHeadRepository", () => {
 });
 
 describe("resolvePullRequestNumber", () => {
+  const pr = (number: number, baseRepoId = 10, headRepoId = 10) => ({
+    number,
+    base: { repo: { id: baseRepoId } },
+    head: { repo: { id: headRepoId } },
+  });
+
   it("returns a number associated with the workflow run", () => {
-    expect(resolvePullRequestNumber(2, [1, 2])).toBe(2);
+    expect(resolvePullRequestNumber(2, 10, [pr(1), pr(2)])).toBe(2);
   });
 
   it("returns 0 for a number not associated with the workflow run", () => {
-    expect(resolvePullRequestNumber(3, [1, 2])).toBe(0);
+    expect(resolvePullRequestNumber(3, 10, [pr(1), pr(2)])).toBe(0);
   });
 
   it("returns 0 if no pull request is associated with the workflow run", () => {
-    expect(resolvePullRequestNumber(1, [])).toBe(0);
+    expect(resolvePullRequestNumber(1, 10, [])).toBe(0);
   });
 
   it("returns 0 if the metadata file has no pull request", () => {
-    expect(resolvePullRequestNumber(undefined, [1])).toBe(0);
+    expect(resolvePullRequestNumber(undefined, 10, [pr(1)])).toBe(0);
+  });
+
+  it("returns 0 for a pull request whose base is another repository", () => {
+    expect(resolvePullRequestNumber(2, 10, [pr(2, 20, 10)])).toBe(0);
+  });
+
+  it("returns 0 for a pull request whose head is another repository", () => {
+    expect(resolvePullRequestNumber(2, 10, [pr(2, 10, 20)])).toBe(0);
   });
 });
 
