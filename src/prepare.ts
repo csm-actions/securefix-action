@@ -735,10 +735,6 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     outputs.setCreatePullRequest(JSON.stringify(metadata.inputs.pull_request));
   }
 
-  if (data.pullRequest) {
-    outputs.setPullRequest(JSON.stringify(data.pullRequest));
-  }
-
   if (!data.branch) {
     throw new Error("workflowRun.head_branch is not set");
   }
@@ -945,7 +941,7 @@ export const validateHeadRepository = (
   }
 };
 
-type Octokit = ReturnType<typeof github.getOctokit>;
+export type Octokit = ReturnType<typeof github.getOctokit>;
 type PullRequest = Awaited<ReturnType<Octokit["rest"]["pulls"]["get"]>>["data"];
 
 /** The fields of a pull request which are compared */
@@ -999,7 +995,7 @@ export const isPullRequestOfWorkflowRun = (
  * a pull_request_target event can't be validated, because the head of the
  * workflow run is the base branch.
  */
-const getPullRequestOfWorkflowRun = async (
+export const getPullRequestOfWorkflowRun = async (
   octokit: Octokit,
   wr: WorkflowRunHead & {
     repository: { name: string; owner: { login: string } };
@@ -1098,7 +1094,7 @@ type WorkflowRun = {
 const defaultBranchCache = new Map<string, string>();
 
 const getDefaultBranch = async (
-  octokit: ReturnType<typeof github.getOctokit>,
+  octokit: Octokit,
   owner: string,
   repo: string,
 ): Promise<string> => {
@@ -1122,7 +1118,7 @@ export const matchClientRepositories = (
 };
 
 export const matchClientBranches = async (
-  octokit: ReturnType<typeof github.getOctokit>,
+  octokit: Octokit,
   entry: Entry,
   clientOwner: string,
   clientRepoName: string,
@@ -1424,9 +1420,10 @@ export const prepare = async (
     ? await getPullRequestOfWorkflowRun(octokit, wr, claimedPullRequestNumber)
     : undefined;
   if (pullRequest) {
-    core.notice(
-      `client pr: ${github.context.serverUrl}/${workflowRun.owner}/${workflowRun.repo}/pull/${pullRequest.number}`,
-    );
+    core.notice(`client pr: ${pullRequest.html_url}`);
+    // Output it here rather than in validateRepository, so that the notify
+    // action can post an error of a later step to it
+    outputs.setPullRequest(JSON.stringify(pullRequest));
   }
   return {
     inputs,

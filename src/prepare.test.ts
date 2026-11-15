@@ -2,7 +2,6 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type * as github from "@actions/github";
 import type { Entry } from "./config";
 import {
   isNormalizedPath,
@@ -19,13 +18,13 @@ import {
   parseLabelDescription,
   readRequest,
   isPullRequestOfWorkflowRun,
+  getPullRequestOfWorkflowRun,
+  type Octokit,
   validateFileTypes,
   validateHeadRepository,
   validateHeadSHA,
   validateRef,
 } from "./prepare";
-
-type Octokit = ReturnType<typeof github.getOctokit>;
 
 // newOctokit returns a stub which only supports `octokit.rest.repos.get`.
 const newOctokit = (defaultBranch: string) => {
@@ -435,6 +434,62 @@ describe("isPullRequestOfWorkflowRun", () => {
     expect(
       isPullRequestOfWorkflowRun(pr(10, 10, ""), { ...wr, head_branch: null }),
     ).toBe(false);
+  });
+});
+
+describe("getPullRequestOfWorkflowRun", () => {
+  const wr = {
+    repository: { id: 10, name: "repo", owner: { login: "owner" } },
+    head_repository: { id: 10 },
+    head_branch: "feature",
+  };
+  const newPullsOctokit = (get: () => Promise<unknown>) => {
+    const fn = vi.fn(get);
+    return {
+      get: fn,
+      octokit: { rest: { pulls: { get: fn } } } as unknown as Octokit,
+    };
+  };
+  const pr = (ref: string) => ({
+    number: 1,
+    state: "open",
+    base: { repo: { id: 10 } },
+    head: { ref, repo: { id: 10 } },
+  });
+
+  it("returns the pull request of the workflow run", async () => {
+    const { get, octokit } = newPullsOctokit(async () => ({
+      data: pr("feature"),
+    }));
+    expect(await getPullRequestOfWorkflowRun(octokit, wr, 1)).toEqual(
+      pr("feature"),
+    );
+    expect(get).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      pull_number: 1,
+    });
+  });
+
+  it("ignores a pull request which isn't of the workflow run", async () => {
+    const { octokit } = newPullsOctokit(async () => ({ data: pr("other") }));
+    expect(await getPullRequestOfWorkflowRun(octokit, wr, 1)).toBeUndefined();
+  });
+
+  it("ignores a pull request which isn't found", async () => {
+    const { octokit } = newPullsOctokit(async () => {
+      throw Object.assign(new Error("Not Found"), { status: 404 });
+    });
+    expect(await getPullRequestOfWorkflowRun(octokit, wr, 1)).toBeUndefined();
+  });
+
+  it("fails on other errors", async () => {
+    const { octokit } = newPullsOctokit(async () => {
+      throw Object.assign(new Error("Bad Gateway"), { status: 502 });
+    });
+    await expect(getPullRequestOfWorkflowRun(octokit, wr, 1)).rejects.toThrow(
+      "Bad Gateway",
+    );
   });
 });
 

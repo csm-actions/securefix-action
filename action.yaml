@@ -292,6 +292,8 @@ outputs:
   pull_request:
     description: |
       JSON serialized pull request data of the client's pull request.
+      It's set only if the pull request in the metadata is open and its head is the head of the client workflow run.
+      e.g. it isn't set for a pull_request_target event.
   new_pull_request:
     description: |
       JSON serialized pull request data of the newly created pull request.
