@@ -40,9 +40,12 @@ export const action = async () => {
       throw e;
     }
     await notify.notify({
-      owner: data.workflowRun.owner,
-      repo: data.workflowRun.repo,
-      pr_number: data.metadata.context.payload.pull_request?.number ?? 0,
+      // The repository where the pull request was validated, whose name is
+      // canonical, rather than the one in the label or the inputs
+      owner: data.pullRequest?.base.repo.owner.login ?? "",
+      repo: data.pullRequest?.base.repo.name ?? "",
+      // Not the number in the metadata file, which the client writes
+      pr_number: data.pullRequest?.number ?? 0,
       githubToken: data.token,
       sha: data.sha,
       comment: [notify.readComment(), "\n## Error", notify.codeBlock(msg)].join(
