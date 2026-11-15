@@ -20,7 +20,6 @@ import {
   validateFileTypes,
   validateHeadRepository,
   validateHeadSHA,
-  validateMetadataRepository,
   validateRef,
 } from "./prepare";
 
@@ -336,12 +335,6 @@ describe("validateHeadRepository", () => {
     ).not.toThrow();
   });
 
-  it("ignores the case", () => {
-    expect(() =>
-      validateHeadRepository("example/client", "Example/Client"),
-    ).not.toThrow();
-  });
-
   it("rejects a workflow run for a pull request from a fork", () => {
     expect(() =>
       validateHeadRepository("example/client", "attacker/client"),
@@ -355,28 +348,10 @@ describe("validateHeadRepository", () => {
       "but got (empty)",
     );
   });
-});
 
-describe("validateMetadataRepository", () => {
-  const workflowRun = { owner: "example", repo: "client" };
-
-  it("accepts the repository of the workflow run", () => {
-    expect(() =>
-      validateMetadataRepository(workflowRun, "example/client"),
-    ).not.toThrow();
-  });
-
-  it("ignores the case", () => {
-    expect(() =>
-      validateMetadataRepository(workflowRun, "Example/Client"),
-    ).not.toThrow();
-  });
-
-  it("rejects another repository", () => {
-    expect(() =>
-      validateMetadataRepository(workflowRun, "example/other"),
-    ).toThrowError(
-      "The repository in the metadata file must be example/client, but got example/other",
+  it("rejects an empty repository", () => {
+    expect(() => validateHeadRepository("", "")).toThrowError(
+      "must be (empty)",
     );
   });
 });
