@@ -948,36 +948,42 @@ export const validateHeadRepository = (
 type Octokit = ReturnType<typeof github.getOctokit>;
 type PullRequest = Awaited<ReturnType<Octokit["rest"]["pulls"]["get"]>>["data"];
 
-/** The fields of a pull request and a workflow run which are compared */
+/** The fields of a pull request which are compared */
 export type PullRequestHead = {
+  state: string;
   base: { repo: { id: number } };
   head: { ref: string; repo: { id: number } | null };
 };
 
+/** The fields of a workflow run (Get a workflow run API) which are compared */
 export type WorkflowRunHead = {
-  repositoryId: number;
-  headRepositoryId: number | undefined;
-  headBranch: string | null;
+  repository: { id: number };
+  head_repository?: { id: number } | null;
+  head_branch: string | null;
 };
 
 /**
- * Returns true if the head of the pull request is the head of the workflow run,
- * i.e. the pull request is in the repository of the workflow run and its head
- * is the repository and the branch of the workflow run.
+ * Returns true if the pull request is open and its head is the head of the
+ * workflow run, i.e. the pull request is in the repository of the workflow run
+ * and its head is the repository and the branch of the workflow run.
  *
+ * A closed pull request doesn't match, because its branch name can be reused
+ * by another branch.
  * It doesn't compare the head commit, so a pull request whose head has moved
- * since the workflow run matches. A pull request from a fork matches a
+ * since the workflow run matches. Anyone who can push to the head branch can
+ * change the pull request anyway. A pull request from a fork matches a
  * workflow run of it, which is rejected later.
  */
 export const isPullRequestOfWorkflowRun = (
   pr: PullRequestHead,
   wr: WorkflowRunHead,
 ): boolean =>
-  pr.base.repo.id === wr.repositoryId &&
-  wr.headRepositoryId !== undefined &&
-  pr.head.repo?.id === wr.headRepositoryId &&
-  !!wr.headBranch &&
-  pr.head.ref === wr.headBranch;
+  pr.state === "open" &&
+  pr.base.repo.id === wr.repository.id &&
+  !!wr.head_repository &&
+  pr.head.repo?.id === wr.head_repository.id &&
+  !!wr.head_branch &&
+  pr.head.ref === wr.head_branch;
 
 /**
  * Gets the pull request of the number in the metadata file, and returns it if
@@ -995,10 +1001,8 @@ export const isPullRequestOfWorkflowRun = (
  */
 const getPullRequestOfWorkflowRun = async (
   octokit: Octokit,
-  wr: {
-    repository: { id: number; name: string; owner: { login: string } };
-    head_repository?: { id: number } | null;
-    head_branch: string | null;
+  wr: WorkflowRunHead & {
+    repository: { name: string; owner: { login: string } };
   },
   claimed: number,
 ): Promise<PullRequest | undefined> => {
@@ -1011,21 +1015,24 @@ const getPullRequestOfWorkflowRun = async (
     });
     pr = data;
   } catch (e) {
-    const msg = e instanceof Error ? e.message : JSON.stringify(e);
-    core.warning(
-      `The pull request #${claimed} in the metadata file is ignored, as getting it failed: ${msg}`,
-    );
-    return undefined;
+    if (
+      typeof e === "object" &&
+      e !== null &&
+      "status" in e &&
+      e.status === 404
+    ) {
+      core.warning(
+        `The pull request #${claimed} in the metadata file is ignored, as it isn't found`,
+      );
+      return undefined;
+    }
+    // e.g. a transient error. Fail rather than process the request as one
+    // without a pull request
+    throw e;
   }
-  if (
-    !isPullRequestOfWorkflowRun(pr, {
-      repositoryId: wr.repository.id,
-      headRepositoryId: wr.head_repository?.id,
-      headBranch: wr.head_branch,
-    })
-  ) {
+  if (!isPullRequestOfWorkflowRun(pr, wr)) {
     core.warning(
-      `The pull request #${claimed} in the metadata file is ignored, as its head isn't the head of the client workflow run`,
+      `The pull request #${claimed} in the metadata file is ignored, as it isn't open or its head isn't the head of the client workflow run`,
     );
     return undefined;
   }
@@ -1324,14 +1331,11 @@ type Data = {
   headRepository: string;
   /**
    * The pull request of the client workflow run, i.e. the one of the number in
-   * the metadata file if its head is the head of the workflow run.
+   * the metadata file if it's open and its head is the head of the workflow
+   * run. Use this instead of the number in the metadata file, which the client
+   * writes.
    */
   pullRequest?: PullRequest;
-  /**
-   * The number of pullRequest, or 0. Use this instead of the number in the
-   * metadata file, which the client writes.
-   */
-  pullRequestNumber: number;
   workflowName: string;
   runId: number;
   outputs: Output;
@@ -1382,40 +1386,16 @@ export const prepare = async (
   }
 
   const octokit = github.getOctokit(token.token);
+  let wr: Awaited<
+    ReturnType<Octokit["rest"]["actions"]["getWorkflowRun"]>
+  >["data"];
   try {
-    const { data: wr } = await octokit.rest.actions.getWorkflowRun({
+    const { data } = await octokit.rest.actions.getWorkflowRun({
       owner: workflowRun.owner,
       repo: workflowRun.repo,
       run_id: workflowRun.runId,
     });
-    outputs.setWorkflowRun(JSON.stringify(wr));
-    const pullRequest = claimedPullRequestNumber
-      ? await getPullRequestOfWorkflowRun(octokit, wr, claimedPullRequestNumber)
-      : undefined;
-    const pullRequestNumber = pullRequest?.number ?? 0;
-    if (pullRequestNumber) {
-      core.notice(
-        `client pr: ${github.context.serverUrl}/${workflowRun.owner}/${workflowRun.repo}/pull/${pullRequestNumber}`,
-      );
-    }
-    // Output the canonical full name, which config matching uses too
-    outputs.setClientRepository(wr.repository.full_name);
-    return {
-      inputs,
-      workflowRun,
-      token: token.token,
-      runId: workflowRun.runId,
-      sha: wr.head_sha,
-      branch: wr.head_branch ?? "",
-      repository: wr.repository.full_name,
-      headRepository: wr.head_repository?.full_name ?? "",
-      pullRequest,
-      pullRequestNumber,
-      workflowName: wr.name ?? "",
-      outputs,
-      metadata,
-      artifactDir,
-    };
+    wr = data;
   } catch (e) {
     const msg = e instanceof Error ? e.message : JSON.stringify(e);
     core.error(`Failed to get the workflow run: ${msg}`);
@@ -1429,14 +1409,40 @@ export const prepare = async (
       // The request fails because the branch is empty
       repository: `${workflowRun.owner}/${workflowRun.repo}`,
       headRepository: "",
-      // The pull request number in the metadata file can't be validated
-      pullRequestNumber: 0,
+      // The pull request in the metadata file can't be validated
+      pullRequest: undefined,
       workflowName: "",
       outputs,
       metadata,
       artifactDir,
     };
   }
+  outputs.setWorkflowRun(JSON.stringify(wr));
+  // Output the canonical full name, which config matching uses too
+  outputs.setClientRepository(wr.repository.full_name);
+  const pullRequest = claimedPullRequestNumber
+    ? await getPullRequestOfWorkflowRun(octokit, wr, claimedPullRequestNumber)
+    : undefined;
+  if (pullRequest) {
+    core.notice(
+      `client pr: ${github.context.serverUrl}/${workflowRun.owner}/${workflowRun.repo}/pull/${pullRequest.number}`,
+    );
+  }
+  return {
+    inputs,
+    workflowRun,
+    token: token.token,
+    runId: workflowRun.runId,
+    sha: wr.head_sha,
+    branch: wr.head_branch ?? "",
+    repository: wr.repository.full_name,
+    headRepository: wr.head_repository?.full_name ?? "",
+    pullRequest,
+    workflowName: wr.name ?? "",
+    outputs,
+    metadata,
+    artifactDir,
+  };
 };
 
 export const main = async (

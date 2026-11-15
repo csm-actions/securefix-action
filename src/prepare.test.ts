@@ -371,14 +371,20 @@ describe("validateHeadRepository", () => {
 });
 
 describe("isPullRequestOfWorkflowRun", () => {
-  const pr = (baseRepoId: number, headRepoId: number | null, ref: string) => ({
+  const pr = (
+    baseRepoId: number,
+    headRepoId: number | null,
+    ref: string,
+    state = "open",
+  ) => ({
+    state,
     base: { repo: { id: baseRepoId } },
     head: { ref, repo: headRepoId === null ? null : { id: headRepoId } },
   });
   const wr = {
-    repositoryId: 10,
-    headRepositoryId: 10,
-    headBranch: "feature",
+    repository: { id: 10 },
+    head_repository: { id: 10 },
+    head_branch: "feature",
   };
 
   it("returns true for the pull request of the workflow run", () => {
@@ -389,9 +395,15 @@ describe("isPullRequestOfWorkflowRun", () => {
     expect(
       isPullRequestOfWorkflowRun(pr(10, 20, "feature"), {
         ...wr,
-        headRepositoryId: 20,
+        head_repository: { id: 20 },
       }),
     ).toBe(true);
+  });
+
+  it("returns false for a closed pull request", () => {
+    expect(
+      isPullRequestOfWorkflowRun(pr(10, 10, "feature", "closed"), wr),
+    ).toBe(false);
   });
 
   it("returns false for a pull request of another branch", () => {
@@ -414,14 +426,14 @@ describe("isPullRequestOfWorkflowRun", () => {
     expect(
       isPullRequestOfWorkflowRun(pr(10, 10, "feature"), {
         ...wr,
-        headRepositoryId: undefined,
+        head_repository: null,
       }),
     ).toBe(false);
   });
 
   it("returns false if the workflow run has no head branch", () => {
     expect(
-      isPullRequestOfWorkflowRun(pr(10, 10, ""), { ...wr, headBranch: null }),
+      isPullRequestOfWorkflowRun(pr(10, 10, ""), { ...wr, head_branch: null }),
     ).toBe(false);
   });
 });

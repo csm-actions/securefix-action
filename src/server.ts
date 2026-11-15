@@ -43,7 +43,7 @@ export const action = async () => {
       owner: data.workflowRun.owner,
       repo: data.workflowRun.repo,
       // Not the number in the metadata file, which the client writes
-      pr_number: data.pullRequestNumber,
+      pr_number: data.pullRequest?.number ?? 0,
       githubToken: data.token,
       sha: data.sha,
       comment: [notify.readComment(), "\n## Error", notify.codeBlock(msg)].join(

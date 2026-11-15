@@ -123,7 +123,7 @@ If there is no entry matching with source repository and branch and destination 
 
 - `github_token`: A GitHub App installation access token to create a commit and a pull request
 - `metadata`: A request's metadata. It's a JSON string.
-  The client writes it, so don't trust it. For example, use `client_repository` instead of `context.payload.repository`, which the server doesn't read. The client repository is the repository of the client workflow run.
+  The client writes it, so don't trust it. For example, use `client_repository` instead of `context.payload.repository`, which the server doesn't read, and the `pull_request` output instead of `context.payload.pull_request`. The client repository is the repository of the client workflow run.
 
 ```json
 {
@@ -139,7 +139,8 @@ If there is no entry matching with source repository and branch and destination 
 `context` is a [github-script](https://github.com/actions/github-script)'s context object.
 
 - `pull_request`: [A pull request payload](https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request) triggering a client workflow run
-  The client sends the pull request number in the metadata. It's set only if the head of the pull request is the head of the client workflow run, i.e. the pull request is in the client repository and its head repository and branch are `head_repository` and `head_branch` of the workflow run, so custom validation can rely on it. Otherwise it isn't set, and the request is processed as one without a pull request. e.g. it isn't set for a `pull_request_target` event, because the head of the workflow run is the base branch
+  The client sends the pull request number in the metadata. It's set only if the pull request is open and its head is the head of the client workflow run, i.e. the pull request is in the client repository and its head repository and branch are `head_repository` and `head_branch` of the workflow run, so custom validation can rely on it. Otherwise it isn't set, and the request is processed as one without a pull request. e.g. it isn't set for a `pull_request_target` event, because the head of the workflow run is the base branch.
+  As the client can omit the pull request, a condition that rejects a request by its pull request (e.g. "reject if the pull request has a label") can be bypassed. Write a condition that allows a request by its pull request instead, and reject a request without a pull request if needed
 - `push_repository`: A repository full name where a commit is pushed
 - `workflow_run`: [A client Workflow Run Payload](https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#get-a-workflow-run)
 - `base_sha` (v0.6.6): The head commit of the client workflow run (`head_sha`). This is set only when the commit is pushed to the same repository and branch as the client workflow run. The commit action creates the commit on top of it, so the push fails if the branch has been updated since the client workflow run
