@@ -1232,8 +1232,11 @@ type Data = {
   /** The branch where the workflow run was triggered */
   branch: string;
   /**
-   * The full name of the repository of the workflow run, returned by the Get a
-   * workflow run API, which is the client repository
+   * The full name of the repository of the workflow run, which is the client
+   * repository. It's returned by the Get a workflow run API, so its letter
+   * case is canonical. If getting the workflow run fails, it's the repository
+   * from the label or the workflow_dispatch inputs instead, and the request
+   * fails because branch is empty.
    */
   repository: string;
   /** The full name of the repository of head_branch */
@@ -1293,6 +1296,8 @@ export const prepare = async (
       run_id: workflowRun.runId,
     });
     outputs.setWorkflowRun(JSON.stringify(wr));
+    // Output the canonical full name, which config matching uses too
+    outputs.setClientRepository(wr.repository.full_name);
     return {
       inputs,
       workflowRun,

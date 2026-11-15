@@ -101,7 +101,7 @@ If there is no entry matching with source repository and branch and destination 
 ## Outputs
 
 - `branch`: A branch where a commit is pushed
-- `client_repository`: A client repository's full name
+- `client_repository`: A client repository's full name. It's the repository of the client workflow run, as returned by the GitHub API, which config matching uses too
 - `create_pull_request`: Parameters to create a pull request
 - `artifact_dir`: The directory where the artifact from the client is extracted. It's a new empty directory outside the workspace, so files of the server workflow (e.g. its checkout) aren't mixed with files from the client. The commit action reads fixed files from it
 - `fixed_files`: Changed paths, separated with newlines: files (including deleted files), submodules, and symlinks. Custom validation can check every changed path with it.
