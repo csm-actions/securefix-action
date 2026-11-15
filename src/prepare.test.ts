@@ -375,12 +375,15 @@ describe("isPullRequestOfWorkflowRun", () => {
     headRepoId: number | null,
     ref: string,
     state = "open",
+    createdAt = "2026-01-01T00:00:00Z",
   ) => ({
     state,
+    created_at: createdAt,
     base: { repo: { id: baseRepoId } },
     head: { ref, repo: headRepoId === null ? null : { id: headRepoId } },
   });
   const wr = {
+    created_at: "2026-01-02T00:00:00Z",
     repository: { id: 10 },
     head_repository: { id: 10 },
     head_branch: "feature",
@@ -402,6 +405,24 @@ describe("isPullRequestOfWorkflowRun", () => {
   it("returns false for a closed pull request", () => {
     expect(
       isPullRequestOfWorkflowRun(pr(10, 10, "feature", "closed"), wr),
+    ).toBe(false);
+  });
+
+  it("returns true for a pull request created at the same time as the workflow run", () => {
+    expect(
+      isPullRequestOfWorkflowRun(
+        pr(10, 10, "feature", "open", "2026-01-02T00:00:00Z"),
+        wr,
+      ),
+    ).toBe(true);
+  });
+
+  it("returns false for a pull request created after the workflow run", () => {
+    expect(
+      isPullRequestOfWorkflowRun(
+        pr(10, 10, "feature", "open", "2026-01-03T00:00:00Z"),
+        wr,
+      ),
     ).toBe(false);
   });
 
@@ -439,6 +460,7 @@ describe("isPullRequestOfWorkflowRun", () => {
 
 describe("getPullRequestOfWorkflowRun", () => {
   const wr = {
+    created_at: "2026-01-02T00:00:00Z",
     repository: { id: 10, name: "repo", owner: { login: "owner" } },
     head_repository: { id: 10 },
     head_branch: "feature",
@@ -453,6 +475,7 @@ describe("getPullRequestOfWorkflowRun", () => {
   const pr = (ref: string) => ({
     number: 1,
     state: "open",
+    created_at: "2026-01-01T00:00:00Z",
     base: { repo: { id: 10 } },
     head: { ref, repo: { id: 10 } },
   });

@@ -942,17 +942,22 @@ export const validateHeadRepository = (
 };
 
 export type Octokit = ReturnType<typeof github.getOctokit>;
-type PullRequest = Awaited<ReturnType<Octokit["rest"]["pulls"]["get"]>>["data"];
+/** A pull request returned by the Get a pull request API */
+type ApiPullRequest = Awaited<
+  ReturnType<Octokit["rest"]["pulls"]["get"]>
+>["data"];
 
 /** The fields of a pull request which are compared */
 export type PullRequestHead = {
   state: string;
+  created_at: string;
   base: { repo: { id: number } };
   head: { ref: string; repo: { id: number } | null };
 };
 
 /** The fields of a workflow run (Get a workflow run API) which are compared */
 export type WorkflowRunHead = {
+  created_at: string;
   repository: { id: number };
   head_repository?: { id: number } | null;
   head_branch: string | null;
@@ -964,7 +969,11 @@ export type WorkflowRunHead = {
  * and its head is the repository and the branch of the workflow run.
  *
  * A closed pull request doesn't match, because its branch name can be reused
- * by another branch.
+ * by another branch. A pull request created after the workflow run doesn't
+ * match either, so that a workflow run of a deleted branch can't claim a pull
+ * request of a new branch with the same name. A legitimate client sends a
+ * pull request number only from an event of a pull request, which occurs
+ * after the pull request is created.
  * It doesn't compare the head commit, so a pull request whose head has moved
  * since the workflow run matches. Anyone who can push to the head branch can
  * change the pull request anyway. A pull request from a fork matches a
@@ -975,6 +984,7 @@ export const isPullRequestOfWorkflowRun = (
   wr: WorkflowRunHead,
 ): boolean =>
   pr.state === "open" &&
+  new Date(pr.created_at) <= new Date(wr.created_at) &&
   pr.base.repo.id === wr.repository.id &&
   !!wr.head_repository &&
   pr.head.repo?.id === wr.head_repository.id &&
@@ -1001,8 +1011,8 @@ export const getPullRequestOfWorkflowRun = async (
     repository: { name: string; owner: { login: string } };
   },
   claimed: number,
-): Promise<PullRequest | undefined> => {
-  let pr: PullRequest;
+): Promise<ApiPullRequest | undefined> => {
+  let pr: ApiPullRequest;
   try {
     const { data } = await octokit.rest.pulls.get({
       owner: wr.repository.owner.login,
@@ -1331,7 +1341,7 @@ type Data = {
    * run. Use this instead of the number in the metadata file, which the client
    * writes.
    */
-  pullRequest?: PullRequest;
+  pullRequest?: ApiPullRequest;
   workflowName: string;
   runId: number;
   outputs: Output;
