@@ -13,7 +13,7 @@
 
 The server action supports only Linux runners. The validation of paths in requests assumes Linux file systems.
 
-A request from a client workflow run for a pull request from a fork is rejected. [See also `prepare`](prepare.md#pull-requests-from-forks).
+A request from a client workflow run of a `pull_request` event from a fork is rejected. [See also `prepare`](prepare.md#pull-requests-from-forks).
 
 ## Inputs
 

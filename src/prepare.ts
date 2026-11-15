@@ -760,10 +760,6 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   if (!data.branch) {
     throw new Error("workflowRun.head_branch is not set");
   }
-  if (!data.headRepository) {
-    // e.g. the head repository was deleted
-    throw new Error("workflowRun.head_repository is not set");
-  }
   validateHeadRepository(data.repository, data.headRepository);
 
   // Validate workflow name
@@ -938,8 +934,8 @@ export const validateRef = (
 
 /**
  * Fails unless the head repository of the client workflow run is the
- * repository of the workflow run, i.e. the workflow run isn't for a pull
- * request from a fork.
+ * repository of the workflow run, i.e. the workflow run isn't for a
+ * pull_request event from a fork.
  *
  * Both are full names returned by the Get a workflow run API, so they are
  * compared exactly.
@@ -955,9 +951,14 @@ export const validateHeadRepository = (
   repository: string,
   headRepository: string,
 ): void => {
-  if (!repository || headRepository !== repository) {
+  if (!headRepository) {
+    // e.g. the head repository was deleted
+    throw new Error("workflowRun.head_repository is not set");
+  }
+  // An empty repository doesn't match either
+  if (headRepository !== repository) {
     throw new Error(
-      `The head repository of the client workflow run must be ${repository || "(empty)"}, but got ${headRepository || "(empty)"}. A workflow run for a pull request from a fork isn't supported`,
+      `The head repository of the client workflow run must be ${repository}, but got ${headRepository}. A workflow run for a pull request from a fork isn't supported`,
     );
   }
 };

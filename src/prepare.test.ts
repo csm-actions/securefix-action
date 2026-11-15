@@ -343,15 +343,15 @@ describe("validateHeadRepository", () => {
     );
   });
 
-  it("rejects an empty head repository", () => {
+  it("rejects a workflow run without a head repository", () => {
     expect(() => validateHeadRepository("example/client", "")).toThrowError(
-      "but got (empty)",
+      "workflowRun.head_repository is not set",
     );
   });
 
   it("rejects an empty repository", () => {
-    expect(() => validateHeadRepository("", "")).toThrowError(
-      "must be (empty)",
+    expect(() => validateHeadRepository("", "example/client")).toThrowError(
+      "must be , but got example/client",
     );
   });
 });
