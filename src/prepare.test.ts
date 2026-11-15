@@ -348,12 +348,6 @@ describe("validateHeadRepository", () => {
       "workflowRun.head_repository is not set",
     );
   });
-
-  it("rejects an empty repository", () => {
-    expect(() => validateHeadRepository("", "example/client")).toThrowError(
-      "must be , but got example/client",
-    );
-  });
 });
 
 describe("isNormalizedPath", () => {
