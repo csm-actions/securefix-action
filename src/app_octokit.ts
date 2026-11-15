@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import { createAppAuth } from "@octokit/auth-app";
-import { Octokit } from "@octokit/rest";
+import { Octokit as RestOctokit } from "@octokit/rest";
+import { retryPlugins } from "./octokit";
 import { credentials } from "@suzuki-shunsuke/actions-aws-oidc";
 import {
   createJwt,
@@ -41,6 +42,14 @@ const newCredentials = (
   core.info(`assuming an AWS IAM role with the GitHub OIDC token: ${roleArn}`);
   return credentials({ roleArn, region });
 };
+
+/**
+ * Octokit which retries GET and HEAD requests on transient errors, e.g.
+ * getting the installation of a repository. Creating an installation access
+ * token is a POST, so it isn't retried.
+ */
+const Octokit = RestOctokit.plugin(...retryPlugins);
+type Octokit = InstanceType<typeof Octokit>;
 
 /**
  * Builds an Octokit client authenticated as the GitHub App.

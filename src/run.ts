@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import * as githubAppToken from "@suzuki-shunsuke/github-app-token";
 import * as github from "@actions/github";
+import { getOctokit } from "./octokit";
 import * as client from "./client";
 import * as prepare from "./prepare";
 import * as notify from "./notify";
@@ -21,7 +22,7 @@ const revoke = async (token: string, expiresAt: string) => {
 };
 
 const deleteLabel = async (token: string, labelName: string) => {
-  const octokit = github.getOctokit(token);
+  const octokit = getOctokit(token);
   const param = {
     owner: github.context.repo.owner,
     repo: github.context.repo.repo,
