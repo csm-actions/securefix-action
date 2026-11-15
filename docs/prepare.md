@@ -9,8 +9,11 @@
 1. Validate the request
 1. Output data for custom validation and creating a commit
 
-A request from a client workflow run for a pull request from a fork is rejected.
-The commit is pushed to the branch of the workflow run, which is a branch of the fork, so it would otherwise be pushed to a different branch with the same name in the base repository.
+## Pull requests from forks
+
+A request from a client workflow run for a pull request from a fork is rejected, regardless of the repository and branch where a commit is pushed.
+By default, a commit is pushed to the branch of the workflow run in its repository.
+For a pull request from a fork, the branch of the workflow run is a branch of the fork, so the commit would be pushed to a different branch with the same name in the base repository, without appearing in any pull request.
 
 ## Inputs
 

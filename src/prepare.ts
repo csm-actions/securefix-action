@@ -951,7 +951,7 @@ export const validateHeadRepository = (
   repository: string,
   headRepository: string,
 ): void => {
-  if (!repository || !headRepository || headRepository !== repository) {
+  if (!repository || headRepository !== repository) {
     throw new Error(
       `The head repository of the client workflow run must be ${repository || "(empty)"}, but got ${headRepository || "(empty)"}. A workflow run for a pull request from a fork isn't supported`,
     );
