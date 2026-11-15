@@ -18,7 +18,7 @@ import {
   matchPushRepositories,
   parseLabelDescription,
   readRequest,
-  resolvePullRequestNumber,
+  isPullRequestOfWorkflowRun,
   validateFileTypes,
   validateHeadRepository,
   validateHeadSHA,
@@ -370,35 +370,59 @@ describe("validateHeadRepository", () => {
   });
 });
 
-describe("resolvePullRequestNumber", () => {
-  const pr = (number: number, baseRepoId = 10, headRepoId = 10) => ({
-    number,
+describe("isPullRequestOfWorkflowRun", () => {
+  const pr = (baseRepoId: number, headRepoId: number | null, ref: string) => ({
     base: { repo: { id: baseRepoId } },
-    head: { repo: { id: headRepoId } },
+    head: { ref, repo: headRepoId === null ? null : { id: headRepoId } },
+  });
+  const wr = {
+    repositoryId: 10,
+    headRepositoryId: 10,
+    headBranch: "feature",
+  };
+
+  it("returns true for the pull request of the workflow run", () => {
+    expect(isPullRequestOfWorkflowRun(pr(10, 10, "feature"), wr)).toBe(true);
   });
 
-  it("returns a number associated with the workflow run", () => {
-    expect(resolvePullRequestNumber(2, 10, [pr(1), pr(2)])).toBe(2);
+  it("returns true for a pull request from a fork of a workflow run of it", () => {
+    expect(
+      isPullRequestOfWorkflowRun(pr(10, 20, "feature"), {
+        ...wr,
+        headRepositoryId: 20,
+      }),
+    ).toBe(true);
   });
 
-  it("returns 0 for a number not associated with the workflow run", () => {
-    expect(resolvePullRequestNumber(3, 10, [pr(1), pr(2)])).toBe(0);
+  it("returns false for a pull request of another branch", () => {
+    expect(isPullRequestOfWorkflowRun(pr(10, 10, "other"), wr)).toBe(false);
   });
 
-  it("returns 0 if no pull request is associated with the workflow run", () => {
-    expect(resolvePullRequestNumber(1, 10, [])).toBe(0);
+  it("returns false for a pull request whose head is another repository", () => {
+    expect(isPullRequestOfWorkflowRun(pr(10, 20, "feature"), wr)).toBe(false);
   });
 
-  it("returns 0 if the metadata file has no pull request", () => {
-    expect(resolvePullRequestNumber(undefined, 10, [pr(1)])).toBe(0);
+  it("returns false for a pull request whose head repository is deleted", () => {
+    expect(isPullRequestOfWorkflowRun(pr(10, null, "feature"), wr)).toBe(false);
   });
 
-  it("returns 0 for a pull request whose base is another repository", () => {
-    expect(resolvePullRequestNumber(2, 10, [pr(2, 20, 10)])).toBe(0);
+  it("returns false for a pull request in another repository", () => {
+    expect(isPullRequestOfWorkflowRun(pr(20, 10, "feature"), wr)).toBe(false);
   });
 
-  it("returns 0 for a pull request whose head is another repository", () => {
-    expect(resolvePullRequestNumber(2, 10, [pr(2, 10, 20)])).toBe(0);
+  it("returns false if the workflow run has no head repository", () => {
+    expect(
+      isPullRequestOfWorkflowRun(pr(10, 10, "feature"), {
+        ...wr,
+        headRepositoryId: undefined,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false if the workflow run has no head branch", () => {
+    expect(
+      isPullRequestOfWorkflowRun(pr(10, 10, ""), { ...wr, headBranch: null }),
+    ).toBe(false);
   });
 });
 
