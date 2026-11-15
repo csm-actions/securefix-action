@@ -42,7 +42,8 @@ export const action = async () => {
     await notify.notify({
       owner: data.workflowRun.owner,
       repo: data.workflowRun.repo,
-      pr_number: data.metadata.context.payload.pull_request?.number ?? 0,
+      // Not the number in the metadata file, which the client writes
+      pr_number: data.pullRequestNumber,
       githubToken: data.token,
       sha: data.sha,
       comment: [notify.readComment(), "\n## Error", notify.codeBlock(msg)].join(

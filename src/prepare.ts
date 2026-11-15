@@ -736,11 +736,11 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   }
 
   // Get a pull request
-  if (metadata.context.payload.pull_request) {
+  if (data.pullRequestNumber) {
     const { data: pullRequest } = await octokit.rest.pulls.get({
       owner: clientOwner,
       repo: clientRepoName,
-      pull_number: metadata.context.payload.pull_request.number,
+      pull_number: data.pullRequestNumber,
     });
     outputs.setPullRequest(JSON.stringify(pullRequest));
   }
@@ -749,6 +749,12 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     throw new Error("workflowRun.head_branch is not set");
   }
   validateHeadRepository(data.repository, data.headRepository);
+  // After the check of the branch, which fails first if getting the workflow
+  // run failed, in which case the number can't be validated
+  validatePullRequestNumber(
+    metadata.context.payload.pull_request?.number,
+    data.pullRequestNumber,
+  );
 
   // Validate workflow name
   if (inputs.workflowName && data.workflowName !== inputs.workflowName) {
@@ -947,6 +953,42 @@ export const validateHeadRepository = (
   if (headRepository !== repository) {
     throw new Error(
       `The head repository of the client workflow run must be ${repository}, but got ${headRepository}. A workflow run for a pull request from a fork isn't supported`,
+    );
+  }
+};
+
+/**
+ * Returns the pull request number in the metadata file if it's one of the pull
+ * requests associated with the client workflow run (pull_requests of the Get a
+ * workflow run API), or 0.
+ *
+ * The metadata file is written by the client, so the number isn't trusted.
+ * Otherwise the client could make the server treat another pull request in the
+ * client repository as the one of the workflow run: custom validation would
+ * check it, e.g. its labels or author, and errors would be posted to it.
+ */
+export const resolvePullRequestNumber = (
+  claimed: number | undefined,
+  associated: number[],
+): number => {
+  if (!claimed || !associated.includes(claimed)) {
+    return 0;
+  }
+  return claimed;
+};
+
+/**
+ * Fails if the metadata file has a pull request number which isn't associated
+ * with the client workflow run. The error isn't posted to the pull request,
+ * because the pull request isn't trusted.
+ */
+export const validatePullRequestNumber = (
+  claimed: number | undefined,
+  resolved: number,
+): void => {
+  if (claimed && claimed !== resolved) {
+    throw new Error(
+      `The pull request #${claimed} in the metadata file isn't associated with the client workflow run`,
     );
   }
 };
@@ -1241,6 +1283,13 @@ type Data = {
   repository: string;
   /** The full name of the repository of head_branch */
   headRepository: string;
+  /**
+   * The number of the pull request of the client workflow run, i.e. the one
+   * in the metadata file if it's associated with the workflow run, or 0.
+   * Use this instead of the number in the metadata file, which the client
+   * writes.
+   */
+  pullRequestNumber: number;
   workflowName: string;
   runId: number;
   outputs: Output;
@@ -1282,12 +1331,6 @@ export const prepare = async (
   outputs.setMetadata(metadataS);
   outputs.setCustom(metadata.inputs.custom ?? {});
 
-  if (metadata.context.payload.pull_request?.number) {
-    core.notice(
-      `client pr: ${github.context.serverUrl}/${workflowRun.owner}/${workflowRun.repo}/pull/${metadata.context.payload.pull_request.number}`,
-    );
-  }
-
   try {
     const octokit = github.getOctokit(token.token);
     const { data: wr } = await octokit.rest.actions.getWorkflowRun({
@@ -1296,6 +1339,15 @@ export const prepare = async (
       run_id: workflowRun.runId,
     });
     outputs.setWorkflowRun(JSON.stringify(wr));
+    const pullRequestNumber = resolvePullRequestNumber(
+      metadata.context.payload.pull_request?.number,
+      wr.pull_requests?.map((pr) => pr.number) ?? [],
+    );
+    if (pullRequestNumber) {
+      core.notice(
+        `client pr: ${github.context.serverUrl}/${workflowRun.owner}/${workflowRun.repo}/pull/${pullRequestNumber}`,
+      );
+    }
     // Output the canonical full name, which config matching uses too
     outputs.setClientRepository(wr.repository.full_name);
     return {
@@ -1307,6 +1359,7 @@ export const prepare = async (
       branch: wr.head_branch ?? "",
       repository: wr.repository.full_name,
       headRepository: wr.head_repository?.full_name ?? "",
+      pullRequestNumber,
       workflowName: wr.name ?? "",
       outputs,
       metadata,
@@ -1326,6 +1379,8 @@ export const prepare = async (
       // is fetched from this repository to post the error
       repository: `${workflowRun.owner}/${workflowRun.repo}`,
       headRepository: "",
+      // The pull request number in the metadata file can't be validated
+      pullRequestNumber: 0,
       workflowName: "",
       outputs,
       metadata,

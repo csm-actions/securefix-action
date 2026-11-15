@@ -18,9 +18,11 @@ import {
   matchPushRepositories,
   parseLabelDescription,
   readRequest,
+  resolvePullRequestNumber,
   validateFileTypes,
   validateHeadRepository,
   validateHeadSHA,
+  validatePullRequestNumber,
   validateRef,
 } from "./prepare";
 
@@ -365,6 +367,40 @@ describe("validateHeadRepository", () => {
   it("rejects a workflow run without a head repository", () => {
     expect(() => validateHeadRepository("example/client", "")).toThrowError(
       "workflowRun.head_repository is not set",
+    );
+  });
+});
+
+describe("resolvePullRequestNumber", () => {
+  it("returns a number associated with the workflow run", () => {
+    expect(resolvePullRequestNumber(2, [1, 2])).toBe(2);
+  });
+
+  it("returns 0 for a number not associated with the workflow run", () => {
+    expect(resolvePullRequestNumber(3, [1, 2])).toBe(0);
+  });
+
+  it("returns 0 if no pull request is associated with the workflow run", () => {
+    expect(resolvePullRequestNumber(1, [])).toBe(0);
+  });
+
+  it("returns 0 if the metadata file has no pull request", () => {
+    expect(resolvePullRequestNumber(undefined, [1])).toBe(0);
+  });
+});
+
+describe("validatePullRequestNumber", () => {
+  it("accepts a resolved number", () => {
+    expect(() => validatePullRequestNumber(2, 2)).not.toThrow();
+  });
+
+  it("accepts no pull request", () => {
+    expect(() => validatePullRequestNumber(undefined, 0)).not.toThrow();
+  });
+
+  it("rejects a number not associated with the workflow run", () => {
+    expect(() => validatePullRequestNumber(3, 0)).toThrowError(
+      "The pull request #3 in the metadata file isn't associated with the client workflow run",
     );
   });
 });
