@@ -18,6 +18,7 @@ import {
   parseLabelDescription,
   readRequest,
   validateFileTypes,
+  validateHeadRepository,
   validateHeadSHA,
   validateRef,
 } from "./prepare";
@@ -323,6 +324,28 @@ describe("validateHeadSHA", () => {
   it("rejects an empty commit", () => {
     expect(() => validateHeadSHA("main", "abc", "")).toThrowError(
       "but got (empty)",
+    );
+  });
+});
+
+describe("validateHeadRepository", () => {
+  it("accepts a workflow run in the same repository", () => {
+    expect(() =>
+      validateHeadRepository("example/client", "example/client"),
+    ).not.toThrow();
+  });
+
+  it("rejects a workflow run for a pull request from a fork", () => {
+    expect(() =>
+      validateHeadRepository("example/client", "attacker/client"),
+    ).toThrowError(
+      "The head repository of the client workflow run must be example/client, but got attacker/client",
+    );
+  });
+
+  it("rejects a workflow run without a head repository", () => {
+    expect(() => validateHeadRepository("example/client", "")).toThrowError(
+      "workflowRun.head_repository is not set",
     );
   });
 });
