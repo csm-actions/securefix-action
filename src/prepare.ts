@@ -760,6 +760,10 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   if (!data.branch) {
     throw new Error("workflowRun.head_branch is not set");
   }
+  if (!data.headRepository) {
+    // e.g. the head repository was deleted
+    throw new Error("workflowRun.head_repository is not set");
+  }
   validateHeadRepository(data.repository, data.headRepository);
 
   // Validate workflow name

@@ -15,6 +15,10 @@ A request from a client workflow run for a pull request from a fork is rejected,
 By default, a commit is pushed to the branch of the workflow run in its repository.
 For a pull request from a fork, the branch of the workflow run is a branch of the fork, so the commit would be pushed to a different branch with the same name in the base repository, without appearing in any pull request.
 
+Usually a pull request from a fork can't request the server at all, because secrets aren't passed to its workflows, so the client can't use the client GitHub App.
+But in a private repository, secrets are passed to workflows of pull requests from forks if "Send secrets to workflows from fork pull requests" is enabled.
+If you used Securefix Action in pull requests from forks with this setting, those requests are now rejected.
+
 ## Inputs
 
 ### Required Inputs
