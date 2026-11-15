@@ -50,7 +50,7 @@ export const PullRequest = z.object({
 });
 
 const PayloadPullRequest = z.object({
-  number: z.number(),
+  number: z.number().int().positive(),
 });
 
 /**
