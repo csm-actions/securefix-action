@@ -749,12 +749,6 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     throw new Error("workflowRun.head_branch is not set");
   }
   validateHeadRepository(data.repository, data.headRepository);
-  // After the check of the branch, which fails first if getting the workflow
-  // run failed, in which case the number can't be validated
-  validatePullRequestNumber(
-    metadata.context.payload.pull_request?.number,
-    data.pullRequestNumber,
-  );
 
   // Validate workflow name
   if (inputs.workflowName && data.workflowName !== inputs.workflowName) {
@@ -957,6 +951,12 @@ export const validateHeadRepository = (
   }
 };
 
+export type AssociatedPullRequest = {
+  number: number;
+  base: { repo: { id: number } };
+  head: { repo: { id: number } };
+};
+
 /**
  * Returns the pull request number in the metadata file if it's one of the pull
  * requests associated with the client workflow run (pull_requests of the Get a
@@ -966,13 +966,13 @@ export const validateHeadRepository = (
  * Otherwise the client could make the server treat another pull request in the
  * client repository as the one of the workflow run: custom validation would
  * check it, e.g. its labels or author, and errors would be posted to it.
+ *
+ * A number which isn't associated is ignored rather than rejected, so the
+ * request is processed as one without a pull request. pull_requests lists only
+ * open pull requests whose head is the branch of the workflow run, so it
+ * doesn't have the pull request of e.g. a pull_request_target event or a
+ * pull request closed before the server runs.
  */
-export type AssociatedPullRequest = {
-  number: number;
-  base: { repo: { id: number } };
-  head: { repo: { id: number } };
-};
-
 export const resolvePullRequestNumber = (
   claimed: number | undefined,
   repositoryId: number,
@@ -991,22 +991,6 @@ export const resolvePullRequestNumber = (
       pr.head.repo.id === repositoryId,
   );
   return found ? claimed : 0;
-};
-
-/**
- * Fails if the metadata file has a pull request number which isn't associated
- * with the client workflow run. The error isn't posted to the pull request,
- * because the pull request isn't trusted.
- */
-export const validatePullRequestNumber = (
-  claimed: number | undefined,
-  resolved: number,
-): void => {
-  if (claimed && claimed !== resolved) {
-    throw new Error(
-      `The pull request #${claimed} in the metadata file isn't associated with the client workflow run`,
-    );
-  }
 };
 
 /**
@@ -1357,17 +1341,16 @@ export const prepare = async (
     outputs.setWorkflowRun(JSON.stringify(wr));
     const claimedPullRequestNumber =
       metadata.context.payload.pull_request?.number;
-    if (claimedPullRequestNumber) {
-      // Not validated yet. Logged to diagnose a rejected request
-      core.info(
-        `pull request number in the metadata file: ${claimedPullRequestNumber}`,
-      );
-    }
     const pullRequestNumber = resolvePullRequestNumber(
       claimedPullRequestNumber,
       wr.repository.id,
       wr.pull_requests ?? [],
     );
+    if (claimedPullRequestNumber && !pullRequestNumber) {
+      core.info(
+        `The pull request #${claimedPullRequestNumber} in the metadata file is ignored, as it isn't associated with the client workflow run`,
+      );
+    }
     if (pullRequestNumber) {
       core.notice(
         `client pr: ${github.context.serverUrl}/${workflowRun.owner}/${workflowRun.repo}/pull/${pullRequestNumber}`,

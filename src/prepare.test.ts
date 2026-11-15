@@ -22,7 +22,6 @@ import {
   validateFileTypes,
   validateHeadRepository,
   validateHeadSHA,
-  validatePullRequestNumber,
   validateRef,
 } from "./prepare";
 
@@ -400,22 +399,6 @@ describe("resolvePullRequestNumber", () => {
 
   it("returns 0 for a pull request whose head is another repository", () => {
     expect(resolvePullRequestNumber(2, 10, [pr(2, 10, 20)])).toBe(0);
-  });
-});
-
-describe("validatePullRequestNumber", () => {
-  it("accepts a resolved number", () => {
-    expect(() => validatePullRequestNumber(2, 2)).not.toThrow();
-  });
-
-  it("accepts no pull request", () => {
-    expect(() => validatePullRequestNumber(undefined, 0)).not.toThrow();
-  });
-
-  it("rejects a number not associated with the workflow run", () => {
-    expect(() => validatePullRequestNumber(3, 0)).toThrowError(
-      "The pull request #3 in the metadata file isn't associated with the client workflow run",
-    );
   });
 });
 
