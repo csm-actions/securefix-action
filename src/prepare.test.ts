@@ -2,7 +2,6 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type * as github from "@actions/github";
 import type { Entry } from "./config";
 import {
   isNormalizedPath,
@@ -18,13 +17,14 @@ import {
   matchPushRepositories,
   parseLabelDescription,
   readRequest,
+  isPullRequestOfWorkflowRun,
+  getPullRequestOfWorkflowRun,
+  type Octokit,
   validateFileTypes,
   validateHeadRepository,
   validateHeadSHA,
   validateRef,
 } from "./prepare";
-
-type Octokit = ReturnType<typeof github.getOctokit>;
 
 // newOctokit returns a stub which only supports `octokit.rest.repos.get`.
 const newOctokit = (defaultBranch: string) => {
@@ -365,6 +365,153 @@ describe("validateHeadRepository", () => {
   it("rejects a workflow run without a head repository", () => {
     expect(() => validateHeadRepository("example/client", "")).toThrowError(
       "workflowRun.head_repository is not set",
+    );
+  });
+});
+
+describe("isPullRequestOfWorkflowRun", () => {
+  const pr = (
+    baseRepoId: number,
+    headRepoId: number | null,
+    ref: string,
+    state = "open",
+    createdAt = "2026-01-01T00:00:00Z",
+  ) => ({
+    state,
+    created_at: createdAt,
+    base: { repo: { id: baseRepoId } },
+    head: { ref, repo: headRepoId === null ? null : { id: headRepoId } },
+  });
+  const wr = {
+    created_at: "2026-01-02T00:00:00Z",
+    repository: { id: 10 },
+    head_repository: { id: 10 },
+    head_branch: "feature",
+  };
+
+  it("returns true for the pull request of the workflow run", () => {
+    expect(isPullRequestOfWorkflowRun(pr(10, 10, "feature"), wr)).toBe(true);
+  });
+
+  it("returns true for a pull request from a fork of a workflow run of it", () => {
+    expect(
+      isPullRequestOfWorkflowRun(pr(10, 20, "feature"), {
+        ...wr,
+        head_repository: { id: 20 },
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false for a closed pull request", () => {
+    expect(
+      isPullRequestOfWorkflowRun(pr(10, 10, "feature", "closed"), wr),
+    ).toBe(false);
+  });
+
+  it("returns true for a pull request created at the same time as the workflow run", () => {
+    expect(
+      isPullRequestOfWorkflowRun(
+        pr(10, 10, "feature", "open", "2026-01-02T00:00:00Z"),
+        wr,
+      ),
+    ).toBe(true);
+  });
+
+  it("returns false for a pull request created after the workflow run", () => {
+    expect(
+      isPullRequestOfWorkflowRun(
+        pr(10, 10, "feature", "open", "2026-01-03T00:00:00Z"),
+        wr,
+      ),
+    ).toBe(false);
+  });
+
+  it("returns false for a pull request of another branch", () => {
+    expect(isPullRequestOfWorkflowRun(pr(10, 10, "other"), wr)).toBe(false);
+  });
+
+  it("returns false for a pull request whose head is another repository", () => {
+    expect(isPullRequestOfWorkflowRun(pr(10, 20, "feature"), wr)).toBe(false);
+  });
+
+  it("returns false for a pull request whose head repository is deleted", () => {
+    expect(isPullRequestOfWorkflowRun(pr(10, null, "feature"), wr)).toBe(false);
+  });
+
+  it("returns false for a pull request in another repository", () => {
+    expect(isPullRequestOfWorkflowRun(pr(20, 10, "feature"), wr)).toBe(false);
+  });
+
+  it("returns false if the workflow run has no head repository", () => {
+    expect(
+      isPullRequestOfWorkflowRun(pr(10, 10, "feature"), {
+        ...wr,
+        head_repository: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false if the workflow run has no head branch", () => {
+    expect(
+      isPullRequestOfWorkflowRun(pr(10, 10, ""), { ...wr, head_branch: null }),
+    ).toBe(false);
+  });
+});
+
+describe("getPullRequestOfWorkflowRun", () => {
+  const wr = {
+    created_at: "2026-01-02T00:00:00Z",
+    repository: { id: 10, name: "repo", owner: { login: "owner" } },
+    head_repository: { id: 10 },
+    head_branch: "feature",
+  };
+  const newPullsOctokit = (get: () => Promise<unknown>) => {
+    const fn = vi.fn(get);
+    return {
+      get: fn,
+      octokit: { rest: { pulls: { get: fn } } } as unknown as Octokit,
+    };
+  };
+  const pr = (ref: string) => ({
+    number: 1,
+    state: "open",
+    created_at: "2026-01-01T00:00:00Z",
+    base: { repo: { id: 10 } },
+    head: { ref, repo: { id: 10 } },
+  });
+
+  it("returns the pull request of the workflow run", async () => {
+    const { get, octokit } = newPullsOctokit(async () => ({
+      data: pr("feature"),
+    }));
+    expect(await getPullRequestOfWorkflowRun(octokit, wr, 1)).toEqual(
+      pr("feature"),
+    );
+    expect(get).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      pull_number: 1,
+    });
+  });
+
+  it("ignores a pull request which isn't of the workflow run", async () => {
+    const { octokit } = newPullsOctokit(async () => ({ data: pr("other") }));
+    expect(await getPullRequestOfWorkflowRun(octokit, wr, 1)).toBeUndefined();
+  });
+
+  it("ignores a pull request which isn't found", async () => {
+    const { octokit } = newPullsOctokit(async () => {
+      throw Object.assign(new Error("Not Found"), { status: 404 });
+    });
+    expect(await getPullRequestOfWorkflowRun(octokit, wr, 1)).toBeUndefined();
+  });
+
+  it("fails on other errors", async () => {
+    const { octokit } = newPullsOctokit(async () => {
+      throw Object.assign(new Error("Bad Gateway"), { status: 502 });
+    });
+    await expect(getPullRequestOfWorkflowRun(octokit, wr, 1)).rejects.toThrow(
+      "Bad Gateway",
     );
   });
 });

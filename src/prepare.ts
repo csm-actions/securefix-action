@@ -50,7 +50,7 @@ export const PullRequest = z.object({
 });
 
 const PayloadPullRequest = z.object({
-  number: z.number(),
+  number: z.number().int().positive(),
 });
 
 /**
@@ -735,16 +735,6 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     outputs.setCreatePullRequest(JSON.stringify(metadata.inputs.pull_request));
   }
 
-  // Get a pull request
-  if (metadata.context.payload.pull_request) {
-    const { data: pullRequest } = await octokit.rest.pulls.get({
-      owner: clientOwner,
-      repo: clientRepoName,
-      pull_number: metadata.context.payload.pull_request.number,
-    });
-    outputs.setPullRequest(JSON.stringify(pullRequest));
-  }
-
   if (!data.branch) {
     throw new Error("workflowRun.head_branch is not set");
   }
@@ -951,6 +941,110 @@ export const validateHeadRepository = (
   }
 };
 
+export type Octokit = ReturnType<typeof github.getOctokit>;
+/** A pull request returned by the Get a pull request API */
+type ApiPullRequest = Awaited<
+  ReturnType<Octokit["rest"]["pulls"]["get"]>
+>["data"];
+
+/** The fields of a pull request which are compared */
+export type PullRequestHead = {
+  state: string;
+  created_at: string;
+  base: { repo: { id: number } };
+  head: { ref: string; repo: { id: number } | null };
+};
+
+/** The fields of a workflow run (Get a workflow run API) which are compared */
+export type WorkflowRunHead = {
+  created_at: string;
+  repository: { id: number };
+  head_repository?: { id: number } | null;
+  head_branch: string | null;
+};
+
+/**
+ * Returns true if the pull request is open and its head is the head of the
+ * workflow run, i.e. the pull request is in the repository of the workflow run
+ * and its head is the repository and the branch of the workflow run.
+ *
+ * A closed pull request doesn't match, because its branch name can be reused
+ * by another branch. A pull request created after the workflow run doesn't
+ * match either, so that a workflow run of a deleted branch can't claim a pull
+ * request of a new branch with the same name. A legitimate client sends a
+ * pull request number only from an event of a pull request, which occurs
+ * after the pull request is created.
+ * It doesn't compare the head commit, so a pull request whose head has moved
+ * since the workflow run matches. Anyone who can push to the head branch can
+ * change the pull request anyway. A pull request from a fork matches a
+ * workflow run of it, which is rejected later.
+ */
+export const isPullRequestOfWorkflowRun = (
+  pr: PullRequestHead,
+  wr: WorkflowRunHead,
+): boolean =>
+  pr.state === "open" &&
+  new Date(pr.created_at) <= new Date(wr.created_at) &&
+  pr.base.repo.id === wr.repository.id &&
+  !!wr.head_repository &&
+  pr.head.repo?.id === wr.head_repository.id &&
+  !!wr.head_branch &&
+  pr.head.ref === wr.head_branch;
+
+/**
+ * Gets the pull request of the number in the metadata file, and returns it if
+ * it's the pull request of the client workflow run.
+ *
+ * The metadata file is written by the client, so the number isn't trusted.
+ * Otherwise the client could make the server treat another pull request in the
+ * client repository as the one of the workflow run: custom validation would
+ * check it, e.g. its labels or author, and errors would be posted to it.
+ *
+ * A number which can't be validated is ignored rather than rejected, so the
+ * request is processed as one without a pull request. e.g. the pull request of
+ * a pull_request_target event can't be validated, because the head of the
+ * workflow run is the base branch.
+ */
+export const getPullRequestOfWorkflowRun = async (
+  octokit: Octokit,
+  wr: WorkflowRunHead & {
+    repository: { name: string; owner: { login: string } };
+  },
+  claimed: number,
+): Promise<ApiPullRequest | undefined> => {
+  let pr: ApiPullRequest;
+  try {
+    const { data } = await octokit.rest.pulls.get({
+      owner: wr.repository.owner.login,
+      repo: wr.repository.name,
+      pull_number: claimed,
+    });
+    pr = data;
+  } catch (e) {
+    if (
+      typeof e === "object" &&
+      e !== null &&
+      "status" in e &&
+      e.status === 404
+    ) {
+      core.warning(
+        `The pull request #${claimed} in the metadata file is ignored, as it isn't found`,
+      );
+      return undefined;
+    }
+    // e.g. a transient error. Fail rather than process the request as one
+    // without a pull request
+    throw e;
+  }
+  if (!isPullRequestOfWorkflowRun(pr, wr)) {
+    core.warning(
+      `The pull request #${claimed} in the metadata file is ignored, as it isn't open or its head isn't the head of the client workflow run`,
+    );
+    return undefined;
+  }
+  return pr;
+};
+
 /**
  * Fails unless the client workflow run is for the latest commit of its branch.
  */
@@ -1010,7 +1104,7 @@ type WorkflowRun = {
 const defaultBranchCache = new Map<string, string>();
 
 const getDefaultBranch = async (
-  octokit: ReturnType<typeof github.getOctokit>,
+  octokit: Octokit,
   owner: string,
   repo: string,
 ): Promise<string> => {
@@ -1034,7 +1128,7 @@ export const matchClientRepositories = (
 };
 
 export const matchClientBranches = async (
-  octokit: ReturnType<typeof github.getOctokit>,
+  octokit: Octokit,
   entry: Entry,
   clientOwner: string,
   clientRepoName: string,
@@ -1241,6 +1335,13 @@ type Data = {
   repository: string;
   /** The full name of the repository of head_branch */
   headRepository: string;
+  /**
+   * The pull request of the client workflow run, i.e. the one of the number in
+   * the metadata file if it's open and its head is the head of the workflow
+   * run. Use this instead of the number in the metadata file, which the client
+   * writes.
+   */
+  pullRequest?: ApiPullRequest;
   workflowName: string;
   runId: number;
   outputs: Output;
@@ -1282,36 +1383,25 @@ export const prepare = async (
   outputs.setMetadata(metadataS);
   outputs.setCustom(metadata.inputs.custom ?? {});
 
-  if (metadata.context.payload.pull_request?.number) {
-    core.notice(
-      `client pr: ${github.context.serverUrl}/${workflowRun.owner}/${workflowRun.repo}/pull/${metadata.context.payload.pull_request.number}`,
+  const claimedPullRequestNumber =
+    metadata.context.payload.pull_request?.number;
+  if (claimedPullRequestNumber) {
+    core.info(
+      `The pull request number in the metadata file (not validated yet): ${claimedPullRequestNumber}`,
     );
   }
 
+  const octokit = github.getOctokit(token.token);
+  let wr: Awaited<
+    ReturnType<Octokit["rest"]["actions"]["getWorkflowRun"]>
+  >["data"];
   try {
-    const octokit = github.getOctokit(token.token);
-    const { data: wr } = await octokit.rest.actions.getWorkflowRun({
+    const { data } = await octokit.rest.actions.getWorkflowRun({
       owner: workflowRun.owner,
       repo: workflowRun.repo,
       run_id: workflowRun.runId,
     });
-    outputs.setWorkflowRun(JSON.stringify(wr));
-    // Output the canonical full name, which config matching uses too
-    outputs.setClientRepository(wr.repository.full_name);
-    return {
-      inputs,
-      workflowRun,
-      token: token.token,
-      runId: workflowRun.runId,
-      sha: wr.head_sha,
-      branch: wr.head_branch ?? "",
-      repository: wr.repository.full_name,
-      headRepository: wr.head_repository?.full_name ?? "",
-      workflowName: wr.name ?? "",
-      outputs,
-      metadata,
-      artifactDir,
-    };
+    wr = data;
   } catch (e) {
     const msg = e instanceof Error ? e.message : JSON.stringify(e);
     core.error(`Failed to get the workflow run: ${msg}`);
@@ -1322,16 +1412,44 @@ export const prepare = async (
       runId: workflowRun.runId,
       sha: "",
       branch: "",
-      // The request fails because the branch is empty, after the pull request
-      // is fetched from this repository to post the error
+      // The request fails because the branch is empty
       repository: `${workflowRun.owner}/${workflowRun.repo}`,
       headRepository: "",
+      // The pull request in the metadata file can't be validated
+      pullRequest: undefined,
       workflowName: "",
       outputs,
       metadata,
       artifactDir,
     };
   }
+  outputs.setWorkflowRun(JSON.stringify(wr));
+  // Output the canonical full name, which config matching uses too
+  outputs.setClientRepository(wr.repository.full_name);
+  const pullRequest = claimedPullRequestNumber
+    ? await getPullRequestOfWorkflowRun(octokit, wr, claimedPullRequestNumber)
+    : undefined;
+  if (pullRequest) {
+    core.notice(`client pr: ${pullRequest.html_url}`);
+    // Output it here rather than in validateRepository, so that the notify
+    // action can post an error of a later step to it
+    outputs.setPullRequest(JSON.stringify(pullRequest));
+  }
+  return {
+    inputs,
+    workflowRun,
+    token: token.token,
+    runId: workflowRun.runId,
+    sha: wr.head_sha,
+    branch: wr.head_branch ?? "",
+    repository: wr.repository.full_name,
+    headRepository: wr.head_repository?.full_name ?? "",
+    pullRequest,
+    workflowName: wr.name ?? "",
+    outputs,
+    metadata,
+    artifactDir,
+  };
 };
 
 export const main = async (
