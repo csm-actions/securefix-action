@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { getOctokit } from "./octokit";
+import { getOctokit, isGraphQLQuery } from "./octokit";
 
 // newFetch returns a fetch which responds with the given statuses in order.
 const newFetch = (statuses: number[]) => {
@@ -81,5 +81,84 @@ describe("getOctokit", () => {
     });
     expect(data).toEqual({ ok: true });
     expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("doesn't retry a GET request on a 409 response", async () => {
+    const fetch = newFetch([409]);
+    await expect(
+      newOctokit(fetch).request("GET /repos/{owner}/{repo}", {
+        owner: "o",
+        repo: "r",
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a GET request of a lowercase method", async () => {
+    const fetch = newFetch([502, 200]);
+    await newOctokit(fetch).request({ method: "get", url: "/repos/o/r" });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("doesn't carry the retry count over to the next request", async () => {
+    const fetch = newFetch([502, 502, 502, 200, 502, 200]);
+    // The wait before a retry is (retry count + 1)^2 * 20 ms
+    const octokit = getOctokit("token", {
+      request: { fetch },
+      retry: { retryAfterBaseValue: 20 },
+    });
+    await octokit.request("GET /repos/{owner}/{repo}", {
+      owner: "o",
+      repo: "r",
+    });
+    // The first wait of the second request is 20 ms. If the count of the first
+    // request (3) were carried over, it would be (3 + 1)^2 * 20 = 320 ms
+    const start = Date.now();
+    await octokit.request("GET /repos/{owner}/{repo}", {
+      owner: "o",
+      repo: "r",
+    });
+    expect(Date.now() - start).toBeLessThan(200);
+    expect(fetch).toHaveBeenCalledTimes(6);
+  });
+
+  it("retries a GraphQL query", async () => {
+    const fetch = newFetch([502, 200]);
+    await newOctokit(fetch).graphql(
+      "query($owner: String!) { repository(owner: $owner) { id } }",
+      { owner: "o" },
+    );
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("doesn't retry a GraphQL mutation", async () => {
+    const fetch = newFetch([502, 200]);
+    await expect(
+      newOctokit(fetch).graphql(
+        "mutation { addStar(input: {}) { clientMutationId } }",
+      ),
+    ).rejects.toMatchObject({ status: 502 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("isGraphQLQuery", () => {
+  it.each([
+    "query { viewer { login } }",
+    "query($a: Int) { x }",
+    "{ viewer { login } }",
+    "\n  # comment\n  query Q { x }",
+  ])("returns true for %j", (document) => {
+    expect(isGraphQLQuery(document)).toBe(true);
+  });
+
+  it.each([
+    "mutation { x }",
+    "subscription { x }",
+    "\n  # query\n  mutation { x }",
+    "queryX { x }",
+    undefined,
+  ])("returns false for %j", (document) => {
+    expect(isGraphQLQuery(document)).toBe(false);
   });
 });
