@@ -491,21 +491,85 @@ class Output {
   }
 }
 
-const getTokenForDest = async (data: Data): Promise<string> => {
-  if (
-    !data.metadata.inputs.repository ||
-    data.repository === data.metadata.inputs.repository
-  ) {
+/**
+ * Returns a token for the destination repository. The token of the client
+ * repository is used for the client repository. Otherwise a token for both
+ * repositories is created: the notify action posts errors to the pull request
+ * of the client repository with it.
+ * destRepo must be resolved by resolveDestRepository.
+ */
+const getTokenForDest = async (
+  data: Data,
+  destRepo: string,
+): Promise<string> => {
+  if (destRepo === data.repository) {
     return data.token;
   }
-  const { owner, repo } = splitRepository(data.repository);
-  const token = await createToken(data.inputs, owner, [
-    data.metadata.inputs.repository?.split("/")[1],
-    repo,
+  const client = splitRepository(data.repository);
+  const dest = splitRepository(destRepo);
+  const token = await createToken(data.inputs, client.owner, [
+    dest.repo,
+    client.repo,
   ]);
   core.saveState("dest_token", token.token);
   core.saveState("dest_expires_at", token.expiresAt);
   return token.token;
+};
+
+/**
+ * Returns the full name of the destination repository from inputs.repository
+ * in the metadata file, which the client writes.
+ *
+ * - It must be `owner/repo`
+ * - Its owner must be the owner of the client repository. A repository of
+ *   another owner isn't supported, because the installation access token is
+ *   created for the installation of the client repository's owner
+ * - The owner and the client repository are replaced with the canonical names
+ *   of clientRepo, as GitHub compares them case-insensitively. Then the client
+ *   repository can be compared with ===
+ *
+ * clientRepo is the canonical full name of the client repository.
+ */
+export const resolveDestRepository = (
+  repository: string | undefined,
+  clientRepo: string,
+): string => {
+  if (!repository) {
+    return clientRepo;
+  }
+  const dest = splitRepository(repository);
+  const client = splitRepository(clientRepo);
+  if (dest.owner.toLowerCase() !== client.owner.toLowerCase()) {
+    throw new Error(
+      `The owner of the destination repository must be ${client.owner}, but got ${dest.owner}. A repository of another owner isn't supported`,
+    );
+  }
+  if (dest.repo.toLowerCase() === client.repo.toLowerCase()) {
+    return clientRepo;
+  }
+  return `${client.owner}/${dest.repo}`;
+};
+
+/**
+ * Sets the create_pull_request output if the client requests a pull request.
+ * If its base branch isn't set, the default branch of the destination
+ * repository is used.
+ */
+const setCreatePullRequest = async (
+  octokit: Octokit,
+  outputs: Output,
+  metadata: Metadata,
+  destRepo: string,
+): Promise<void> => {
+  const pr = metadata.inputs.pull_request;
+  if (!pr?.title) {
+    return;
+  }
+  if (!pr.base) {
+    const { owner, repo } = splitRepository(destRepo);
+    pr.base = await getDefaultBranch(octokit, owner, repo);
+  }
+  outputs.setCreatePullRequest(JSON.stringify(pr));
 };
 
 /**
@@ -707,46 +771,35 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
   const outputs = data.outputs;
   const metadata = data.metadata;
-  const changes = readChanges(data);
-  setChanges(outputs, changes);
-  const token = await getTokenForDest(data);
-  outputs.setGitHubToken(token);
-  const octokit = getOctokit(token);
 
-  const clientRepo = data.repository;
-  const { owner: clientOwner, repo: clientRepoName } =
-    splitRepository(clientRepo);
-
-  const destRepo = metadata.inputs.repository || clientRepo;
-  outputs.setPushRepository(destRepo);
-  const destBranch = metadata.inputs.branch || data.branch;
-  outputs.setBranch(destBranch);
-  const destOwner = clientOwner;
-  const destRepoName = destRepo.split("/")[1];
-
-  let prBaseBranch = "";
-  if (metadata.inputs.pull_request?.title) {
-    if (metadata.inputs.pull_request?.base) {
-      prBaseBranch = metadata.inputs.pull_request.base;
-    } else {
-      // Get the default branch
-      prBaseBranch = await getDefaultBranch(octokit, destOwner, destRepoName);
-      metadata.inputs.pull_request.base = prBaseBranch;
-    }
-    outputs.setCreatePullRequest(JSON.stringify(metadata.inputs.pull_request));
-  }
-
+  // Validate the client workflow run first, so that no token for the
+  // destination repository is created for a request which is rejected
   if (!data.branch) {
     throw new Error("workflowRun.head_branch is not set");
   }
   validateHeadRepository(data.repository, data.headRepository);
-
-  // Validate workflow name
   if (inputs.workflowName && data.workflowName !== inputs.workflowName) {
     throw new Error(
       `The client workflow name must be ${inputs.workflowName}, but got ${data.workflowName}`,
     );
   }
+
+  const changes = readChanges(data);
+  setChanges(outputs, changes);
+
+  const clientRepo = data.repository;
+  const { owner: clientOwner, repo: clientRepoName } =
+    splitRepository(clientRepo);
+  const destRepo = resolveDestRepository(
+    metadata.inputs.repository,
+    clientRepo,
+  );
+  outputs.setPushRepository(destRepo);
+  const destBranch = metadata.inputs.branch || data.branch;
+  outputs.setBranch(destBranch);
+
+  // The token of the client repository, which prepare created
+  const clientOctokit = getOctokit(data.token);
 
   if (!metadata.inputs.branch && !metadata.inputs.repository) {
     // By default, push to the same repository and branch as the workflow run.
@@ -759,11 +812,13 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     // check above fails.
     outputs.setBaseSHA(data.sha);
     validateRequestChanges(data, changes);
+    outputs.setGitHubToken(data.token);
+    await setCreatePullRequest(clientOctokit, outputs, metadata, destRepo);
     return outputs;
   }
 
   // If pushed repository and branch are specified, the workflow run branch must be protected.
-  const { data: branch } = await octokit.rest.repos.getBranch({
+  const { data: branch } = await clientOctokit.rest.repos.getBranch({
     owner: clientOwner,
     repo: clientRepoName,
     branch: data.branch,
@@ -785,7 +840,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     }
     if (
       !(await matchClientBranches(
-        octokit,
+        clientOctokit,
         entry,
         clientOwner,
         clientRepoName,
@@ -805,6 +860,11 @@ export const validateRepository = async (data: Data): Promise<Output> => {
       throw new Error("Creating a pull request isn't allowed for this entry");
     }
     validateRequestChanges(data, changes);
+    // Create a token for the destination repository only after the request
+    // is validated
+    const token = await getTokenForDest(data, destRepo);
+    outputs.setGitHubToken(token);
+    await setCreatePullRequest(getOctokit(token), outputs, metadata, destRepo);
     return outputs;
   }
 
@@ -1152,7 +1212,10 @@ export const matchPushRepositories = (
   clientRepo: string,
 ): boolean => {
   if (entry.push.repositories) {
-    return entry.push.repositories.some((repo) => minimatch(destRepo, repo));
+    // GitHub compares repository names case-insensitively
+    return entry.push.repositories.some((repo) =>
+      minimatch(destRepo, repo, { nocase: true }),
+    );
   }
   return destRepo === clientRepo;
 };

@@ -9,6 +9,7 @@ import {
   isGitDir,
   splitFiles,
   splitRepository,
+  resolveDestRepository,
   validateChanges,
   validateSymlinkTarget,
   matchClientBranches,
@@ -145,6 +146,15 @@ describe("matchPushRepositories", () => {
     ).toBe(false);
   });
 
+  it("matches a repository case-insensitively", () => {
+    const entry = newEntry({
+      push: { repositories: ["example/server-*"], branches: ["main"] },
+    });
+    expect(
+      matchPushRepositories(entry, "example/Server-1", "example/client"),
+    ).toBe(true);
+  });
+
   it("allows only the client repository if no repository is configured", () => {
     const entry = newEntry({ push: { branches: ["main"] } });
     expect(
@@ -154,6 +164,50 @@ describe("matchPushRepositories", () => {
       matchPushRepositories(entry, "example/server", "example/client"),
     ).toBe(false);
   });
+});
+
+describe("resolveDestRepository", () => {
+  it("returns the client repository if the repository isn't set", () => {
+    expect(resolveDestRepository(undefined, "example/client")).toBe(
+      "example/client",
+    );
+    expect(resolveDestRepository("", "example/client")).toBe("example/client");
+  });
+
+  it("returns the repository of the client repository's owner", () => {
+    expect(resolveDestRepository("example/server", "example/client")).toBe(
+      "example/server",
+    );
+  });
+
+  it("returns the canonical name of the client repository", () => {
+    expect(resolveDestRepository("Example/Client", "example/client")).toBe(
+      "example/client",
+    );
+  });
+
+  it("uses the canonical name of the owner", () => {
+    expect(resolveDestRepository("EXAMPLE/server", "example/client")).toBe(
+      "example/server",
+    );
+  });
+
+  it("rejects a repository of another owner", () => {
+    expect(() =>
+      resolveDestRepository("other/server", "example/client"),
+    ).toThrowError(
+      "The owner of the destination repository must be example, but got other. A repository of another owner isn't supported",
+    );
+  });
+
+  it.each(["server", "example/a/b", "/server", "example/"])(
+    "rejects an invalid full name %j",
+    (repository) => {
+      expect(() =>
+        resolveDestRepository(repository, "example/client"),
+      ).toThrowError(`Invalid repository full name: ${repository}`);
+    },
+  );
 });
 
 describe("matchPushBranches", () => {

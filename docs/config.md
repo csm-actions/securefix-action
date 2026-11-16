@@ -14,6 +14,8 @@ entries:
         - main
     push:
       # As of v0.4.2, repositories is optional. By default, only the client repository is allowed.
+      # Only repositories of the client repository's owner are supported.
+      # Patterns are matched case-insensitively.
       repositories:
         - suzuki-shunsuke/tfaction-example
       branches:
