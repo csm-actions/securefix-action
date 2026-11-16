@@ -122,7 +122,7 @@ pull_request_labels: |
 
 - `commit_message` ([v0.1.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.1.0)): A commit message
 - `fail_if_changes` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): If true, the action fails if there are changes
-- `repository` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A repository full name where a commit will be pushed. The Server GitHub App must be installed into this repository
+- `repository` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A repository full name where a commit will be pushed. The Server GitHub App must be installed into this repository. It must be a repository of the client repository's owner
 - `branch` ([v0.2.0](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.0)): A branch where a commit will be pushed
 - `root_dir` ([v0.2.2](https://github.com/csm-actions/securefix-action/releases/tag/v0.2.2)): A root directory of fixed files
 - `use_git_ls_files` ([v0.5.1](https://github.com/csm-actions/securefix-action/releases/tag/v0.5.1)): If true, use `git ls-files` to get files to commit. The default is true.
