@@ -520,7 +520,8 @@ const getTokenForDest = async (
  * Returns the full name of the destination repository from inputs.repository
  * in the metadata file, which the client writes.
  *
- * - It must be `owner/repo`
+ * - It must be `owner/repo`, whose names consist of alphanumerics, `_`, `.`,
+ *   and `-`, except `.` and `..`
  * - Its owner must be the owner of the client repository. A repository of
  *   another owner isn't supported, because the installation access token is
  *   created for the installation of the client repository's owner
@@ -538,6 +539,12 @@ export const resolveDestRepository = (
     return clientRepo;
   }
   const dest = splitRepository(repository);
+  for (const name of [dest.owner, dest.repo]) {
+    // "." and ".." would change the path of API requests
+    if (!namePattern.test(name) || name === "." || name === "..") {
+      throw new Error(`Invalid repository full name: ${repository}`);
+    }
+  }
   const client = splitRepository(clientRepo);
   if (dest.owner.toLowerCase() !== client.owner.toLowerCase()) {
     throw new Error(
@@ -565,11 +572,13 @@ const setCreatePullRequest = async (
   if (!pr?.title) {
     return;
   }
-  if (!pr.base) {
-    const { owner, repo } = splitRepository(destRepo);
-    pr.base = await getDefaultBranch(octokit, owner, repo);
-  }
-  outputs.setCreatePullRequest(JSON.stringify(pr));
+  const { owner, repo } = splitRepository(destRepo);
+  outputs.setCreatePullRequest(
+    JSON.stringify({
+      ...pr,
+      base: pr.base || (await getDefaultBranch(octokit, owner, repo)),
+    }),
+  );
 };
 
 /**
@@ -801,8 +810,9 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   // The token of the client repository, which prepare created
   const clientOctokit = getOctokit(data.token);
 
-  if (!metadata.inputs.branch && !metadata.inputs.repository) {
+  if (destRepo === clientRepo && destBranch === data.branch) {
     // By default, push to the same repository and branch as the workflow run.
+    // This also applies when the client names them explicitly.
     // Create the commit on top of the head commit of the workflow run,
     // so that a request for an old workflow run can't revert changes pushed
     // after it: the ref isn't force-updated, so the push fails unless the
@@ -1185,7 +1195,10 @@ export const matchClientRepositories = (
   entry: Entry,
   clientRepo: string,
 ): boolean => {
-  return entry.client.repositories.some((repo) => minimatch(clientRepo, repo));
+  // GitHub compares repository names case-insensitively
+  return entry.client.repositories.some((repo) =>
+    minimatch(clientRepo, repo, { nocase: true }),
+  );
 };
 
 export const matchClientBranches = async (

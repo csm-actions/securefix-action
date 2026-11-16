@@ -69,6 +69,11 @@ describe("matchClientRepositories", () => {
     expect(matchClientRepositories(entry, "example/other")).toBe(false);
   });
 
+  it("matches a repository case-insensitively", () => {
+    const entry = newEntry({ client: { repositories: ["Example/Client"] } });
+    expect(matchClientRepositories(entry, "example/client")).toBe(true);
+  });
+
   it("matches a repository by a glob pattern", () => {
     const entry = newEntry({ client: { repositories: ["example/*"] } });
     expect(matchClientRepositories(entry, "example/client")).toBe(true);
@@ -200,14 +205,21 @@ describe("resolveDestRepository", () => {
     );
   });
 
-  it.each(["server", "example/a/b", "/server", "example/"])(
-    "rejects an invalid full name %j",
-    (repository) => {
-      expect(() =>
-        resolveDestRepository(repository, "example/client"),
-      ).toThrowError(`Invalid repository full name: ${repository}`);
-    },
-  );
+  it.each([
+    "server",
+    "example/a/b",
+    "/server",
+    "example/",
+    "example/..",
+    "example/.",
+    "../server",
+    "example/foo bar",
+    "example/foo?x",
+  ])("rejects an invalid full name %j", (repository) => {
+    expect(() =>
+      resolveDestRepository(repository, "example/client"),
+    ).toThrowError(`Invalid repository full name: ${repository}`);
+  });
 });
 
 describe("matchPushBranches", () => {
