@@ -17,6 +17,7 @@ import {
   matchPushBranches,
   matchPushRepositories,
   parseLabelDescription,
+  validateName,
   readRequest,
   isPullRequestOfWorkflowRun,
   getPullRequestOfWorkflowRun,
@@ -42,6 +43,21 @@ const newEntry = (entry: Partial<Entry>): Entry => ({
   client: { repositories: ["example/client"] },
   push: { branches: ["main"] },
   ...entry,
+});
+
+describe("validateName", () => {
+  it.each(["example", "client-1", "a_b", "a.b", ".github", "..a"])(
+    "accepts %j",
+    (name) => {
+      expect(validateName("name", name)).toBe(name);
+    },
+  );
+
+  it.each([".", "..", "", "a/b", "a b", "a?b"])("rejects %j", (name) => {
+    expect(() => validateName("name", name)).toThrowError(
+      `name is invalid: ${name}`,
+    );
+  });
 });
 
 describe("parseLabelDescription", () => {
@@ -206,20 +222,27 @@ describe("resolveDestRepository", () => {
   });
 
   it.each([
-    "server",
-    "example/a/b",
-    "/server",
-    "example/",
-    "example/..",
-    "example/.",
-    "../server",
-    "example/foo bar",
-    "example/foo?x",
-  ])("rejects an invalid full name %j", (repository) => {
+    ["example/..", "The name of the destination repository is invalid: .."],
+    ["example/.", "The name of the destination repository is invalid: ."],
+    ["../server", "The owner of the destination repository is invalid: .."],
+    [
+      "example/foo bar",
+      "The name of the destination repository is invalid: foo bar",
+    ],
+  ])("rejects an invalid name %j", (repository, message) => {
     expect(() =>
       resolveDestRepository(repository, "example/client"),
-    ).toThrowError(`Invalid repository full name: ${repository}`);
+    ).toThrowError(message);
   });
+
+  it.each(["server", "example/a/b", "/server", "example/"])(
+    "rejects an invalid full name %j",
+    (repository) => {
+      expect(() =>
+        resolveDestRepository(repository, "example/client"),
+      ).toThrowError(`Invalid repository full name: ${repository}`);
+    },
+  );
 });
 
 describe("matchPushBranches", () => {

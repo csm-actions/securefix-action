@@ -539,12 +539,8 @@ export const resolveDestRepository = (
     return clientRepo;
   }
   const dest = splitRepository(repository);
-  for (const name of [dest.owner, dest.repo]) {
-    // "." and ".." would change the path of API requests
-    if (!namePattern.test(name) || name === "." || name === "..") {
-      throw new Error(`Invalid repository full name: ${repository}`);
-    }
-  }
+  validateName("The owner of the destination repository", dest.owner);
+  validateName("The name of the destination repository", dest.repo);
   const client = splitRepository(clientRepo);
   if (dest.owner.toLowerCase() !== client.owner.toLowerCase()) {
     throw new Error(
@@ -1243,8 +1239,13 @@ export const matchPushBranches = (
 // GitHub owner and repository names consist of alphanumerics, "-", "_", and ".".
 const namePattern = /^[A-Za-z0-9_.-]+$/;
 
-const validateName = (key: string, value: string): string => {
-  if (!namePattern.test(value)) {
+/**
+ * Fails unless value is a valid name of a repository owner or a repository:
+ * alphanumerics, `_`, `.`, and `-`, except `.` and `..`, which would change the
+ * path of API requests.
+ */
+export const validateName = (key: string, value: string): string => {
+  if (!namePattern.test(value) || value === "." || value === "..") {
     throw new Error(`${key} is invalid: ${value}`);
   }
   return value;
