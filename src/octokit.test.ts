@@ -102,23 +102,23 @@ describe("getOctokit", () => {
 
   it("doesn't carry the retry count over to the next request", async () => {
     const fetch = newFetch([502, 502, 502, 200, 502, 200]);
-    // The wait before a retry is (retry count + 1)^2 * 20 ms
+    // The wait before a retry is (retry count + 1)^2 * 50 ms
     const octokit = getOctokit("token", {
       request: { fetch },
-      retry: { retryAfterBaseValue: 20 },
+      retry: { retryAfterBaseValue: 50 },
     });
     await octokit.request("GET /repos/{owner}/{repo}", {
       owner: "o",
       repo: "r",
     });
-    // The first wait of the second request is 20 ms. If the count of the first
-    // request (3) were carried over, it would be (3 + 1)^2 * 20 = 320 ms
+    // The first wait of the second request is 50 ms. If the count of the first
+    // request (3) were carried over, it would be (3 + 1)^2 * 50 = 800 ms
     const start = Date.now();
     await octokit.request("GET /repos/{owner}/{repo}", {
       owner: "o",
       repo: "r",
     });
-    expect(Date.now() - start).toBeLessThan(200);
+    expect(Date.now() - start).toBeLessThan(400);
     expect(fetch).toHaveBeenCalledTimes(6);
   });
 
@@ -140,6 +140,47 @@ describe("getOctokit", () => {
     ).rejects.toMatchObject({ status: 502 });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+
+  it.each(["blobs", "trees", "commits"])(
+    "retries a request creating a Git object (%s)",
+    async (kind) => {
+      const fetch = newFetch([502, 201]);
+      await newOctokit(fetch).request(
+        `POST /repos/{owner}/{repo}/git/${kind}`,
+        {
+          owner: "o",
+          repo: "r",
+        },
+      );
+      expect(fetch).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("doesn't retry a request creating a ref", async () => {
+    const fetch = newFetch([502, 201]);
+    await expect(
+      newOctokit(fetch).request("POST /repos/{owner}/{repo}/git/refs", {
+        owner: "o",
+        repo: "r",
+        ref: "refs/heads/x",
+        sha: "x",
+      }),
+    ).rejects.toMatchObject({ status: 502 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't retry a request updating a ref", async () => {
+    const fetch = newFetch([502, 200]);
+    await expect(
+      newOctokit(fetch).request("PATCH /repos/{owner}/{repo}/git/refs/{ref}", {
+        owner: "o",
+        repo: "r",
+        ref: "heads/main",
+        sha: "x",
+      }),
+    ).rejects.toMatchObject({ status: 502 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("isGraphQLQuery", () => {
@@ -157,6 +198,8 @@ describe("isGraphQLQuery", () => {
     "subscription { x }",
     "\n  # query\n  mutation { x }",
     "queryX { x }",
+    "query A { x } mutation B { y }",
+    "{ x } subscription S { y }",
     undefined,
   ])("returns false for %j", (document) => {
     expect(isGraphQLQuery(document)).toBe(false);

@@ -49,8 +49,6 @@ const newCredentials = (
  * POST, so it isn't retried.
  */
 export const AppOctokit = RestOctokit.plugin(retryIdempotentRequests);
-const Octokit = AppOctokit;
-type Octokit = InstanceType<typeof Octokit>;
 
 /**
  * Builds an Octokit client authenticated as the GitHub App.
@@ -62,7 +60,7 @@ type Octokit = InstanceType<typeof Octokit>;
  * the value straight through as the JSON Web Token issuer, and GitHub accepts
  * both, recommending the Client ID.
  */
-export const newAppOctokit = (): Octokit => {
+export const newAppOctokit = (): InstanceType<typeof AppOctokit> => {
   const appId = core.getInput("client_id") || core.getInput("app_id");
   if (!appId) {
     throw new Error("Either client_id or app_id is required");
@@ -71,7 +69,7 @@ export const newAppOctokit = (): Octokit => {
   if (kmsKeyId) {
     core.info(`signing GitHub App JSON Web Tokens with AWS KMS: ${kmsKeyId}`);
     const region = awsRegion(kmsKeyId);
-    return new Octokit({
+    return new AppOctokit({
       authStrategy: createAppAuth,
       auth: {
         appId,
@@ -87,7 +85,7 @@ export const newAppOctokit = (): Octokit => {
   if (!privateKey) {
     throw new Error("Either app_private_key or aws_kms_key_id is required");
   }
-  return new Octokit({
+  return new AppOctokit({
     authStrategy: createAppAuth,
     auth: { appId, privateKey },
   });

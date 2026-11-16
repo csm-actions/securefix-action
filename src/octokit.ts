@@ -22,8 +22,23 @@ export const isGraphQLQuery = (document: unknown): boolean => {
     return false;
   }
   const s = document.replace(/^(?:\s|,|#[^\n\r]*)*/, "");
-  return s.startsWith("{") || /^query\b/.test(s);
+  if (!s.startsWith("{") && !/^query\b/.test(s)) {
+    return false;
+  }
+  // A document can have several operations, and operationName can select a
+  // mutation which isn't the first one. Treat a document which has the word
+  // anywhere as a mutation. A false match only disables retries
+  return !/\b(?:mutation|subscription)\b/.test(s);
 };
+
+/**
+ * Requests which create a Git object (a blob, a tree, or a commit). They are
+ * POST requests, but safe to retry, because creating the same object again
+ * doesn't change anything referenced. A commit created again may have another
+ * SHA because of its date, but the extra one isn't referenced by any ref.
+ */
+const createGitObjectURL =
+  /^\/repos\/[^/]+\/[^/]+\/git\/(?:blobs|trees|commits)$/;
 
 /** Returns true if the request is safe to retry */
 export const isIdempotentRequest = (options: {
@@ -35,18 +50,20 @@ export const isIdempotentRequest = (options: {
   if (idempotentMethods.has(method)) {
     return true;
   }
+  if (method !== "POST") {
+    return false;
+  }
+  if (createGitObjectURL.test(options.url)) {
+    return true;
+  }
   // A GraphQL query is a POST, but it only reads data
-  return (
-    method === "POST" &&
-    options.url.endsWith("/graphql") &&
-    isGraphQLQuery(options.query)
-  );
+  return options.url.endsWith("/graphql") && isGraphQLQuery(options.query);
 };
 
 /**
  * An Octokit plugin which retries idempotent requests on transient errors such
- * as 5xx responses, with @octokit/plugin-retry: GET and HEAD requests, and
- * GraphQL queries.
+ * as 5xx responses, with @octokit/plugin-retry: GET and HEAD requests,
+ * requests creating a Git object, and GraphQL queries.
  *
  * Other requests aren't retried. A request which fails with e.g. a 5xx
  * response may have succeeded on GitHub. Retrying it can fail or duplicate the
@@ -63,7 +80,10 @@ export const retryIdempotentRequests = (
 ) => {
   const plugin = retry(octokit, {
     ...octokitOptions,
-    retry: { doNotRetry, ...octokitOptions.retry },
+    retry: {
+      ...octokitOptions.retry,
+      doNotRetry: octokitOptions.retry?.doNotRetry ?? doNotRetry,
+    },
   });
   octokit.hook.before("request", (options) => {
     // Copy options.request for every request, because @octokit/plugin-retry
