@@ -45,8 +45,7 @@ const newCredentials = (
 
 /**
  * Octokit which retries idempotent requests on transient errors, e.g. getting
- * the installation of a repository. Creating an installation access token is a
- * POST, so it isn't retried.
+ * the installation of a repository and creating an installation access token.
  */
 export const AppOctokit = RestOctokit.plugin(retryIdempotentRequests);
 

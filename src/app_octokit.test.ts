@@ -52,7 +52,7 @@ describe("AppOctokit", () => {
     expect(calls(fetch, "GET /repos/o/r/installation")).toBe(2);
   });
 
-  it("doesn't retry creating an installation access token", async () => {
+  it("retries creating an installation access token", async () => {
     const fetch = newFetch({
       "POST /app/installations/1/access_tokens": [502, 201],
     });
@@ -62,13 +62,13 @@ describe("AppOctokit", () => {
       request: { fetch },
       retry: { retryAfterBaseValue: 0 },
     });
-    await expect(
-      octokit.rest.apps.createInstallationAccessToken({ installation_id: 1 }),
-    ).rejects.toMatchObject({ status: 502 });
-    expect(calls(fetch, "POST /app/installations/1/access_tokens")).toBe(1);
+    await octokit.rest.apps.createInstallationAccessToken({
+      installation_id: 1,
+    });
+    expect(calls(fetch, "POST /app/installations/1/access_tokens")).toBe(2);
   });
 
-  it("creates an installation access token again when a GET request needing it is retried", async () => {
+  it("retries creating an installation access token for a GET request needing it", async () => {
     const fetch = newFetch({
       "POST /app/installations/1/access_tokens": [502, 201],
       "GET /repos/o/r": [200],

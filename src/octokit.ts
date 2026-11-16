@@ -40,6 +40,14 @@ export const isGraphQLQuery = (document: unknown): boolean => {
 const createGitObjectURL =
   /^\/repos\/[^/]+\/[^/]+\/git\/(?:blobs|trees|commits)$/;
 
+/**
+ * Requests which create an installation access token. They are POST requests,
+ * but safe to retry. If a failed request succeeded on GitHub, the token isn't
+ * returned to anyone and expires in an hour.
+ */
+const createInstallationTokenURL =
+  /^\/app\/installations\/[^/]+\/access_tokens$/;
+
 /** Returns true if the request is safe to retry */
 export const isIdempotentRequest = (options: {
   method: string;
@@ -53,7 +61,10 @@ export const isIdempotentRequest = (options: {
   if (method !== "POST") {
     return false;
   }
-  if (createGitObjectURL.test(options.url)) {
+  if (
+    createGitObjectURL.test(options.url) ||
+    createInstallationTokenURL.test(options.url)
+  ) {
     return true;
   }
   // A GraphQL query is a POST, but it only reads data
@@ -63,7 +74,8 @@ export const isIdempotentRequest = (options: {
 /**
  * An Octokit plugin which retries idempotent requests on transient errors such
  * as 5xx responses, with @octokit/plugin-retry: GET and HEAD requests,
- * requests creating a Git object, and GraphQL queries.
+ * requests creating a Git object or an installation access token, and GraphQL
+ * queries.
  *
  * Other requests aren't retried. A request which fails with e.g. a 5xx
  * response may have succeeded on GitHub. Retrying it can fail or duplicate the
