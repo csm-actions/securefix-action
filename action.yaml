@@ -102,6 +102,7 @@ inputs:
   repository:
     description: |
       A repository full name where a commit will be pushed.
+      It must be a repository of the client repository's owner.
     required: false
   branch:
     description: |
