@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { getOctokit } from "./octokit";
 import { z } from "zod";
 import * as commit from "@suzuki-shunsuke/commit-ts";
 import {
@@ -114,7 +115,7 @@ export const create = async (inputs: Inputs) => {
   }
   const [owner, repo] = elems;
 
-  const octokit = github.getOctokit(outputs.github_token);
+  const octokit = getOctokit(outputs.github_token);
 
   core.info(`Creating a commit on ${owner}/${repo} ${outputs.branch}`);
   const createdCommit = await commit.createCommit(octokit, {
