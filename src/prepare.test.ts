@@ -16,6 +16,7 @@ import {
   matchClientRepositories,
   matchPushBranches,
   matchPushRepositories,
+  findConfigEntry,
   parseLabelDescription,
   validateName,
   readRequest,
@@ -243,6 +244,59 @@ describe("resolveDestRepository", () => {
       ).toThrowError(`Invalid repository full name: ${repository}`);
     },
   );
+});
+
+describe("findConfigEntry", () => {
+  const { octokit } = newOctokit("main");
+  const req = {
+    clientRepo: "example/client",
+    clientBranch: "main",
+    destRepo: "example/server",
+    destBranch: "main",
+    pullRequest: false,
+  };
+  const entry = (pullRequest: boolean, branches = ["main"]): Entry =>
+    newEntry({
+      client: { repositories: ["example/client"], branches: ["main"] },
+      push: { repositories: ["example/server"], branches },
+      ...(pullRequest ? { pull_request: {} } : {}),
+    });
+
+  it("allows a request without a pull request by an entry without pull_request", async () => {
+    const e = entry(false);
+    expect(await findConfigEntry(octokit, [e], req)).toBe(e);
+  });
+
+  it("allows a request without a pull request by an entry with pull_request", async () => {
+    const e = entry(true);
+    expect(await findConfigEntry(octokit, [e], req)).toBe(e);
+  });
+
+  it("skips an entry without pull_request for a request with a pull request", async () => {
+    const e = entry(true);
+    expect(
+      await findConfigEntry(octokit, [entry(false), e], {
+        ...req,
+        pullRequest: true,
+      }),
+    ).toBe(e);
+  });
+
+  it("rejects a pull request which no matching entry allows", async () => {
+    await expect(
+      findConfigEntry(octokit, [entry(false)], { ...req, pullRequest: true }),
+    ).rejects.toThrowError(
+      "Creating a pull request isn't allowed for the given repository and branch. Set pull_request to an entry of the config to allow it",
+    );
+  });
+
+  it("rejects a request which no entry matches", async () => {
+    await expect(
+      findConfigEntry(octokit, [entry(true, ["release"])], req),
+    ).rejects.toThrowError(
+      "No matching entry found in the config for the given repository and branch.",
+    );
+  });
 });
 
 describe("matchPushBranches", () => {
