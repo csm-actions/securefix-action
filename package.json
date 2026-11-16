@@ -17,6 +17,7 @@
     "@octokit/auth-app": "^8.3.1",
     "@octokit/core": "^7.0.0",
     "@octokit/plugin-paginate-graphql": "^6.0.0",
+    "@octokit/plugin-retry": "^8.1.1",
     "@octokit/rest": "^22.0.1",
     "@suzuki-shunsuke/actions-aws-oidc": "npm:@jsr/suzuki-shunsuke__actions-aws-oidc@^0.2.0",
     "@suzuki-shunsuke/commit-ts": "npm:@jsr/suzuki-shunsuke__commit-ts@^0.2.0",

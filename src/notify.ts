@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { getOctokit } from "./octokit";
 import { z } from "zod";
 
 const Outputs = z.object({
@@ -91,7 +92,7 @@ export const notify = async (inputs: Inputs) => {
   if (!inputs.pr_number) {
     return;
   }
-  const octokit = github.getOctokit(inputs.githubToken);
+  const octokit = getOctokit(inputs.githubToken);
   core.info(
     `Creating a pull request comment on ${inputs.owner}/${inputs.repo} PR#${inputs.pr_number}`,
   );

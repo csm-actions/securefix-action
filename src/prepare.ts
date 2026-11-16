@@ -3,6 +3,7 @@ import * as os from "os";
 import * as path from "path";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { getOctokit } from "./octokit";
 import { DefaultArtifactClient } from "@actions/artifact";
 import { z } from "zod";
 import { minimatch } from "minimatch";
@@ -710,7 +711,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   setChanges(outputs, changes);
   const token = await getTokenForDest(data);
   outputs.setGitHubToken(token);
-  const octokit = github.getOctokit(token);
+  const octokit = getOctokit(token);
 
   const clientRepo = data.repository;
   const { owner: clientOwner, repo: clientRepoName } =
@@ -1391,7 +1392,7 @@ export const prepare = async (
     );
   }
 
-  const octokit = github.getOctokit(token.token);
+  const octokit = getOctokit(token.token);
   let wr: Awaited<
     ReturnType<Octokit["rest"]["actions"]["getWorkflowRun"]>
   >["data"];
