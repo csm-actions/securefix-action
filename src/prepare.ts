@@ -772,6 +772,26 @@ export const validateFileTypes = (
   }
 };
 
+/**
+ * Sets the outputs about the destination repository after the request is
+ * validated: github_token and create_pull_request.
+ * A token for the destination repository is created only here, so that it
+ * isn't created for a request which is rejected. For the client repository,
+ * the token of the client repository is used, which prepare already output.
+ */
+const setDestOutputs = async (data: Data, destRepo: string): Promise<void> => {
+  const token = await getTokenForDest(data, destRepo);
+  if (token !== data.token) {
+    data.outputs.setGitHubToken(token);
+  }
+  await setCreatePullRequest(
+    getOctokit(token),
+    data.outputs,
+    data.metadata,
+    destRepo,
+  );
+};
+
 export const validateRepository = async (data: Data): Promise<Output> => {
   const inputs = data.inputs;
   const outputs = data.outputs;
@@ -818,8 +838,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
     // check above fails.
     outputs.setBaseSHA(data.sha);
     validateRequestChanges(data, changes);
-    outputs.setGitHubToken(data.token);
-    await setCreatePullRequest(clientOctokit, outputs, metadata, destRepo);
+    await setDestOutputs(data, destRepo);
     return outputs;
   }
 
@@ -866,11 +885,7 @@ export const validateRepository = async (data: Data): Promise<Output> => {
       throw new Error("Creating a pull request isn't allowed for this entry");
     }
     validateRequestChanges(data, changes);
-    // Create a token for the destination repository only after the request
-    // is validated
-    const token = await getTokenForDest(data, destRepo);
-    outputs.setGitHubToken(token);
-    await setCreatePullRequest(getOctokit(token), outputs, metadata, destRepo);
+    await setDestOutputs(data, destRepo);
     return outputs;
   }
 
