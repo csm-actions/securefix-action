@@ -11,15 +11,16 @@
 
 ## Pull requests from forks
 
-A request from a client workflow run of a `pull_request` event from a fork is rejected, regardless of the repository and branch where a commit is pushed.
+A request from a client workflow run of a `pull_request` or `pull_request_target` event from a fork is rejected, regardless of the repository and branch where a commit is pushed.
 By default, a commit is pushed to the branch of the workflow run in its repository.
 For a pull request from a fork, the branch of the workflow run is a branch of the fork, so the commit would be pushed to a different branch with the same name in the base repository, without appearing in any pull request.
 
 Usually a pull request from a fork can't request the server at all, because secrets aren't passed to its workflows, so the client can't use the client GitHub App.
 But in a private repository, secrets are passed to them if "Send secrets to workflows from fork pull requests" is enabled, so the server rejects them.
 
-A workflow run of a `pull_request_target` event isn't rejected, because its workflow file and branch are of the base repository.
-Don't run code of a pull request from a fork in it, which could read secrets including the client GitHub App's.
+A workflow run of a `pull_request_target` event for a pull request from a fork is rejected in the same way, because its head repository and branch (`head_repository` and `head_branch` of the workflow run) are those of the pull request, i.e. the fork's.
+Secrets are passed to it, so this rejection is what prevents the commit from being pushed to the base repository.
+A workflow run of a `pull_request_target` event for a pull request in the same repository is processed like one of a `pull_request` event: by default, a commit is pushed to the head branch of the pull request.
 
 ## Inputs
 
@@ -139,7 +140,7 @@ If there is no entry matching with source repository and branch and destination 
 `context` is a [github-script](https://github.com/actions/github-script)'s context object.
 
 - `pull_request`: [A pull request payload](https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#get-a-pull-request) triggering a client workflow run
-  The client sends the pull request number in the metadata. It's set only if the pull request is open, was created no later than the client workflow run, and its head is the head of the workflow run, i.e. the pull request is in the client repository and its head repository and branch are `head_repository` and `head_branch` of the workflow run, so custom validation can rely on it. Otherwise it isn't set, and the request is processed as one without a pull request. e.g. it isn't set for a `pull_request_target` event, because the head of the workflow run is the base branch.
+  The client sends the pull request number in the metadata. It's set only if the pull request is open, was created no later than the client workflow run, and its head is the head of the workflow run, i.e. the pull request is in the client repository and its head repository and branch are `head_repository` and `head_branch` of the workflow run, so custom validation can rely on it. Otherwise it isn't set, and the request is processed as one without a pull request. e.g. it isn't set if the pull request has been closed.
   As the client can omit the pull request, a condition that rejects a request by its pull request (e.g. "reject if the pull request has a label") can be bypassed. Write a condition that allows a request by its pull request instead, and reject a request without a pull request if needed
 - `push_repository`: A repository full name where a commit is pushed
 - `workflow_run`: [A client Workflow Run Payload](https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#get-a-workflow-run)
