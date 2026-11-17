@@ -22,6 +22,13 @@ A workflow run of a `pull_request_target` event for a pull request from a fork i
 Secrets are passed to it, so this rejection is what prevents the commit from being pushed to the base repository.
 A workflow run of a `pull_request_target` event for a pull request in the same repository is processed like one of a `pull_request` event: by default, a commit is pushed to the head branch of the pull request.
 
+A workflow run of a `workflow_run` event isn't rejected, even if a pull request from a fork triggers it, because it runs in the base repository.
+Its head repository and branch are the base repository and its default branch, and its head commit is a commit of the default branch, not of the pull request.
+So by default, a commit is pushed directly to the default branch, without a pull request, as from a workflow run of a `push` event on the default branch.
+Unlike a workflow run of a `pull_request` event, it can't push a commit to the head branch of the pull request which triggered it: by default, the commit is pushed to the default branch, and a branch of a fork can't be a destination, because only a repository of the same owner as the client repository can be.
+To fix a pull request, run the client workflow by a `pull_request` event.
+Don't send fixes made from an artifact or values of a workflow run for a pull request from a fork, which the fork controls, as they would be pushed to the default branch.
+
 ## Inputs
 
 ### Required Inputs
