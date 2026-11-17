@@ -302,15 +302,37 @@ describe("findConfigEntry", () => {
   });
 
   it("matches the default branch of the client repository if client.branches isn't set", async () => {
-    const { octokit } = newOctokit("main");
+    // A client repository which no other test uses, as the default branch is
+    // cached per repository
+    const { octokit, get } = newOctokit("main");
+    const r = { ...req, clientRepo: "example/client-default-branch" };
     const e = newEntry({
-      client: { repositories: ["example/client"] },
+      client: { repositories: [r.clientRepo] },
       push: { repositories: ["example/server"], branches: ["main"] },
     });
-    expect(await findConfigEntry(octokit, [e], req)).toBe(e);
+    expect(await findConfigEntry(octokit, [e], r)).toBe(e);
+    expect(get).toHaveBeenCalledWith({
+      owner: "example",
+      repo: "client-default-branch",
+    });
     await expect(
-      findConfigEntry(octokit, [e], { ...req, clientBranch: "feature" }),
+      findConfigEntry(octokit, [e], { ...r, clientBranch: "feature" }),
     ).rejects.toThrowError("No matching entry found");
+  });
+
+  it("doesn't get the default branch for an entry whose destination doesn't match", async () => {
+    const { octokit, get } = newOctokit("main");
+    const e = newEntry({
+      client: { repositories: ["example/client-unused"] },
+      push: { repositories: ["example/other"], branches: ["main"] },
+    });
+    await expect(
+      findConfigEntry(octokit, [e], {
+        ...req,
+        clientRepo: "example/client-unused",
+      }),
+    ).rejects.toThrowError("No matching entry found");
+    expect(get).not.toHaveBeenCalled();
   });
 
   it("rejects a request which no entry matches", async () => {

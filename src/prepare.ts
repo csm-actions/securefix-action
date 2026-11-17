@@ -903,6 +903,13 @@ export const findConfigEntry = async (
     if (!matchClientRepositories(entry, req.clientRepo)) {
       continue;
     }
+    // Check the destination before the client branch, which can call the API
+    if (!matchPushRepositories(entry, req.destRepo, req.clientRepo)) {
+      continue;
+    }
+    if (!matchPushBranches(entry, req.destBranch)) {
+      continue;
+    }
     if (
       !(await matchClientBranches(
         octokit,
@@ -912,12 +919,6 @@ export const findConfigEntry = async (
         req.clientBranch,
       ))
     ) {
-      continue;
-    }
-    if (!matchPushRepositories(entry, req.destRepo, req.clientRepo)) {
-      continue;
-    }
-    if (!matchPushBranches(entry, req.destBranch)) {
       continue;
     }
     if (req.pullRequest && !entry.pull_request) {

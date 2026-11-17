@@ -377,6 +377,7 @@ You can use [`prepare` action's outputs](docs/prepare.md#outputs).
 ## Troubleshooting
 
 - [Error: No matching entry found in the config for the given repository and branch.](docs/codes/001.md)
+- [Error: Creating a pull request isn't allowed for the given repository and branch.](docs/codes/002.md)
 
 ### Client Workflow Name
 
