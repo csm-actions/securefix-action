@@ -1038,7 +1038,7 @@ export const validateRef = (
 /**
  * Fails unless the head repository of the client workflow run is the
  * repository of the workflow run, i.e. the workflow run isn't for a
- * pull_request event from a fork.
+ * pull_request or pull_request_target event from a fork.
  *
  * Both are full names returned by the Get a workflow run API, so they are
  * compared exactly.
@@ -1126,9 +1126,8 @@ export const isPullRequestOfWorkflowRun = (
  * check it, e.g. its labels or author, and errors would be posted to it.
  *
  * A number which can't be validated is ignored rather than rejected, so the
- * request is processed as one without a pull request. e.g. the pull request of
- * a pull_request_target event can't be validated, because the head of the
- * workflow run is the base branch.
+ * request is processed as one without a pull request. e.g. the pull request
+ * has been closed.
  */
 export const getPullRequestOfWorkflowRun = async (
   octokit: Octokit,
