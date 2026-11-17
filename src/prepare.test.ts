@@ -290,6 +290,29 @@ describe("findConfigEntry", () => {
     );
   });
 
+  it("rejects a pull request with the specific error even if a later entry doesn't match", async () => {
+    await expect(
+      findConfigEntry(octokit, [entry(false), entry(true, ["release"])], {
+        ...req,
+        pullRequest: true,
+      }),
+    ).rejects.toThrowError(
+      "Creating a pull request isn't allowed for the given repository and branch",
+    );
+  });
+
+  it("matches the default branch of the client repository if client.branches isn't set", async () => {
+    const { octokit } = newOctokit("main");
+    const e = newEntry({
+      client: { repositories: ["example/client"] },
+      push: { repositories: ["example/server"], branches: ["main"] },
+    });
+    expect(await findConfigEntry(octokit, [e], req)).toBe(e);
+    await expect(
+      findConfigEntry(octokit, [e], { ...req, clientBranch: "feature" }),
+    ).rejects.toThrowError("No matching entry found");
+  });
+
   it("rejects a request which no entry matches", async () => {
     await expect(
       findConfigEntry(octokit, [entry(true, ["release"])], req),
