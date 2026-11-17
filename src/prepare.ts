@@ -859,36 +859,79 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   // Read YAML config to push a commit to other repositories and branches
   const config = readConfig();
 
-  for (const entry of config.entries) {
-    if (!matchClientRepositories(entry, clientRepo)) {
+  await findConfigEntry(clientOctokit, config.entries, {
+    clientRepo,
+    clientBranch: data.branch,
+    destRepo,
+    destBranch,
+    pullRequest: !!metadata.inputs.pull_request?.title,
+  });
+  validateRequestChanges(data, changes);
+  await setDestOutputs(data, destRepo);
+  return outputs;
+};
+
+export type ConfigRequest = {
+  /** The canonical full name of the client repository */
+  clientRepo: string;
+  /** The branch of the client workflow run */
+  clientBranch: string;
+  /** The destination repository resolved by resolveDestRepository */
+  destRepo: string;
+  destBranch: string;
+  /** Whether the request asks for creating a pull request */
+  pullRequest: boolean;
+};
+
+/**
+ * Returns the first entry of the config which allows the request.
+ *
+ * An entry without pull_request doesn't allow creating a pull request, but
+ * allows a request which doesn't ask for it. If the request asks for a pull
+ * request, such an entry is skipped, so that a later entry can allow it.
+ */
+export const findConfigEntry = async (
+  octokit: Octokit,
+  entries: Entry[],
+  req: ConfigRequest,
+): Promise<Entry> => {
+  const { owner: clientOwner, repo: clientRepoName } = splitRepository(
+    req.clientRepo,
+  );
+  let pullRequestDenied = false;
+  for (const entry of entries) {
+    if (!matchClientRepositories(entry, req.clientRepo)) {
+      continue;
+    }
+    // Check the destination before the client branch, which can call the API
+    if (!matchPushRepositories(entry, req.destRepo, req.clientRepo)) {
+      continue;
+    }
+    if (!matchPushBranches(entry, req.destBranch)) {
       continue;
     }
     if (
       !(await matchClientBranches(
-        clientOctokit,
+        octokit,
         entry,
         clientOwner,
         clientRepoName,
-        data.branch ?? "",
+        req.clientBranch,
       ))
     ) {
       continue;
     }
-    if (!matchPushRepositories(entry, destRepo, clientRepo)) {
+    if (req.pullRequest && !entry.pull_request) {
+      pullRequestDenied = true;
       continue;
     }
-    if (!matchPushBranches(entry, destBranch)) {
-      continue;
-    }
-
-    if (!entry.pull_request) {
-      throw new Error("Creating a pull request isn't allowed for this entry");
-    }
-    validateRequestChanges(data, changes);
-    await setDestOutputs(data, destRepo);
-    return outputs;
+    return entry;
   }
-
+  if (pullRequestDenied) {
+    throw new Error(
+      "Creating a pull request isn't allowed for the given repository and branch. Set pull_request to an entry of the config to allow it",
+    );
+  }
   throw new Error(
     "No matching entry found in the config for the given repository and branch.",
   );
