@@ -27,6 +27,12 @@ import {
   validateHeadRepository,
   validateHeadSHA,
   validateRef,
+  branchExists,
+  maxAheadBy,
+  validateRunAge,
+  validateFirstParent,
+  validateRecentHeadSHA,
+  type Comparison,
 } from "./prepare";
 
 // newOctokit returns a stub which only supports `octokit.rest.repos.get`.
@@ -514,6 +520,209 @@ describe("validateHeadSHA", () => {
     expect(() => validateHeadSHA("main", "abc", "")).toThrowError(
       "but got (empty)",
     );
+  });
+});
+
+describe("branchExists", () => {
+  const newRefOctokit = (getRef: () => Promise<unknown>) => {
+    const fn = vi.fn(getRef);
+    return {
+      getRef: fn,
+      octokit: { rest: { git: { getRef: fn } } } as unknown as Octokit,
+    };
+  };
+
+  it("returns true if the branch exists", async () => {
+    const { getRef, octokit } = newRefOctokit(async () => ({ data: {} }));
+    expect(await branchExists(octokit, "owner", "repo", "foo")).toBe(true);
+    expect(getRef).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      ref: "heads/foo",
+    });
+  });
+
+  it("returns false if the branch isn't found", async () => {
+    const { octokit } = newRefOctokit(async () => {
+      throw Object.assign(new Error("Not Found"), { status: 404 });
+    });
+    expect(await branchExists(octokit, "owner", "repo", "foo")).toBe(false);
+  });
+
+  it("fails on other errors", async () => {
+    const { octokit } = newRefOctokit(async () => {
+      throw Object.assign(new Error("Bad Gateway"), { status: 502 });
+    });
+    await expect(branchExists(octokit, "owner", "repo", "foo")).rejects.toThrow(
+      "Bad Gateway",
+    );
+  });
+});
+
+describe("validateRunAge", () => {
+  const now = new Date("2026-01-01T06:00:00Z");
+
+  it("accepts a workflow run created within 6 hours", () => {
+    expect(() => validateRunAge("2026-01-01T00:00:00Z", now)).not.toThrow();
+  });
+
+  it("rejects a workflow run created more than 6 hours ago", () => {
+    expect(() => validateRunAge("2025-12-31T23:59:59Z", now)).toThrowError(
+      "within 6 hours",
+    );
+  });
+
+  it.each(["", "invalid"])("rejects an invalid creation time %j", (v) => {
+    expect(() => validateRunAge(v, now)).toThrowError(
+      "The creation time of the client workflow run is invalid",
+    );
+  });
+});
+
+describe("validateFirstParent", () => {
+  const commit = (sha: string, ...parents: string[]) => ({
+    sha,
+    parents: parents.map((p) => ({ sha: p })),
+  });
+  const comparison = (
+    commits: Comparison["commits"],
+    over: Partial<Comparison> = {},
+  ): Comparison => ({
+    status: "ahead",
+    ahead_by: commits.length,
+    behind_by: 0,
+    commits,
+    ...over,
+  });
+
+  it("accepts the parent of the latest commit", () => {
+    expect(() =>
+      validateFirstParent(comparison([commit("tip", "run")]), "tip", "run"),
+    ).not.toThrow();
+  });
+
+  it("accepts a commit on the first-parent history through a merge commit", () => {
+    // run <- a <- merge(tip), feature <- merge
+    const c = comparison([
+      commit("feature", "run"),
+      commit("a", "run"),
+      commit("tip", "a", "feature"),
+    ]);
+    expect(() => validateFirstParent(c, "tip", "run")).not.toThrow();
+  });
+
+  it("rejects a commit on the second parent side of a merge commit", () => {
+    // base <- run(feature) <- merge(tip) with the first parent base2
+    const c = comparison([
+      commit("base2", "base"),
+      commit("tip", "base2", "run"),
+    ]);
+    expect(() => validateFirstParent(c, "tip", "run")).toThrowError(
+      "must be on the first-parent history of the branch",
+    );
+  });
+
+  it("rejects when reaching a root commit", () => {
+    const c = comparison([commit("root"), commit("tip", "root")]);
+    expect(() => validateFirstParent(c, "tip", "run")).toThrowError(
+      "must be on the first-parent history of the branch",
+    );
+  });
+
+  it.each(["diverged", "behind", "identical"])(
+    "rejects the status %s",
+    (status) => {
+      const c = comparison([commit("tip", "run")], { status });
+      expect(() => validateFirstParent(c, "tip", "run")).toThrowError(
+        `the comparison status is ${status}`,
+      );
+    },
+  );
+
+  it("rejects a commit behind more than the maximum", () => {
+    const c = comparison([commit("tip", "run")], { ahead_by: maxAheadBy + 1 });
+    expect(() => validateFirstParent(c, "tip", "run")).toThrowError(
+      `must be within ${maxAheadBy} commits`,
+    );
+  });
+
+  it("rejects truncated commits", () => {
+    const c = comparison([commit("tip", "run")], { ahead_by: 2 });
+    expect(() => validateFirstParent(c, "tip", "run")).toThrowError(
+      `must be within ${maxAheadBy} commits`,
+    );
+  });
+});
+
+describe("validateRecentHeadSHA", () => {
+  const newCompareOctokit = (data: Comparison) => {
+    const fn = vi.fn(async () => ({ data }));
+    return {
+      compare: fn,
+      octokit: {
+        rest: { repos: { compareCommitsWithBasehead: fn } },
+      } as unknown as Octokit,
+    };
+  };
+  const params = {
+    owner: "owner",
+    repo: "repo",
+    branchName: "main",
+    tipSHA: "tip",
+    runSHA: "run",
+    createdAt: "2026-01-01T00:00:00Z",
+    now: new Date("2026-01-01T01:00:00Z"),
+  };
+  const ahead: Comparison = {
+    status: "ahead",
+    ahead_by: 1,
+    behind_by: 0,
+    commits: [{ sha: "tip", parents: [{ sha: "run" }] }],
+  };
+
+  it("accepts the latest commit regardless of the age", async () => {
+    const { compare, octokit } = newCompareOctokit(ahead);
+    await validateRecentHeadSHA(octokit, {
+      ...params,
+      runSHA: "tip",
+      createdAt: "2020-01-01T00:00:00Z",
+    });
+    expect(compare).not.toHaveBeenCalled();
+  });
+
+  it("accepts a recent commit on the first-parent history", async () => {
+    const { compare, octokit } = newCompareOctokit(ahead);
+    await validateRecentHeadSHA(octokit, params);
+    expect(compare).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      basehead: "run...tip",
+    });
+  });
+
+  it("rejects an old workflow run without calling the API", async () => {
+    const { compare, octokit } = newCompareOctokit(ahead);
+    await expect(
+      validateRecentHeadSHA(octokit, {
+        ...params,
+        now: new Date("2026-01-01T07:00:00Z"),
+      }),
+    ).rejects.toThrow("within 6 hours");
+    expect(compare).not.toHaveBeenCalled();
+  });
+
+  it("rejects a commit which isn't an ancestor", async () => {
+    const { octokit } = newCompareOctokit({ ...ahead, status: "diverged" });
+    await expect(validateRecentHeadSHA(octokit, params)).rejects.toThrow(
+      "the comparison status is diverged",
+    );
+  });
+
+  it("rejects an empty head commit", async () => {
+    const { octokit } = newCompareOctokit(ahead);
+    await expect(
+      validateRecentHeadSHA(octokit, { ...params, runSHA: "" }),
+    ).rejects.toThrow("The head commit of the client workflow run is empty");
   });
 });
 

@@ -302,6 +302,7 @@ That said, `actions:write` allows more than running the server workflow, [so you
 Server action creates a commit to the same repository and branch with the GitHub Actions Artifact.
 So it doesn't allow attackers to create a malicious commit to a different repository or a different branch.
 Server action also rejects a request for an old client workflow run, which could revert changes pushed after it: the commit is created on top of the head commit of the client workflow run, so the push fails if the branch has been updated since then.
+When the commit is pushed to a new branch of the client repository, the branch is created from the head commit of the client workflow run, so a request for a client workflow run created within 6 hours is accepted even if its branch has been updated. See [Push a commit to the other repository and branch](docs/client.md#push-a-commit-to-the-other-repository-and-branch).
 For the same reason, if a client workflow run sends multiple requests, e.g. from multiple jobs, only the first fix is pushed in that run. The fix commit runs the client workflow again, and the other fixes are pushed then.
 
 ### How to manage a server GitHub App and a server workflow

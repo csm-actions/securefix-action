@@ -451,9 +451,11 @@ class Output {
   }
   /**
    * The head commit of the client workflow run (head_sha).
-   * It's set only when the commit is pushed to the same repository and branch
-   * as the client workflow run, so the commit is created on top of it and the
+   * It's set when the commit is pushed to the same repository and branch as
+   * the client workflow run, so the commit is created on top of it and the
    * push fails if the branch has been updated since then.
+   * It's also set when the commit is pushed to a branch of the client
+   * repository which doesn't exist, so the new branch is created from it.
    */
   setBaseSHA(baseSHA: string) {
     if (this.isOutput) {
@@ -851,10 +853,39 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   if (!branch.protected) {
     throw new Error("the workflow run head branch must be protected");
   }
-  // Reject a request for an old workflow run, which could revert changes
-  // pushed after it. head_sha isn't a commit of the destination, so it can't be
-  // used as the parent of the commit as in the default case.
-  validateHeadSHA(data.branch, branch.commit.sha, data.sha);
+  if (
+    destRepo === clientRepo &&
+    !(await branchExists(
+      clientOctokit,
+      clientOwner,
+      clientRepoName,
+      destBranch,
+    ))
+  ) {
+    // Create the new branch from head_sha. The fixed files are made from the
+    // tree of head_sha, so the branch has only the fix and merging it doesn't
+    // revert changes pushed after the workflow run.
+    // So the workflow run branch may have advanced, but head_sha must still
+    // be a recent commit of the branch.
+    await validateRecentHeadSHA(clientOctokit, {
+      owner: clientOwner,
+      repo: clientRepoName,
+      branchName: data.branch,
+      tipSHA: branch.commit.sha,
+      runSHA: data.sha,
+      createdAt: data.createdAt,
+      now: new Date(),
+    });
+    // If the branch is created after this check, the push fails unless it's
+    // a fast forward, as the ref isn't force-updated
+    outputs.setBaseSHA(data.sha);
+  } else {
+    // Reject a request for an old workflow run, which could revert changes
+    // pushed after it. head_sha isn't a commit of the existing destination
+    // branch, so it can't be used as the parent of the commit as in the
+    // default case.
+    validateHeadSHA(data.branch, branch.commit.sha, data.sha);
+  }
 
   // Read YAML config to push a commit to other repositories and branches
   const config = readConfig();
@@ -1170,6 +1201,151 @@ export const getPullRequestOfWorkflowRun = async (
 };
 
 /**
+ * Returns whether the branch exists.
+ * The Get a reference API matches the ref exactly, while the Get a branch API
+ * redirects a renamed branch to the new one.
+ */
+export const branchExists = async (
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  branch: string,
+): Promise<boolean> => {
+  try {
+    await octokit.rest.git.getRef({ owner, repo, ref: `heads/${branch}` });
+    return true;
+  } catch (e) {
+    if (
+      typeof e === "object" &&
+      e !== null &&
+      "status" in e &&
+      e.status === 404
+    ) {
+      return false;
+    }
+    // Fail rather than treat the branch as missing, which loosens the check
+    throw e;
+  }
+};
+
+/** The maximum age of a client workflow run whose branch has advanced */
+export const maxRunAgeMs = 6 * 60 * 60 * 1000;
+
+/**
+ * The maximum number of commits from head_sha to the latest commit of the
+ * branch. The Compare two commits API returns up to 250 commits without
+ * pagination.
+ */
+export const maxAheadBy = 250;
+
+/**
+ * Fails unless the client workflow run was created within maxRunAgeMs.
+ * created_at doesn't change when the workflow run is re-run.
+ */
+export const validateRunAge = (createdAt: string, now: Date): void => {
+  const created = new Date(createdAt).getTime();
+  if (!createdAt || Number.isNaN(created)) {
+    throw new Error(
+      `The creation time of the client workflow run is invalid: ${createdAt || "(empty)"}`,
+    );
+  }
+  if (now.getTime() - created > maxRunAgeMs) {
+    throw new Error(
+      `The client workflow run must have been created within ${maxRunAgeMs / 3600000} hours if its branch has advanced, but it was created at ${createdAt}`,
+    );
+  }
+};
+
+export type Comparison = {
+  status: string;
+  ahead_by: number;
+  behind_by: number;
+  commits: { sha: string; parents: { sha: string }[] }[];
+};
+
+/**
+ * Fails unless runSHA is on the first-parent history of tipSHA within
+ * maxAheadBy commits.
+ * comparison is the result of comparing runSHA (base) with tipSHA (head).
+ */
+export const validateFirstParent = (
+  comparison: Comparison,
+  tipSHA: string,
+  runSHA: string,
+): void => {
+  if (comparison.status !== "ahead" || comparison.behind_by !== 0) {
+    throw new Error(
+      `The head commit ${runSHA} of the client workflow run must be an ancestor of the latest commit ${tipSHA} of the branch, but the comparison status is ${comparison.status}`,
+    );
+  }
+  if (
+    comparison.ahead_by > maxAheadBy ||
+    comparison.commits.length !== comparison.ahead_by
+  ) {
+    throw new Error(
+      `The head commit ${runSHA} of the client workflow run must be within ${maxAheadBy} commits of the latest commit ${tipSHA} of the branch, but it's ${comparison.ahead_by} commits behind`,
+    );
+  }
+  const commits = new Map(comparison.commits.map((c) => [c.sha, c]));
+  let cur = commits.get(tipSHA);
+  while (cur) {
+    const parent = cur.parents[0]?.sha;
+    if (!parent) {
+      break;
+    }
+    if (parent === runSHA) {
+      return;
+    }
+    cur = commits.get(parent);
+  }
+  throw new Error(
+    `The head commit ${runSHA} of the client workflow run must be on the first-parent history of the branch`,
+  );
+};
+
+export type RecentHeadSHAParams = {
+  owner: string;
+  repo: string;
+  branchName: string;
+  /** The latest commit of the branch */
+  tipSHA: string;
+  /** head_sha of the client workflow run */
+  runSHA: string;
+  /** created_at of the client workflow run */
+  createdAt: string;
+  now: Date;
+};
+
+/**
+ * Fails unless the client workflow run is for the latest commit of its branch,
+ * or for a commit on the first-parent history of the branch within maxAheadBy
+ * commits and created within maxRunAgeMs.
+ */
+export const validateRecentHeadSHA = async (
+  octokit: Octokit,
+  params: RecentHeadSHAParams,
+): Promise<void> => {
+  if (!params.runSHA) {
+    throw new Error("The head commit of the client workflow run is empty");
+  }
+  if (params.tipSHA === params.runSHA) {
+    return;
+  }
+  core.info(
+    `The branch ${params.branchName} has advanced from ${params.runSHA} to ${params.tipSHA} since the client workflow run`,
+  );
+  // Check the age first to avoid an API call for an old workflow run
+  validateRunAge(params.createdAt, params.now);
+  // Don't pass pagination parameters, so up to 250 commits are returned
+  const { data } = await octokit.rest.repos.compareCommitsWithBasehead({
+    owner: params.owner,
+    repo: params.repo,
+    basehead: `${params.runSHA}...${params.tipSHA}`,
+  });
+  validateFirstParent(data, params.tipSHA, params.runSHA);
+};
+
+/**
  * Fails unless the client workflow run is for the latest commit of its branch.
  */
 export const validateHeadSHA = (
@@ -1478,6 +1654,8 @@ type Data = {
    */
   pullRequest?: ApiPullRequest;
   workflowName: string;
+  /** created_at of the workflow run, which doesn't change on re-runs */
+  createdAt: string;
   runId: number;
   outputs: Output;
   metadata: Metadata;
@@ -1553,6 +1731,7 @@ export const prepare = async (
       // The pull request in the metadata file can't be validated
       pullRequest: undefined,
       workflowName: "",
+      createdAt: "",
       outputs,
       metadata,
       artifactDir,
@@ -1581,6 +1760,7 @@ export const prepare = async (
     headRepository: wr.head_repository?.full_name ?? "",
     pullRequest,
     workflowName: wr.name ?? "",
+    createdAt: wr.created_at,
     outputs,
     metadata,
     artifactDir,
