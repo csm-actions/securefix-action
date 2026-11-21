@@ -32,6 +32,7 @@ import {
   validateRunAge,
   validateFirstParent,
   validateRecentHeadSHA,
+  validateClientHead,
   type Comparison,
 } from "./prepare";
 
@@ -723,6 +724,96 @@ describe("validateRecentHeadSHA", () => {
     await expect(
       validateRecentHeadSHA(octokit, { ...params, runSHA: "" }),
     ).rejects.toThrow("The head commit of the client workflow run is empty");
+  });
+});
+
+describe("validateClientHead", () => {
+  const newOctokit = (exists: boolean) => {
+    const getRef = vi.fn(async () => {
+      if (exists) {
+        return { data: {} };
+      }
+      throw Object.assign(new Error("Not Found"), { status: 404 });
+    });
+    const compare = vi.fn(async () => ({
+      data: {
+        status: "ahead",
+        ahead_by: 1,
+        behind_by: 0,
+        commits: [{ sha: "tip", parents: [{ sha: "run" }] }],
+      },
+    }));
+    return {
+      getRef,
+      compare,
+      octokit: {
+        rest: {
+          git: { getRef },
+          repos: { compareCommitsWithBasehead: compare },
+        },
+      } as unknown as Octokit,
+    };
+  };
+  const params = {
+    clientRepo: "owner/repo",
+    destRepo: "owner/repo",
+    destBranch: "follow-up",
+    branchName: "main",
+    tipSHA: "tip",
+    runSHA: "run",
+    createdAt: "2026-01-01T00:00:00Z",
+    now: new Date("2026-01-01T01:00:00Z"),
+  };
+
+  it("creates a new branch from head_sha even if the branch has advanced", async () => {
+    const { getRef, compare, octokit } = newOctokit(false);
+    expect(await validateClientHead(octokit, params)).toBe("run");
+    expect(getRef).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      ref: "heads/follow-up",
+    });
+    expect(compare).toHaveBeenCalled();
+  });
+
+  it("rejects an old workflow run for a new branch", async () => {
+    const { octokit } = newOctokit(false);
+    await expect(
+      validateClientHead(octokit, {
+        ...params,
+        now: new Date("2026-01-01T07:00:00Z"),
+      }),
+    ).rejects.toThrow("within 6 hours");
+  });
+
+  it("requires the latest commit for an existing branch", async () => {
+    const { compare, octokit } = newOctokit(true);
+    await expect(validateClientHead(octokit, params)).rejects.toThrow(
+      "The client workflow run must be for the latest commit tip of the branch main, but got run",
+    );
+    expect(compare).not.toHaveBeenCalled();
+  });
+
+  it("doesn't return head_sha for an existing branch", async () => {
+    const { octokit } = newOctokit(true);
+    expect(
+      await validateClientHead(octokit, { ...params, runSHA: "tip" }),
+    ).toBeUndefined();
+  });
+
+  it("requires the latest commit for another repository", async () => {
+    const { getRef, octokit } = newOctokit(false);
+    await expect(
+      validateClientHead(octokit, { ...params, destRepo: "owner/other" }),
+    ).rejects.toThrow("The client workflow run must be for the latest commit");
+    expect(getRef).not.toHaveBeenCalled();
+    expect(
+      await validateClientHead(octokit, {
+        ...params,
+        destRepo: "owner/other",
+        runSHA: "tip",
+      }),
+    ).toBeUndefined();
   });
 });
 

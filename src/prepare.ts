@@ -853,38 +853,18 @@ export const validateRepository = async (data: Data): Promise<Output> => {
   if (!branch.protected) {
     throw new Error("the workflow run head branch must be protected");
   }
-  if (
-    destRepo === clientRepo &&
-    !(await branchExists(
-      clientOctokit,
-      clientOwner,
-      clientRepoName,
-      destBranch,
-    ))
-  ) {
-    // Create the new branch from head_sha. The fixed files are made from the
-    // tree of head_sha, so the branch has only the fix and merging it doesn't
-    // revert changes pushed after the workflow run.
-    // So the workflow run branch may have advanced, but head_sha must still
-    // be a recent commit of the branch.
-    await validateRecentHeadSHA(clientOctokit, {
-      owner: clientOwner,
-      repo: clientRepoName,
-      branchName: data.branch,
-      tipSHA: branch.commit.sha,
-      runSHA: data.sha,
-      createdAt: data.createdAt,
-      now: new Date(),
-    });
-    // If the branch is created after this check, the push fails unless it's
-    // a fast forward, as the ref isn't force-updated
-    outputs.setBaseSHA(data.sha);
-  } else {
-    // Reject a request for an old workflow run, which could revert changes
-    // pushed after it. head_sha isn't a commit of the existing destination
-    // branch, so it can't be used as the parent of the commit as in the
-    // default case.
-    validateHeadSHA(data.branch, branch.commit.sha, data.sha);
+  const baseSHA = await validateClientHead(clientOctokit, {
+    clientRepo,
+    destRepo,
+    destBranch,
+    branchName: data.branch,
+    tipSHA: branch.commit.sha,
+    runSHA: data.sha,
+    createdAt: data.createdAt,
+    now: new Date(),
+  });
+  if (baseSHA) {
+    outputs.setBaseSHA(baseSHA);
   }
 
   // Read YAML config to push a commit to other repositories and branches
@@ -1198,6 +1178,63 @@ export const getPullRequestOfWorkflowRun = async (
     return undefined;
   }
   return pr;
+};
+
+export type ClientHeadParams = {
+  /** The canonical full name of the client repository */
+  clientRepo: string;
+  /** The destination repository resolved by resolveDestRepository */
+  destRepo: string;
+  destBranch: string;
+  /** The branch of the client workflow run */
+  branchName: string;
+  /** The latest commit of the branch of the client workflow run */
+  tipSHA: string;
+  /** head_sha of the client workflow run */
+  runSHA: string;
+  /** created_at of the client workflow run */
+  createdAt: string;
+  now: Date;
+};
+
+/**
+ * Validates head_sha of the client workflow run when the commit is pushed to
+ * another repository or branch.
+ * Returns the commit on top of which the commit is created, if any.
+ */
+export const validateClientHead = async (
+  octokit: Octokit,
+  params: ClientHeadParams,
+): Promise<string | undefined> => {
+  const { owner, repo } = splitRepository(params.clientRepo);
+  if (
+    params.destRepo === params.clientRepo &&
+    !(await branchExists(octokit, owner, repo, params.destBranch))
+  ) {
+    // Create the new branch from head_sha. The fixed files are made from the
+    // tree of head_sha, so the branch has only the fix and merging it doesn't
+    // revert changes pushed after the workflow run.
+    // So the workflow run branch may have advanced, but head_sha must still
+    // be a recent commit of the branch.
+    await validateRecentHeadSHA(octokit, {
+      owner,
+      repo,
+      branchName: params.branchName,
+      tipSHA: params.tipSHA,
+      runSHA: params.runSHA,
+      createdAt: params.createdAt,
+      now: params.now,
+    });
+    // If the branch is created after this check, the push fails unless it's
+    // a fast forward, as the ref isn't force-updated
+    return params.runSHA;
+  }
+  // Reject a request for an old workflow run, which could revert changes
+  // pushed after it. head_sha isn't a commit of the existing destination
+  // branch, so it can't be used as the parent of the commit as in the default
+  // case.
+  validateHeadSHA(params.branchName, params.tipSHA, params.runSHA);
+  return undefined;
 };
 
 /**

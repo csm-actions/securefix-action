@@ -60,7 +60,7 @@ In this case, the request is accepted even if the client workflow run's branch h
 
 - `head_sha` is on the first-parent history of the branch
 - `head_sha` is within 250 commits of the latest commit of the branch
-- The client workflow run was created within 6 hours. It doesn't change when the client workflow run is re-run
+- The client workflow run was created within 6 hours when the server workflow processes the request. The time includes waiting for jobs and the server workflow. The creation time doesn't change when the client workflow run is re-run
 
 So a request for an old client workflow run which meets them is also accepted.
 
