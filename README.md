@@ -22,19 +22,6 @@ It achieves a server/client architecture using GitHub Actions by unique approach
 - [Google NotebookLM](https://notebooklm.google.com/notebook/558f0a54-6ff2-4d3d-887d-427b3e0d2b13)
 - [DeepWiki](https://deepwiki.com/csm-actions/securefix-action)
 
-## :rocket: Recent Important Updates
-
-- [v0.5.6 (2026-03)](https://github.com/csm-actions/securefix-action/releases/tag/v0.5.6)
-  - :bug: [Fix a bug that client fails when some files are deleted](https://github.com/csm-actions/securefix-action/issues/559)
-  - 💪 [Support passing custom parameters from client to server to customize server workflow](https://github.com/csm-actions/securefix-action/pull/564)
-- :bug: [v0.5.5 (2026-02) Fix a bug that Git Submodules are broken](https://github.com/csm-actions/securefix-action/releases/tag/v0.5.5)
-- :warning: [v0.5.3 (2026-01) pull_request.base_branches in configuration files were abandoned](https://github.com/csm-actions/securefix-action/releases/tag/v0.5.3)
-- 💪 [v0.4.2 (2025-12) You can write Configuration files more simply](https://github.com/csm-actions/securefix-action/releases/tag/v0.4.2)
-- :rocket: [v0.4.1 (2025-11) The performance was drastically improved](https://github.com/csm-actions/securefix-action/releases/tag/v0.4.1)
-- :warning: [v0.3.0 (2025-10) If the repository or branch is changed, the source branch must be protected for security.](https://github.com/csm-actions/securefix-action/releases/tag/v0.3.0)
-
-See also [Release Notes](https://github.com/csm-actions/securefix-action/releases).
-
 ## Features
 
 - 💪 Increase the developer productivity by fixing code in CI
