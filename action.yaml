@@ -308,8 +308,10 @@ outputs:
   base_sha:
     description: |
       The head commit of the client workflow run (head_sha).
-      This is set only when the commit is pushed to the same repository and branch as the client workflow run.
+      This is set when the commit is pushed to the same repository and branch as the client workflow run.
       The commit action creates the commit on top of it, so the push fails if the branch has been updated since the client workflow run.
+      This is also set when the commit is pushed to a branch of the client repository which doesn't exist.
+      The commit action creates the commit on top of it and creates the branch from the commit.
 runs:
   using: node24
   main: dist/index.js

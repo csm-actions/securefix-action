@@ -51,6 +51,21 @@ jobs:
     branch: foo
 ```
 
+The branch of the client workflow run must be protected.
+If the client workflow run's branch has been updated since the client workflow run started, the request is rejected, except when the commit is pushed to a branch of the client repository which doesn't exist.
+
+From v0.8.0, a branch of the client repository which doesn't exist is created from the head commit of the client workflow run (`head_sha`), not from the latest commit of the default branch.
+The fixed files are made from `head_sha`, so the branch has only the fix, and merging it doesn't revert changes pushed after the client workflow run.
+In this case, the request is accepted even if the client workflow run's branch has been updated, as long as all of the following are met:
+
+- `head_sha` is on the first-parent history of the branch
+- `head_sha` is within 250 commits of the latest commit of the branch
+- The client workflow run was created within 6 hours when the server workflow processes the request. The time includes waiting for jobs and the server workflow. The creation time doesn't change when the client workflow run is re-run
+
+So a request for an old client workflow run which meets them is also accepted.
+
+If the commit is pushed to an existing branch or another repository, the client workflow run must be for the latest commit of its branch.
+
 ### Create a pull request
 
 ```yaml
